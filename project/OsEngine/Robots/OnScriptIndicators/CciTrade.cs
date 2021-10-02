@@ -6,7 +6,7 @@ using OsEngine.Indicators;
 using OsEngine.OsTrader.Panels.Tab;
 using OsEngine.OsTrader.Panels;
 
-/// <summary>
+/// <summary>test
 /// Counter Trend Strategy Based on CCI Indicator. Max - 3 poses
 /// Контртрендовая стратегия на основе индикатора CCI. Входит в три позиции
 /// </summary>
