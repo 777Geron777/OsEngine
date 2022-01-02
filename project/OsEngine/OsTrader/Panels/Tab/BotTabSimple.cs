@@ -447,7 +447,14 @@ namespace OsEngine.OsTrader.Panels.Tab
         /// alerts wizard /
         /// мастер Алертов
         /// </summary>
-        private AlertMaster _alerts;
+        public AlertMaster _alerts;
+
+        public event Action AlertSignalEvent;
+
+        public ChartCandleMaster GetChartMaster()
+        {
+            return _chartMaster;
+        }
 
         // properties / свойства 
 
@@ -1157,7 +1164,8 @@ namespace OsEngine.OsTrader.Panels.Tab
                 _connector.ServerType == ServerType.FTX ||
                 _connector.ServerType == ServerType.BinanceFutures ||
                 _connector.ServerType == ServerType.Transaq ||
-                _connector.ServerType == ServerType.Tester
+                _connector.ServerType == ServerType.Tester ||
+                _connector.ServerType == ServerType.BitMex
                 )
             {
                 return true;
@@ -3290,6 +3298,11 @@ namespace OsEngine.OsTrader.Panels.Tab
                     return;
                 }
 
+                if(AlertSignalEvent != null)
+                {
+                    AlertSignalEvent();
+                }
+
                 if (signal.SignalType == SignalType.CloseAll)
                 {
                     SetNewLogMessage(Securiti.Name + OsLocalization.Trader.Label67 +
@@ -3673,7 +3686,7 @@ namespace OsEngine.OsTrader.Panels.Tab
                 MarketDepthUpdateEvent(marketDepth);
             }
 
-            if (StartProgram != StartProgram.IsOsTrader)
+            if (StartProgram != StartProgram.IsOsTrader )
             {
                 if (marketDepth.Asks == null || marketDepth.Asks.Count == 0 ||
                     marketDepth.Bids == null || marketDepth.Bids.Count == 0)
@@ -3691,13 +3704,13 @@ namespace OsEngine.OsTrader.Panels.Tab
                         {
                             continue;
                         }
-                        // CheckStop(openPositions[i], marketDepth.Asks[0].Price);
+                         CheckStop(openPositions[i], marketDepth.Asks[0].Price);
 
                         if (openPositions.Count <= i)
                         {
                             continue;
                         }
-                        //CheckStop(openPositions[i], marketDepth.Bids[0].Price);
+                        CheckStop(openPositions[i], marketDepth.Bids[0].Price);
                     }
                 }
             }
