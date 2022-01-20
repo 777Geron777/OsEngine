@@ -66,10 +66,12 @@ namespace OsEngine.Market.Servers.Tester
             ComboBoxDataType.Visibility = Visibility.Hidden;
             ComboBoxSets.Visibility = Visibility.Hidden;
             Height = 130;
-            Width = 570;
+            Width = 670;
 
             _server.TestingStartEvent += _server_TestingStartEvent;
             _server.SecuritiesChangeEvent += _server_SecuritiesChangeEvent;
+            _server.TestRegimeChangeEvent += _server_TestRegimeChangeEvent;
+            _server.TestingFastEvent += _server_TestingFastEvent;
 
             CreateGrid();
             PaintGrid();
@@ -198,6 +200,9 @@ namespace OsEngine.Market.Servers.Tester
             CheckBoxExecutionOrderTuch.Content = OsLocalization.Market.Label37;
             CheckBoxOnOffMarketPortfolio.Content = OsLocalization.Market.Label39;
             Label40.Content = OsLocalization.Market.Label40;
+
+            ButtonNextPos.Content = OsLocalization.Market.Label62;
+            ButtonGoTo.Content = OsLocalization.Market.Label63;
 
         }
 
@@ -331,7 +336,7 @@ namespace OsEngine.Market.Servers.Tester
             }
         }
 
-// server/сервер
+        // server/сервер
 
         /// <summary>
         /// test server
@@ -371,6 +376,7 @@ namespace OsEngine.Market.Servers.Tester
             _chartActive = true;
             CreateChart();
             PaintGrid();
+            PaintPausePlayButtonByActualServerState();
         }
 
         /// <summary>
@@ -382,30 +388,84 @@ namespace OsEngine.Market.Servers.Tester
             PaintGrid();
         }
 
+        private void _server_TestRegimeChangeEvent(TesterRegime regime)
+        {
+            PaintPausePlayButtonByActualServerState();
+        }
+
+        private void _server_TestingFastEvent()
+        {
+            PaintPausePlayButtonByActualServerState();
+        }
+
         // button handlers / обработчики кнопок
 
         private void buttonFast_Click(object sender, RoutedEventArgs e)
         {
-            _server.TestingFast();
+            _server.TestingFastOnOff();
         }
 
         private void buttonPausePlay_Click(object sender, RoutedEventArgs e)
         {
             _server.TestingPausePlay();
+        }
 
-            if (ButtonPausePlay.Content.ToString() == "| |")
+        private void PaintPausePlayButtonByActualServerState()
+        {
+            if(ButtonPausePlay.Dispatcher.CheckAccess() == false)
             {
-                ButtonPausePlay.Content = ">";
+                ButtonPausePlay.Dispatcher.Invoke(PaintPausePlayButtonByActualServerState);
+                return;
             }
-            else
+
+            TesterRegime regime = _server.TesterRegime;
+
+            if (regime == TesterRegime.Play ||
+                regime == TesterRegime.PlusOne)
             {
                 ButtonPausePlay.Content = "| |";
+            }
+            else if(regime == TesterRegime.Pause)
+            {
+                ButtonPausePlay.Content = ">";
             }
         }
 
         private void buttonNextCandle_Click(object sender, RoutedEventArgs e)
         {
             _server.TestingPlusOne();
+        }
+
+        private void ButtonNextPos_Click(object sender, RoutedEventArgs e)
+        {
+            _server.ToNextPositionActionTestingFast();
+        }
+
+        private GoToUi _goToUi;
+
+        private void ButtonGoTo_Click(object sender, RoutedEventArgs e)
+        {
+           
+            if(_goToUi == null)
+            {
+                _goToUi = new GoToUi(_server.TimeStart, _server.TimeEnd, _server.TimeNow);
+                _goToUi.Show();
+                _goToUi.SetLocation(this.Left + this.Width, this.Top);
+
+                _goToUi.Closing += (a,b) =>
+                {
+                    if(_goToUi.IsChange)
+                    {
+                        _server.ToDateTimeTestingFast(_goToUi.TimeGoTo);
+                    }
+                    
+                    _goToUi = null;
+                };
+            }
+            else
+            {
+                _goToUi.Activate();
+            }
         }
 
         private void buttonStartTest_Click(object sender, RoutedEventArgs e)
@@ -423,8 +483,7 @@ namespace OsEngine.Market.Servers.Tester
             {
                 // if need to expand the form/ если нужно раскрывать форму
                 Height = 600;
-                Width = 835;
-                MinWidth = 835;
+                Width = 815;
                 HostSecurities.Visibility = Visibility.Visible;
                 Host.Visibility = Visibility.Visible;
                 SliderFrom.Visibility = Visibility.Visible;
@@ -454,8 +513,7 @@ namespace OsEngine.Market.Servers.Tester
                 ComboBoxDataType.Visibility = Visibility.Hidden;
                 ComboBoxSets.Visibility = Visibility.Hidden;
                 Height = 130;
-                Width = 570;
-                MinWidth = 570;
+                Width = 670;
             }
         }
 
@@ -845,7 +903,6 @@ namespace OsEngine.Market.Servers.Tester
             SliderTo.ValueChanged += SliderTo_ValueChanged;
         }
 
-
         private void _myGridView_CellValueChanged(object sender, DataGridViewCellEventArgs e)
         {
             List<SecurityTester> securities = _server.SecuritiesTester;
@@ -884,7 +941,7 @@ namespace OsEngine.Market.Servers.Tester
 
             string str = row.Cells[1].Value.ToString();
 
-            Security security = _server.GetSecurityForName(str);
+            Security security = _server.GetSecurityForName(str,"");
 
             if (security == null)
             {

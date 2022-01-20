@@ -696,6 +696,9 @@
     <Compile Include="Market\Servers\SmartCom\SmartComServerUi.xaml.cs">
       <DependentUpon>SmartComServerUi.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Market\Servers\Tester\GoToUi.xaml.cs">
+      <DependentUpon>GoToUi.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Market\Servers\Tester\TesterServer.cs" />
     <Compile Include="Market\Servers\Tester\TesterServerUi.xaml.cs">
       <DependentUpon>TesterServerUi.xaml</DependentUpon>
@@ -799,6 +802,9 @@
     <Compile Include="OsMiner\Patterns\PatternVolume.cs" />
     <Compile Include="OsOptimizer\OptEntity\AsyncBotFactory.cs" />
     <Compile Include="OsOptimizer\OptEntity\ChartPainterLine.cs" />
+    <Compile Include="OsOptimizer\OptEntity\OptimizerBotParametersSimpleUi.xaml.cs">
+      <DependentUpon>OptimizerBotParametersSimpleUi.xaml</DependentUpon>
+    </Compile>
     <Compile Include="OsOptimizer\OptEntity\WalkForwardPeriodsPainter.cs" />
     <Compile Include="OsOptimizer\OptimizerExecutor.cs" />
     <Compile Include="OsOptimizer\OptimizerMaster.cs" />
@@ -1251,6 +1257,10 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="Market\Servers\Tester\GoToUi.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Market\Servers\Tester\TesterServerUi.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -1352,6 +1362,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="OsData\OsDataUi.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="OsOptimizer\OptEntity\OptimizerBotParametersSimpleUi.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

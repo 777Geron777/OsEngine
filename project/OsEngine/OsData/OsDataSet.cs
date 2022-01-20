@@ -439,6 +439,7 @@ namespace OsEngine.OsData
                     SecurityToLoad record = new SecurityToLoad();
                     record.Name = ui.SelectedSecurity[i].Name;
                     record.Id = ui.SelectedSecurity[i].NameId;
+                    record.Class = ui.SelectedSecurity[i].NameClass;
 
                     if (SecuritiesNames.Find(s => s.Id == record.Id) == null)
                     {
@@ -845,7 +846,7 @@ namespace OsEngine.OsData
                 {
                     SendNewLogMessage(OsLocalization.Data.Label28 + SecuritiesNames[i].Id, LogMessageType.System);
                     
-                    while (_myServer.GetTickDataToSecurity(SecuritiesNames[i].Id, TimeStart, TimeEnd, GetActualTimeToTrade("Data\\" + SetName + "\\" + SecuritiesNames[i].Name.RemoveExcessFromSecurityName() + "\\Tick"), NeadToUpdate) == false)
+                    while (_myServer.GetTickDataToSecurity(SecuritiesNames[i].Id, SecuritiesNames[i].Class, TimeStart, TimeEnd, GetActualTimeToTrade("Data\\" + SetName + "\\" + SecuritiesNames[i].Name.RemoveExcessFromSecurityName() + "\\Tick"), NeadToUpdate) == false)
                     {
                         await Task.Delay(5000);
                     }
@@ -875,7 +876,7 @@ namespace OsEngine.OsData
                     id = loadSec.Name;
                 }
 
-                series = _myServer.GetCandleDataToSecurity(id, timeFrameBuilder, TimeStart,
+                series = _myServer.GetCandleDataToSecurity(id, loadSec.Class, timeFrameBuilder, TimeStart,
                         TimeEnd, GetActualTimeToCandle("Data\\" + SetName + "\\" + loadSec.Name.RemoveExcessFromSecurityName() + "\\" + timeFrame), NeadToUpdate);
 
                 if (series != null)
@@ -903,7 +904,7 @@ namespace OsEngine.OsData
                 timeFrameBuilder.TimeFrame = timeFrame;
                 timeFrameBuilder.CandleMarketDataType = CandleMarketDataType.MarketDepth;
 
-                series = _myServer.StartThisSecurity(loadSec.Name, timeFrameBuilder);
+                series = _myServer.StartThisSecurity(loadSec.Name, timeFrameBuilder,loadSec.Class);
 
                 if (series != null)
                 {
@@ -1049,7 +1050,7 @@ namespace OsEngine.OsData
                 {
                     if (_myServer.ServerType != ServerType.Finam)
                     {
-                        List<Trade> trades = _myServer.GetAllTradesToSecurity(_myServer.GetSecurityForName(SecuritiesNames[i].Name));
+                        List<Trade> trades = _myServer.GetAllTradesToSecurity(_myServer.GetSecurityForName(SecuritiesNames[i].Name,""));
 
                         if (trades == null ||
                             trades.Count == 0)
@@ -1150,7 +1151,7 @@ namespace OsEngine.OsData
                         continue;
                     }
 
-                    Security sec = _myServer.GetSecurityForName(SecuritiesNames[i].Name);
+                    Security sec = _myServer.GetSecurityForName(SecuritiesNames[i].Name,"");
 
                     string nameSecurityToSave = sec.NameFull.RemoveExcessFromSecurityName();
 
@@ -2312,6 +2313,8 @@ namespace OsEngine.OsData
         public string Name;
 
         public string Id;
+
+        public string Class;
 
         public void Load(string saveStr)
         {

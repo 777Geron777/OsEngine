@@ -1014,13 +1014,31 @@ namespace OsEngine.Market.Servers.AstsBridge
         /// take instruments as class Security by name
         /// взять инструмент в виде класса Security, по имени инструмента 
         /// </summary>
-        public Security GetSecurityForName(string name)
+        public Security GetSecurityForName(string securityName, string securityClass)
         {
             if (_securities == null)
             {
                 return null;
             }
-            return _securities.Find(securiti => securiti.Name == name);
+
+            for (int i = 0; i < _securities.Count; i++)
+            {
+                if (_securities[i].Name == securityName &&
+                    _securities[i].NameClass == securityClass)
+                {
+                    return _securities[i];
+                }
+            }
+
+            for (int i = 0; i < _securities.Count; i++)
+            {
+                if (_securities[i].Name == securityName)
+                {
+                    return _securities[i];
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -1096,10 +1114,11 @@ namespace OsEngine.Market.Servers.AstsBridge
         /// start uploading data on instrument
         /// Начать выгрузку данных по инструменту. 
         /// </summary>
-        /// <param name="namePaper"> security name for running / имя бумаги которую будем запускать</param>
+        /// <param name="securityName"> security name for running / имя бумаги которую будем запускать</param>
         /// <param name="timeFrameBuilder"> object that has data about timeframe / объект несущий в себе данные о таймФрейме</param>
+        /// <param name="securityClass"> security class for running / класс бумаги которую будем запускать</param>
         /// <returns> returns CandleSeries if successful else null / В случае удачи возвращает CandleSeries в случае неудачи null</returns>
-        public CandleSeries StartThisSecurity(string namePaper, TimeFrameBuilder timeFrameBuilder)
+        public CandleSeries StartThisSecurity(string securityName, TimeFrameBuilder timeFrameBuilder, string securityClass)
         {
             try
             {
@@ -1111,7 +1130,7 @@ namespace OsEngine.Market.Servers.AstsBridge
                 // one by one / дальше по одному
                 lock (_lockerStarter)
                 {
-                    if (namePaper == "")
+                    if (securityName == "")
                     {
                         return null;
                     }
@@ -1138,7 +1157,8 @@ namespace OsEngine.Market.Servers.AstsBridge
 
                     for (int i = 0; _securities != null && i < _securities.Count; i++)
                     {
-                        if (_securities[i].Name == namePaper)
+                        if (_securities[i].Name == securityName &&
+                            _securities[i].NameClass == securityClass)
                         {
                             security = _securities[i];
                             break;
@@ -1193,14 +1213,14 @@ namespace OsEngine.Market.Servers.AstsBridge
             _candleSeriesToSend.Enqueue(series);
         }
 
-        public CandleSeries GetCandleDataToSecurity(string namePaper, TimeFrameBuilder timeFrameBuilder, DateTime startTime,
-            DateTime endTime, DateTime actualTime, bool neadToUpdate)
+        public CandleSeries GetCandleDataToSecurity(string securityName, string securityClass, TimeFrameBuilder timeFrameBuilder,
+            DateTime startTime, DateTime endTime, DateTime actualTime, bool neadToUpdate)
         {
-            return StartThisSecurity(namePaper, timeFrameBuilder);
+            return StartThisSecurity(securityName, timeFrameBuilder, securityName);
         }
 
-        public bool GetTickDataToSecurity(string namePaper, DateTime startTime, DateTime endTime, DateTime actualTime,
-            bool neadToUpdete)
+        public bool GetTickDataToSecurity(string securityName, string securityClass, DateTime startTime, 
+            DateTime endTime, DateTime actualTime, bool neadToUpdete)
         {
             return true;
         }
@@ -1238,7 +1258,7 @@ namespace OsEngine.Market.Servers.AstsBridge
             {
                 Bid = myDepth.Asks[0].Price,
                 Ask = myDepth.Bids[0].Price,
-                Security = GetSecurityForName(myDepth.SecurityNameCode)
+                Security = GetSecurityForName(myDepth.SecurityNameCode,"")
             });
         }
 

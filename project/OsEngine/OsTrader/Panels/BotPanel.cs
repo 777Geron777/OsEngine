@@ -154,7 +154,7 @@ namespace OsEngine.OsTrader.Panels
             }
         }
 
-        private BotPanelChartUi _chartUi;
+        public BotPanelChartUi _chartUi;
 
         void _chartUi_Closed(object sender, EventArgs e)
         {
@@ -410,6 +410,22 @@ namespace OsEngine.OsTrader.Panels
             catch (Exception error)
             {
                 SendNewLogMessage(error.ToString(), LogMessageType.Error);
+            }
+        }
+
+        /// <summary>
+        /// сдвинуть представление чарта вправо до конца. Нужно для тестера. Сдвигается если выбрана вкладка BotTabSimple
+        /// </summary>
+        public void MoveChartToTheRight()
+        {
+            if(ActivTab == null)
+            {
+                return;
+            }
+
+            if(ActivTab.GetType().Name == "BotTabSimple")
+            {
+                ((BotTabSimple)ActivTab).MoveChartToTheRight();
             }
         }
 

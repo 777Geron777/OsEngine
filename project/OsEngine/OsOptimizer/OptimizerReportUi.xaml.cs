@@ -1,26 +1,19 @@
-﻿using OsEngine.Entity;
+﻿/*
+ * Your rights to use code governed by this license https://github.com/AlexWan/OsEngine/blob/master/LICENSE
+ * Ваши права на использование кода регулируются данной лицензией http://o-s-a.net/doc/license_simple_engine.pdf
+*/
+
+using OsEngine.Entity;
 using OsEngine.Language;
-using OsEngine.Market.Servers.Tester;
 using OsEngine.OsTrader.Panels;
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Forms;
 using OsEngine.Logging;
-using OsEngine.Robots;
 using MessageBox = System.Windows.MessageBox;
-using ProgressBar = System.Windows.Controls.ProgressBar;
 using OsEngine.OsOptimizer.OptEntity;
-using System.Drawing;
-using System.Globalization;
 using System.IO;
-using System.Linq;
-using System.Text;
-
-using System.Windows.Forms.DataVisualization.Charting;
-using OsEngine.Market;
 
 namespace OsEngine.OsOptimizer
 {
@@ -36,7 +29,7 @@ namespace OsEngine.OsOptimizer
 
             _resultsCharting = new OptimizerReportCharting(
             WindowsFormsHostDependences, WindowsFormsHostColumnsResults,
-            WindowsFormsHostPieResults, ComboBoxSortDependencesResults, 
+            WindowsFormsHostPieResults, ComboBoxSortDependencesResults,
             WindowsFormsHostOutOfSampleEquity, LabelTotalProfitInOutOfSample);
 
             _resultsCharting.LogMessageEvent += _master.SendLogMessage;
@@ -52,11 +45,20 @@ namespace OsEngine.OsOptimizer
             LabelTotalProfitInOutOfSample.Content = OsLocalization.Optimizer.Label43;
             ButtonSaveInFile.Content = OsLocalization.Optimizer.Label45;
             ButtonLoadFromFile.Content = OsLocalization.Optimizer.Label46;
+
+            Title += "   " + master.StrategyName;
+            
+            if(master.TabsSimpleNamesAndTimeFrames != null &&
+                master.TabsSimpleNamesAndTimeFrames.Count == 1)
+            {
+                Title += "  " + master.TabsSimpleNamesAndTimeFrames[0].NameSecurity + "  " + master.TabsSimpleNamesAndTimeFrames[0].TimeFrame;
+            }
+            
         }
 
         public void Paint(List<OptimazerFazeReport> reports)
         {
-            if(reports == null)
+            if (reports == null)
             {
                 return;
             }
@@ -104,7 +106,7 @@ namespace OsEngine.OsOptimizer
         /// </summary>
         private void CreateTableFazes()
         {
-            _gridFazesEnd = DataGridFactory.GetDataGridView(DataGridViewSelectionMode.FullRowSelect, DataGridViewAutoSizeRowsMode.None,true);
+            _gridFazesEnd = DataGridFactory.GetDataGridView(DataGridViewSelectionMode.FullRowSelect, DataGridViewAutoSizeRowsMode.None, true);
             _gridFazesEnd.ScrollBars = ScrollBars.Vertical;
             DataGridViewTextBoxCell cell0 = new DataGridViewTextBoxCell();
             cell0.Style = _gridFazesEnd.DefaultCellStyle;
@@ -172,7 +174,7 @@ namespace OsEngine.OsOptimizer
 
             List<OptimizerFaze> fazes = new List<OptimizerFaze>();
 
-            for(int i = 0;i< _reports.Count;i++)
+            for (int i = 0; i < _reports.Count; i++)
             {
                 fazes.Add(_reports[i].Faze);
             }
@@ -236,7 +238,7 @@ namespace OsEngine.OsOptimizer
         /// </summary>
         private void CreateTableResults()
         {
-            _gridResults = DataGridFactory.GetDataGridView(DataGridViewSelectionMode.ColumnHeaderSelect, DataGridViewAutoSizeRowsMode.None,true);
+            _gridResults = DataGridFactory.GetDataGridView(DataGridViewSelectionMode.ColumnHeaderSelect, DataGridViewAutoSizeRowsMode.None, true);
             _gridResults.ScrollBars = ScrollBars.Vertical;
 
             DataGridViewTextBoxCell cell0 = new DataGridViewTextBoxCell();
@@ -319,6 +321,13 @@ namespace OsEngine.OsOptimizer
             column11.ReadOnly = true;
             column11.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
             _gridResults.Columns.Add(column11);
+
+            DataGridViewButtonColumn column12 = new DataGridViewButtonColumn();
+            column12.CellTemplate = new DataGridViewButtonCell();
+            column12.HeaderText = OsLocalization.Optimizer.Message42;
+            column12.ReadOnly = true;
+            column12.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            _gridResults.Columns.Add(column12);
 
             _gridResults.Rows.Add(null, null);
 
@@ -449,7 +458,7 @@ namespace OsEngine.OsOptimizer
 
                 //if (report.TabsReports.Count == 1)
                 //{
-                    row.Cells[0].Value = report.BotName;
+                row.Cells[0].Value = report.BotName;
                 //}
                 //else
                 //{
@@ -497,15 +506,13 @@ namespace OsEngine.OsOptimizer
                 cell11.Value = OsLocalization.Optimizer.Message40;
                 row.Cells.Add(cell11);
 
+                DataGridViewButtonCell cell12 = new DataGridViewButtonCell();
+                cell12.Value = OsLocalization.Optimizer.Message42;
+                row.Cells.Add(cell12);
+
                 _gridResults.Rows.Add(row);
 
-               /* if (report.TabsReports.Count > 1)
-                {
-                    for (int i2 = 0; i2 < report.TabsReports.Count; i2++)
-                    {
-                        _gridResults.Rows.Add(GetRowResult(report.TabsReports[i2]));
-                    }
-                }*/
+
             }
 
             _gridResults.SelectionChanged += _gridResults_SelectionChanged;
@@ -647,11 +654,19 @@ namespace OsEngine.OsOptimizer
                 return;
             }
 
-            if (e.ColumnIndex != 10)
+            if (e.ColumnIndex == 10)
             {
-                return;
+                ShowBotChartDialog(e);
             }
 
+            if (e.ColumnIndex == 11)
+            {
+                ShowParamsDialog(e);
+            }
+        }
+
+        private void ShowBotChartDialog(DataGridViewCellMouseEventArgs e)
+        {
             OptimazerFazeReport fazeReport;
 
             if (_gridFazesEnd.CurrentCell == null ||
@@ -677,6 +692,34 @@ namespace OsEngine.OsOptimizer
             BotPanel bot = _master.TestBot(fazeReport, fazeReport.Reports[e.RowIndex]);
 
             bot.ShowChartDialog();
+        }
+
+        private void ShowParamsDialog(DataGridViewCellMouseEventArgs e)
+        {
+            OptimazerFazeReport fazeReport;
+
+            if (_gridFazesEnd.CurrentCell == null ||
+              _gridFazesEnd.CurrentCell.RowIndex == 0)
+            {
+                fazeReport = _reports[0];
+            }
+            else
+            {
+                if (_gridFazesEnd.CurrentCell.RowIndex > _reports.Count)
+                {
+                    return;
+                }
+
+                fazeReport = _reports[_gridFazesEnd.CurrentCell.RowIndex];
+            }
+
+            if (e.RowIndex >= fazeReport.Reports.Count)
+            {
+                return;
+            }
+
+            OptimizerBotParametersSimpleUi ui = new OptimizerBotParametersSimpleUi(fazeReport.Reports[e.RowIndex], fazeReport, _master.StrategyName);
+            ui.Show();
         }
 
         /// <summary>
@@ -762,8 +805,8 @@ namespace OsEngine.OsOptimizer
                 SaveFileDialog myDialog = new SaveFileDialog();
 
                 string saveFileName = _master.StrategyName;
-                
-                if(_master.TabsSimpleNamesAndTimeFrames != null && _master.TabsSimpleNamesAndTimeFrames.Count != 0)
+
+                if (_master.TabsSimpleNamesAndTimeFrames != null && _master.TabsSimpleNamesAndTimeFrames.Count != 0)
                 {
                     saveFileName += "_" + _master.TabsSimpleNamesAndTimeFrames[0].NameSecurity;
                     saveFileName += "_" + _master.TabsSimpleNamesAndTimeFrames[0].TimeFrame;
@@ -771,7 +814,7 @@ namespace OsEngine.OsOptimizer
 
                 IIStrategyParameter regime = _master._optimizerExecutor._parameters.Find(p => p.Name == "Regime");
 
-                if(regime != null)
+                if (regime != null)
                 {
 
                     saveFileName += "_" + ((StrategyParameterString)regime).ValueString;
@@ -815,6 +858,8 @@ namespace OsEngine.OsOptimizer
 
         private void ButtonLoadFromFile_Click(object sender, RoutedEventArgs e)
         {
+            Title = "Optimizer Report";
+
             try
             {
                 OpenFileDialog myDialog = new OpenFileDialog();
@@ -860,6 +905,6 @@ namespace OsEngine.OsOptimizer
                 MessageBox.Show(error.ToString());
             }
         }
-        
+
     }
 }

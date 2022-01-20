@@ -554,7 +554,7 @@ namespace OsEngine.Market.Servers.Optimizer
 
                 if (security == null)
                 {
-                    return;
+                    continue;
                 }
 
                 if (security.DataType == SecurityTesterDataType.Tick)
@@ -1186,7 +1186,7 @@ namespace OsEngine.Market.Servers.Optimizer
 		/// take security as Security class by name
         /// взять бумагу в виде класса Security по названию
         /// </summary>
-        public Security GetSecurityForName(string name)
+        public Security GetSecurityForName(string securityName, string securityClass)
         {
             if (_securities == null)
             {
@@ -1195,7 +1195,7 @@ namespace OsEngine.Market.Servers.Optimizer
 
             for(int i = 0;i < _securities.Count;i++)
             {
-                if(_securities[i].Name == name)
+                if(_securities[i].Name == securityName)
                 {
                     return _securities[i];
                 }
@@ -1259,18 +1259,18 @@ namespace OsEngine.Market.Servers.Optimizer
         private object _starterLocker = new object();
 
         /// <summary>
-		/// start downloading data on instrument
+        /// start uploading data on instrument
         /// Начать выгрузку данных по инструменту. 
         /// </summary>
-        /// <param name="namePaper">security name/имя бумаги которую будем запускать</param>
-        /// <param name="timeFrameBuilder">object with timeframe/объект несущий в себе данные о таймФрейме</param>
-        /// <returns>In case of success returns CandleSeries / В случае удачи возвращает CandleSeries
-        /// в случае неудачи null / в случае неудачи null</returns>
-        public CandleSeries StartThisSecurity(string namePaper, TimeFrameBuilder timeFrameBuilder)
+        /// <param name="securityName"> security name for running / имя бумаги которую будем запускать</param>
+        /// <param name="timeFrameBuilder"> object that has data about timeframe / объект несущий в себе данные о таймФрейме</param>
+        /// <param name="securityClass"> security class for running / класс бумаги которую будем запускать</param>
+        /// <returns> returns CandleSeries if successful else null / В случае удачи возвращает CandleSeries в случае неудачи null</returns>
+        public CandleSeries StartThisSecurity(string securityName, TimeFrameBuilder timeFrameBuilder, string securityClass)
         {
             lock (_starterLocker)
             {
-                if (namePaper == "")
+                if (securityName == "")
                 {
                     return null;
                 }
@@ -1289,7 +1289,8 @@ namespace OsEngine.Market.Servers.Optimizer
 
                 for (int i = 0; i < _securities.Count; i++)
                 {
-                    if (_securities[i].Name == namePaper)
+                    if (_securities[i].Name == securityName &&
+                        _securities[i].NameClass == securityClass)
                     {
                         security = _securities[i];
                         break;
@@ -1331,18 +1332,18 @@ namespace OsEngine.Market.Servers.Optimizer
 		/// start uploading data for instrument
         /// Начать выгрузку данных по инструменту
         /// </summary>
-        public CandleSeries GetCandleDataToSecurity(string namePaper, TimeFrameBuilder timeFrameBuilder, DateTime startTime,
-            DateTime endTime, DateTime actualTime, bool neadToUpdate)
+        public CandleSeries GetCandleDataToSecurity(string securityName, string securityClass, TimeFrameBuilder timeFrameBuilder,
+            DateTime startTime, DateTime endTime, DateTime actualTime, bool neadToUpdate)
         {
-            return StartThisSecurity(namePaper, timeFrameBuilder);
+            return StartThisSecurity(securityName, timeFrameBuilder, securityClass);
         }
 
         /// <summary>
 		/// take tick data on the instrument for a certain period
         /// взять тиковые данные по инструменту за определённый период
         /// </summary>
-        public bool GetTickDataToSecurity(string namePaper, DateTime startTime, DateTime endTime, DateTime actualTime,
-            bool neadToUpdete)
+        public bool GetTickDataToSecurity(string securityName, string securityClass, 
+            DateTime startTime, DateTime endTime, DateTime actualTime, bool neadToUpdete)
         {
             return true;
         }
@@ -1466,7 +1467,7 @@ namespace OsEngine.Market.Servers.Optimizer
 
             if (NewBidAscIncomeEvent != null)
             {
-                NewBidAscIncomeEvent(candle.Close, candle.Close,GetSecurityForName(nameSecurity));
+                NewBidAscIncomeEvent(candle.Close, candle.Close,GetSecurityForName(nameSecurity,""));
             }
 
             _candleManager.SetNewCandleInSeries(candle, nameSecurity, timeFrame);
@@ -1627,7 +1628,7 @@ namespace OsEngine.Market.Servers.Optimizer
 
             if (NewBidAscIncomeEvent != null)
             {
-                NewBidAscIncomeEvent(tradesNew[tradesNew.Count - 1].Price, tradesNew[tradesNew.Count - 1].Price, GetSecurityForName(tradesNew[tradesNew.Count - 1].SecurityNameCode));
+                NewBidAscIncomeEvent(tradesNew[tradesNew.Count - 1].Price, tradesNew[tradesNew.Count - 1].Price, GetSecurityForName(tradesNew[tradesNew.Count - 1].SecurityNameCode,""));
             }
         }
 
@@ -1923,7 +1924,7 @@ namespace OsEngine.Market.Servers.Optimizer
             {
                 if (order.Side == Side.Buy)
                 {
-                    Security mySecurity = GetSecurityForName(order.SecurityNameCode);
+                    Security mySecurity = GetSecurityForName(order.SecurityNameCode,"");
 
                     if (mySecurity != null && mySecurity.PriceStep != 0)
                     {
@@ -1933,7 +1934,7 @@ namespace OsEngine.Market.Servers.Optimizer
 
                 if (order.Side == Side.Sell)
                 {
-                    Security mySecurity = GetSecurityForName(order.SecurityNameCode);
+                    Security mySecurity = GetSecurityForName(order.SecurityNameCode,"");
 
                     if (mySecurity != null && mySecurity.PriceStep != 0)
                     {

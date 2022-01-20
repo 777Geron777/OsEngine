@@ -41,7 +41,7 @@ namespace OsEngine.Market.Servers.Tester
             _logMaster.Listen(this);
             _serverConnectStatus = ServerConnectStatus.Disconnect;
             ServerStatus = ServerConnectStatus.Disconnect;
-            _testerRegime = TesterRegime.Pause;
+            TesterRegime = TesterRegime.NotActive;
             _slipageToSimpleOrder = 0;
             _slipageToStopOrder = 0;
             StartPortfolio = 1000000;
@@ -331,7 +331,7 @@ namespace OsEngine.Market.Servers.Tester
         /// </summary>
         public void TestingStart()
         {
-            _testerRegime = TesterRegime.Pause;
+            TesterRegime = TesterRegime.Pause;
             Thread.Sleep(2000);
             _serverTime = DateTime.MinValue;
 
@@ -339,10 +339,6 @@ namespace OsEngine.Market.Servers.Tester
 
             SendLogMessage(OsLocalization.Market.Message35, LogMessageType.System);
 
-            if (TestingStartEvent != null)
-            {
-                TestingStartEvent();
-            }
 
             if (_candleSeriesTesterActivate != null)
             {
@@ -399,25 +395,51 @@ namespace OsEngine.Market.Servers.Tester
 
             _dataIsActive = false;
 
-            _testerRegime = TesterRegime.Play;
+            OrdersActiv.Clear();
+
+            TesterRegime = TesterRegime.Play;
+
+            if (TestingStartEvent != null)
+            {
+                TestingStartEvent();
+            }
         }
+
+        public bool IsAlreadyStarted;
 
         /// <summary>
 		/// speed testing by hiding areas
         /// ускорить тестирование, спрятав области
         /// </summary>
-        public void TestingFast()
+        public void TestingFastOnOff()
         {
+            if(TesterRegime == TesterRegime.NotActive)
+            {
+                return;
+            }
             if (_dataIsActive == false)
             {
                 return;
             }
+
+            TesterRegime = TesterRegime.Play;
+
+            if(TestingFastIsActivate == false)
+            {
+                TestingFastIsActivate = true;
+            }
+            else
+            {
+                TestingFastIsActivate = false;
+            }
+
             if (TestingFastEvent != null)
             {
                 TestingFastEvent();
             }
-            _testerRegime = TesterRegime.Play;
         }
+
+        public bool TestingFastIsActivate;
 
         /// <summary>
 		/// stops testing, or starts
@@ -425,13 +447,17 @@ namespace OsEngine.Market.Servers.Tester
         /// </summary>
         public void TestingPausePlay()
         {
-            if (_testerRegime == TesterRegime.Play)
+            if (TesterRegime == TesterRegime.NotActive)
             {
-                _testerRegime = TesterRegime.Pause;
+                return;
+            }
+            if (TesterRegime == TesterRegime.Play)
+            {
+                TesterRegime = TesterRegime.Pause;
             }
             else
             {
-                _testerRegime = TesterRegime.Play;
+                TesterRegime = TesterRegime.Play;
             }
         }
 
@@ -441,8 +467,88 @@ namespace OsEngine.Market.Servers.Tester
         /// </summary>
         public void TestingPlusOne()
         {
-            _testerRegime = TesterRegime.PlusOne;
+            if (TesterRegime == TesterRegime.NotActive)
+            {
+                return;
+            }
+            TesterRegime = TesterRegime.PlusOne;
         }
+
+        /// <summary>
+        /// speed testing by hiding areas by Position Action
+        /// ускорить тестирование, спрятав области, до следующего события связанного со сделками
+        /// </summary>
+        public void ToNextPositionActionTestingFast()
+        {
+            if (TesterRegime == TesterRegime.NotActive)
+            {
+                return;
+            }
+            _waitSomeActionInPosition = true;
+
+            if (TestingFastIsActivate == false)
+            {
+                TestingFastOnOff();
+            }
+        }
+
+        private void  CheckWaitOrdersRegime()
+        {
+            if (_waitSomeActionInPosition == true)
+            {
+                _waitSomeActionInPosition = false;
+
+                if (TestingFastIsActivate == true)
+                {
+                    TestingFastOnOff();
+                    
+                }
+                TesterRegime = TesterRegime.Pause;
+            }
+        }
+
+        /// <summary>
+        /// speed testing by hiding areas by Time
+        /// ускорить тестирование, спрятав области, до определённого времени
+        /// </summary>
+        public void ToDateTimeTestingFast(DateTime timeToGo)
+        {
+            if (TesterRegime == TesterRegime.NotActive)
+            {
+                return;
+            }
+            if (timeToGo < TimeNow)
+            {
+                return;
+            }
+
+            _timeWeWhaitToStopFastRegime = timeToGo;
+
+            if (TestingFastIsActivate == false)
+            {
+                TestingFastOnOff();
+            }
+        }
+
+        private void CheckGoTo()
+        {
+            if (_timeWeWhaitToStopFastRegime != DateTime.MinValue &&
+               _timeWeWhaitToStopFastRegime < TimeNow)
+            {
+                _timeWeWhaitToStopFastRegime = DateTime.MinValue;
+                
+                if (TestingFastIsActivate)
+                {
+                    TestingFastOnOff();
+                }
+
+                TesterRegime = TesterRegime.Pause;
+            }
+        }
+           
+        private DateTime _timeWeWhaitToStopFastRegime;
+
+        private bool _waitSomeActionInPosition;
 
         /// <summary>
 		/// Testing started
@@ -566,7 +672,7 @@ namespace OsEngine.Market.Servers.Tester
         public void ReloadSecurities()
         {
             // clear all data and disconnect / чистим все данные, отключаемся
-            _testerRegime = TesterRegime.Pause;
+            TesterRegime = TesterRegime.NotActive;
             _dataIsReady = false;
             ServerStatus = ServerConnectStatus.Disconnect;
             _securities = null;
@@ -601,7 +707,10 @@ namespace OsEngine.Market.Servers.Tester
         /// </summary>
         public void ShowPathSenderDialog()
         {
-            _testerRegime = TesterRegime.Pause;
+            if(TesterRegime == TesterRegime.Play)
+            {
+                TesterRegime = TesterRegime.Pause;
+            }
 
             System.Windows.Forms.FolderBrowserDialog myDialog = new System.Windows.Forms.FolderBrowserDialog();
 
@@ -737,7 +846,7 @@ namespace OsEngine.Market.Servers.Tester
 
                 for (int i2 = 0; currentTabs != null && i2 < currentTabs.Count; i2++)
                 {
-                    namesSecurity.Add(currentTabs[i2].CandleConnector.NamePaper);
+                    namesSecurity.Add(currentTabs[i2].CandleConnector.SecurityName);
                 }
             }
 
@@ -753,9 +862,9 @@ namespace OsEngine.Market.Servers.Tester
                     {
                         ConnectorCandles currentConnector = index.Tabs[i3];
 
-                        if (!string.IsNullOrWhiteSpace(currentConnector.NamePaper))
+                        if (!string.IsNullOrWhiteSpace(currentConnector.SecurityName))
                         {
-                            namesSecurity.Add(currentConnector.NamePaper);
+                            namesSecurity.Add(currentConnector.SecurityName);
                         }
                     }
 
@@ -827,7 +936,26 @@ namespace OsEngine.Market.Servers.Tester
 		/// test mode
         /// режим тестирования
         /// </summary>
+        public TesterRegime TesterRegime
+        {
+            get { return _testerRegime; }
+            set
+            {
+                if(_testerRegime == value)
+                {
+                    return;
+                }
+                _testerRegime = value;
+
+                if(TestRegimeChangeEvent != null)
+                {
+                    TestRegimeChangeEvent(_testerRegime);
+                }
+            }
+        }
         private TesterRegime _testerRegime;
+
+        public event Action<TesterRegime> TestRegimeChangeEvent;
 
         /// <summary>
 		/// main thread that downloads all data
@@ -857,7 +985,7 @@ namespace OsEngine.Market.Servers.Tester
                     if (_needToReloadSecurities)
                     {
                         _needToReloadSecurities = false;
-                        _testerRegime = TesterRegime.Pause;
+                        TesterRegime = TesterRegime.NotActive;
                         LoadSecurities();
                     }
                     if (_portfolios.Count == 0)
@@ -865,9 +993,10 @@ namespace OsEngine.Market.Servers.Tester
                         CreatePortfolio();
                     }
 
-                    if (_testerRegime == TesterRegime.Pause)
+                    if (TesterRegime == TesterRegime.Pause ||
+                        TesterRegime == TesterRegime.NotActive)
                     {
-                        Thread.Sleep(2000);
+                        Thread.Sleep(500);
                         continue;
                     }
 
@@ -875,21 +1004,21 @@ namespace OsEngine.Market.Servers.Tester
                     {
                         
                         SendLogMessage(OsLocalization.Market.Message48, LogMessageType.System);
-                        _testerRegime = TesterRegime.Pause;
+                        TesterRegime = TesterRegime.NotActive;
                         continue;
                     }
 
 
-                    if (_testerRegime == TesterRegime.PlusOne)
+                    if (TesterRegime == TesterRegime.PlusOne)
                     {
-                        if (_testerRegime != TesterRegime.Pause)
+                        if (TesterRegime != TesterRegime.Pause)
                         {
                             LoadNextData();
                         }
                         CheckOrders();
                         continue;
                     }
-                    if (_testerRegime == TesterRegime.Play)
+                    if (TesterRegime == TesterRegime.Play)
                     {
                         LoadNextData();
                         CheckOrders();
@@ -1318,7 +1447,7 @@ namespace OsEngine.Market.Servers.Tester
 
             for (int i = 0; array != null && i < array.Count; i++)
             {
-                Security secu = GetSecurityForName(array[i][0]);
+                Security secu = GetSecurityForName(array[i][0], "");
 
                 if (secu != null)
                 {
@@ -1582,7 +1711,7 @@ namespace OsEngine.Market.Servers.Tester
 
             for (int i = 0; array != null && i < array.Count; i++)
             {
-                Security secu = GetSecurityForName(array[i][0]);
+                Security secu = GetSecurityForName(array[i][0], "");
 
                 if (secu != null)
                 {
@@ -1855,7 +1984,7 @@ namespace OsEngine.Market.Servers.Tester
 
             for (int i = 0; array != null && i < array.Count; i++)
             {
-                Security secu = GetSecurityForName(array[i][0]);
+                Security secu = GetSecurityForName(array[i][0], "");
 
                 if (secu != null)
                 {
@@ -1953,13 +2082,9 @@ namespace OsEngine.Market.Servers.Tester
         /// </summary>
         private void LoadNextData()
         {
-            if (_testerRegime == TesterRegime.Pause)
+            if (TimeNow > TimeEnd)
             {
-                return;
-            }
-            if (TimeStart > TimeEnd || TimeNow > TimeEnd)
-            {
-                _testerRegime = TesterRegime.Pause;
+                TesterRegime = TesterRegime.Pause;
 
                 SendLogMessage(OsLocalization.Market.Message37, LogMessageType.System);
                 if (TestingEndEvent != null)
@@ -1972,7 +2097,7 @@ namespace OsEngine.Market.Servers.Tester
             if (_candleSeriesTesterActivate == null ||
                 _candleSeriesTesterActivate.Count == 0)
             {
-                _testerRegime = TesterRegime.Pause;
+                TesterRegime = TesterRegime.Pause;
 
                 SendLogMessage(OsLocalization.Market.Message38,
                     LogMessageType.System);
@@ -1999,6 +2124,11 @@ namespace OsEngine.Market.Servers.Tester
             {
                 TimeNow = TimeNow.AddMinutes(1);
             }
+
+            CheckGoTo();
+
+            //_waitSomeActionInPosition;
+
 
     for (int i = 0;_candleSeriesTesterActivate != null && i < _candleSeriesTesterActivate.Count; i++)
             {
@@ -2034,7 +2164,7 @@ namespace OsEngine.Market.Servers.Tester
 
                 if (security == null)
                 {
-                    return;
+                    continue;
                 }
 
                 if (security.DataType == SecurityTesterDataType.Tick)
@@ -2945,7 +3075,7 @@ namespace OsEngine.Market.Servers.Tester
 		/// take security as Security class by name
         /// взять бумагу в виде класса Security по названию
         /// </summary>
-        public Security GetSecurityForName(string name)
+        public Security GetSecurityForName(string name,string secClass)
         {
             if (_securities == null)
             {
@@ -2961,9 +3091,9 @@ namespace OsEngine.Market.Servers.Tester
         /// </summary>
         void _candleManager_CandleUpdateEvent(CandleSeries series)
         {
-            if (_testerRegime == TesterRegime.PlusOne)
+            if (TesterRegime == TesterRegime.PlusOne)
             {
-                _testerRegime = TesterRegime.Pause;
+                TesterRegime = TesterRegime.Pause;
             }
 
             // write last tick time in server time / перегружаем последним временем тика время сервера
@@ -3009,18 +3139,18 @@ namespace OsEngine.Market.Servers.Tester
         private object _starterLocker = new object();
 
         /// <summary>
-		/// start downloading data by instrument
+        /// start uploading data on instrument
         /// Начать выгрузку данных по инструменту. 
         /// </summary>
-        /// <param name="namePaper">security name for testing / имя бумаги которую будем запускать</param>
-        /// <param name="timeFrameBuilder">object with timeframe / объект несущий в себе данные о таймФрейме</param>
-        /// <returns>In case of success returns CandleSeries / В случае удачи возвращает CandleSeries
-        /// in case of failure null / в случае неудачи null</returns>
-        public CandleSeries StartThisSecurity(string namePaper, TimeFrameBuilder timeFrameBuilder)
+        /// <param name="securityName"> security name for running / имя бумаги которую будем запускать</param>
+        /// <param name="timeFrameBuilder"> object that has data about timeframe / объект несущий в себе данные о таймФрейме</param>
+        /// <param name="securityClass"> security class for running / класс бумаги которую будем запускать</param>
+        /// <returns> returns CandleSeries if successful else null / В случае удачи возвращает CandleSeries в случае неудачи null</returns>
+        public CandleSeries StartThisSecurity(string securityName, TimeFrameBuilder timeFrameBuilder, string securityClass)
         {
             lock (_starterLocker)
             {
-                if (namePaper == "")
+                if (securityName == "")
                 {
                     return null;
                 }
@@ -3039,7 +3169,7 @@ namespace OsEngine.Market.Servers.Tester
 
                 for (int i = 0; i < _securities.Count; i++)
                 {
-                    if (_securities[i].Name == namePaper)
+                    if (_securities[i].Name == securityName)
                     {
                         security = _securities[i];
                         break;
@@ -3072,14 +3202,14 @@ namespace OsEngine.Market.Servers.Tester
                 if (TypeTesterData != TesterDataType.Candle &&
                     timeFrameBuilder.CandleMarketDataType == CandleMarketDataType.Tick)
                 {
-                    if (_candleSeriesTesterActivate.Find(tester => tester.Security.Name == namePaper &&
+                    if (_candleSeriesTesterActivate.Find(tester => tester.Security.Name == securityName &&
                                                                    tester.DataType == SecurityTesterDataType.Tick) == null)
                     {
-                        if (SecuritiesTester.Find(tester => tester.Security.Name == namePaper &&
+                        if (SecuritiesTester.Find(tester => tester.Security.Name == securityName &&
                                                             tester.DataType == SecurityTesterDataType.Tick) != null)
                         {
                             _candleSeriesTesterActivate.Add(
-                                    SecuritiesTester.Find(tester => tester.Security.Name == namePaper &&
+                                    SecuritiesTester.Find(tester => tester.Security.Name == securityName &&
                                            tester.DataType == SecurityTesterDataType.Tick));
                         }
                         else
@@ -3092,14 +3222,14 @@ namespace OsEngine.Market.Servers.Tester
                 else if (TypeTesterData != TesterDataType.Candle &&
                          timeFrameBuilder.CandleMarketDataType == CandleMarketDataType.MarketDepth)
                 {
-                    if (_candleSeriesTesterActivate.Find(tester => tester.Security.Name == namePaper &&
+                    if (_candleSeriesTesterActivate.Find(tester => tester.Security.Name == securityName &&
                                                                    tester.DataType == SecurityTesterDataType.MarketDepth) == null)
                     {
-                        if (SecuritiesTester.Find(tester => tester.Security.Name == namePaper &&
+                        if (SecuritiesTester.Find(tester => tester.Security.Name == securityName &&
                                                             tester.DataType == SecurityTesterDataType.MarketDepth) != null)
                         {
                             _candleSeriesTesterActivate.Add(
-                                    SecuritiesTester.Find(tester => tester.Security.Name == namePaper &&
+                                    SecuritiesTester.Find(tester => tester.Security.Name == securityName &&
                                            tester.DataType == SecurityTesterDataType.MarketDepth));
                         }
                         else
@@ -3111,11 +3241,11 @@ namespace OsEngine.Market.Servers.Tester
                 else if (TypeTesterData == TesterDataType.Candle)
                 {
                     TimeSpan time = GetTimeFremeInSpan(timeFrameBuilder.TimeFrame);
-                    if (_candleSeriesTesterActivate.Find(tester => tester.Security.Name == namePaper &&
+                    if (_candleSeriesTesterActivate.Find(tester => tester.Security.Name == securityName &&
                                                                    tester.DataType == SecurityTesterDataType.Candle &&
                                                                    tester.TimeFrameSpan == time) == null)
                     {
-                        if (SecuritiesTester.Find(tester => tester.Security.Name == namePaper &&
+                        if (SecuritiesTester.Find(tester => tester.Security.Name == securityName &&
                                                             tester.DataType == SecurityTesterDataType.Candle &&
                                                             tester.TimeFrameSpan == time) == null)
                         {
@@ -3123,7 +3253,7 @@ namespace OsEngine.Market.Servers.Tester
                         }
 
                         _candleSeriesTesterActivate.Add(
-                            SecuritiesTester.Find(tester => tester.Security.Name == namePaper &&
+                            SecuritiesTester.Find(tester => tester.Security.Name == securityName &&
                                                             tester.DataType == SecurityTesterDataType.Candle &&
                                                             tester.TimeFrameSpan == time));
                     }
@@ -3143,18 +3273,17 @@ namespace OsEngine.Market.Servers.Tester
 		/// start data downloading on instrument 
         /// Начать выгрузку данных по инструменту
         /// </summary>
-        public CandleSeries GetCandleDataToSecurity(string namePaper, TimeFrameBuilder timeFrameBuilder, DateTime startTime,
-            DateTime endTime, DateTime actualTime, bool neadToUpdate)
+        public CandleSeries GetCandleDataToSecurity(string securityName, string securityClass, TimeFrameBuilder timeFrameBuilder,
+            DateTime startTime, DateTime endTime, DateTime actualTime, bool neadToUpdate)
         {
-            return StartThisSecurity(namePaper, timeFrameBuilder);
+            return StartThisSecurity(securityName, timeFrameBuilder,securityClass);
         }
 
         /// <summary>
 		/// take ticks data on instrument for period
         /// взять тиковые данные по инструменту за определённый период
         /// </summary>
-        public bool GetTickDataToSecurity(string namePaper, DateTime startTime, DateTime endTime, DateTime actualTime,
-            bool neadToUpdete)
+        public bool GetTickDataToSecurity(string securityName, string securityClass, DateTime startTime, DateTime endTime, DateTime actualTime, bool neadToUpdete)
         {
             return true;
         }
@@ -3349,7 +3478,7 @@ namespace OsEngine.Market.Servers.Tester
 
             if (NewBidAscIncomeEvent != null)
             {
-                NewBidAscIncomeEvent(candle.Close, candle.Close,GetSecurityForName(nameSecurity));
+                NewBidAscIncomeEvent(candle.Close, candle.Close,GetSecurityForName(nameSecurity,""));
             }
 
             _candleManager.SetNewCandleInSeries(candle, nameSecurity, timeFrame);
@@ -3472,7 +3601,7 @@ namespace OsEngine.Market.Servers.Tester
 
             if (NewBidAscIncomeEvent != null)
             {
-                NewBidAscIncomeEvent(tradesNew[tradesNew.Count - 1].Price, tradesNew[tradesNew.Count - 1].Price, GetSecurityForName(tradesNew[tradesNew.Count - 1].SecurityNameCode));
+                NewBidAscIncomeEvent(tradesNew[tradesNew.Count - 1].Price, tradesNew[tradesNew.Count - 1].Price, GetSecurityForName(tradesNew[tradesNew.Count - 1].SecurityNameCode,""));
             }
         }
 
@@ -3788,7 +3917,7 @@ namespace OsEngine.Market.Servers.Tester
             {
                 if (order.Side == Side.Buy)
                 {
-                    Security mySecurity = GetSecurityForName(order.SecurityNameCode);
+                    Security mySecurity = GetSecurityForName(order.SecurityNameCode,"");
 
                     if (mySecurity != null && mySecurity.PriceStep != 0)
                     {
@@ -3798,7 +3927,7 @@ namespace OsEngine.Market.Servers.Tester
 
                 if (order.Side == Side.Sell)
                 {
-                    Security mySecurity = GetSecurityForName(order.SecurityNameCode);
+                    Security mySecurity = GetSecurityForName(order.SecurityNameCode,"");
 
                     if (mySecurity != null && mySecurity.PriceStep != 0)
                     {
@@ -3827,6 +3956,8 @@ namespace OsEngine.Market.Servers.Tester
             }
 
             ChangePosition(order);
+
+            CheckWaitOrdersRegime();
         }
 
 // logging
@@ -4299,8 +4430,10 @@ namespace OsEngine.Market.Servers.Tester
     /// </summary>
     public enum TesterRegime
     {
+        NotActive,
+
         /// <summary>
-		/// pause
+        /// pause
         /// пауза
         /// </summary>
         Pause,
@@ -4315,7 +4448,7 @@ namespace OsEngine.Market.Servers.Tester
 		/// load the next data and pause
         /// надо прогрузить следующие данные и поставить на паузу
         /// </summary>
-        PlusOne
+        PlusOne,
     }
 
     /// <summary>
