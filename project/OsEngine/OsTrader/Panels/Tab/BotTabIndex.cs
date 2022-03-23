@@ -226,7 +226,8 @@ namespace OsEngine.OsTrader.Panels.Tab
                         Tabs.Add(newConnector);
                         Tabs[Tabs.Count - 1].NewCandlesChangeEvent += BotTabIndex_NewCandlesChangeEvent;
                     }
-                    UserFormula = reader.ReadLine();
+
+                    _userFormula = reader.ReadLine();
 
                     reader.Close();
                 }
@@ -287,7 +288,7 @@ namespace OsEngine.OsTrader.Panels.Tab
         /// </summary>
         private void BotTabIndex_NewCandlesChangeEvent(List<Candle> candles)
         {
-            LastTimeCandleUpdate = DateTime.Now;
+            LastTimeCandleUpdate = Tabs[0].MarketTime;
 
             for (int i = 0; i < Tabs.Count; i++)
             {
