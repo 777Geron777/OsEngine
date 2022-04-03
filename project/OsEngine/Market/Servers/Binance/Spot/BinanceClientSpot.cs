@@ -888,6 +888,11 @@ namespace OsEngine.Market.Servers.Binance.Spot
                     IsConnected = false;
                     Disconnected?.Invoke();
                 }
+                if (ex.ToString().Contains("Unknown order sent"))
+                {
+                    SendLogMessage(ex.ToString(), LogMessageType.System);
+                    return null;
+                }
 
                 SendLogMessage(ex.ToString(), LogMessageType.Error);
                 return null;
@@ -1097,6 +1102,11 @@ namespace OsEngine.Market.Servers.Binance.Spot
                     {
                         CreateQuery(BinanceExchangeType.SpotExchange, Method.DELETE, "/sapi/v1/margin/order", param, true);
                     }
+                    else
+                    {
+                        CreateQuery(BinanceExchangeType.SpotExchange, Method.DELETE, "api/v3/order", param, true);
+                        CreateQuery(BinanceExchangeType.SpotExchange, Method.DELETE, "/sapi/v1/margin/order", param, true);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -1104,6 +1114,103 @@ namespace OsEngine.Market.Servers.Binance.Spot
 
                 }
             }
+        }
+
+        /// <summary>
+        /// cancel all orders from trading system
+        /// отозвать все ордера из торговой системы
+        /// </summary>
+        public void CancelAllOrders()
+        {
+            List<Order> openOrders = GetAllOpenOrders();
+
+            for(int i = 0;i < openOrders.Count;i++)
+            {
+                CancelOrder(openOrders[i]);
+            }
+        }
+
+        private List<Order> GetAllOpenOrders()
+        {
+            List<Order> openOrders = new List<Order>();
+
+            string endPoint = "/api/v3/openOrders";
+
+            List<HistoryOrderReport> allOrders = new List<HistoryOrderReport>();
+
+
+            var param = new Dictionary<string, string>();
+
+            var res = CreateQuery(BinanceExchangeType.SpotExchange, Method.GET, endPoint, param, true);
+
+            if (res == null)
+            {
+                return openOrders;
+            }
+
+            HistoryOrderReport[] orders = JsonConvert.DeserializeObject<HistoryOrderReport[]>(res);
+
+            if (orders != null && orders.Length != 0)
+            {
+                allOrders.AddRange(orders);
+            }
+
+            // скачали, сортируем
+
+            for (int i = 0; i < orders.Length; i++)
+            {
+
+                for (int i2 = 0; i2 < allOrders.Count; i2++)
+                {
+                    if (string.IsNullOrEmpty(allOrders[i2].clientOrderId))
+                    {
+                        continue;
+                    }
+
+                    Order newOrder = new Order();
+                    newOrder.NumberMarket = orders[i].orderId;
+
+                    if (allOrders[i2].clientOrderId != null)
+                    {
+                        string id = allOrders[i2].clientOrderId.Replace("x-RKXTQ2AK", "");
+                        try
+                        {
+                            newOrder.NumberUser = Convert.ToInt32(id);
+                        }
+                        catch
+                        {
+                            // ignore
+                        }
+
+                    }
+
+                    newOrder.SecurityNameCode = allOrders[i2].symbol;
+                    newOrder.State = OrderStateType.Activ;
+
+                    if(allOrders[i].type == "")
+                    {
+
+                    }
+
+                    try
+                    {
+                        newOrder.Volume = allOrders[i2].origQty.ToDecimal();
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+
+                    newOrder.ServerType = ServerType.Binance;
+
+                    openOrders.Add(newOrder);
+
+
+
+                }
+            }
+
+            return openOrders;
         }
 
         /// <summary>
@@ -1397,7 +1504,19 @@ namespace OsEngine.Market.Servers.Binance.Spot
                 return;
             }
 
-            SendLogMessage("Ошибка из ws4net :" + e, LogMessageType.Error);
+            SendLogMessage("Binance Socket error :" + e, LogMessageType.Error);
+
+            if (IsConnected)
+            {
+                IsConnected = false;
+
+                _wsStreams.Clear();
+
+                if (Disconnected != null)
+                {
+                    Disconnected();
+                }
+            }
         }
 
         /// <summary>
