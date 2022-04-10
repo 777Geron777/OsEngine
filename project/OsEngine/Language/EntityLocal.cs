@@ -7,6 +7,14 @@ namespace OsEngine.Language
 {
     public class EntityLocal
     {
+        public string MessageAcceptDeleteAction => OsLocalization.ConvertToLocString(
+           "Eng:Are you sure you want to delete part your position?_" +
+           "Ru:Вы уверены что хотите удалить данные?_");
+
+        public string MessageAcceptSaveAction => OsLocalization.ConvertToLocString(
+           "Eng:Are you sure you want to update the position information?_" +
+           "Ru:Вы уверены что хотите обновить информацию по позиции?_");
+
         public string TitlePositionUi => OsLocalization.ConvertToLocString(
             "Eng:Position detail_" +
             "Ru:Данные по позиции_");
@@ -58,6 +66,10 @@ namespace OsEngine.Language
         public string PositionLabel3 => OsLocalization.ConvertToLocString(
             "Eng:Trades_" +
             "Ru:Трейды_");
+
+        public string PositionLabel4 => OsLocalization.ConvertToLocString(
+            "Eng:Save changes_" +
+            "Ru:Сохранить изменения_");
 
         public string PositionColumn1 => OsLocalization.ConvertToLocString(
             "Eng:Number_" +
@@ -182,6 +194,26 @@ namespace OsEngine.Language
         public string OrderColumn12 => OsLocalization.ConvertToLocString(
             "Eng:RoundTrip_" +
             "Ru:RoundTrip_");
+
+        public string OrderContextMenuItem1 => OsLocalization.ConvertToLocString(
+            "Eng:Add new Order_" +
+            "Ru:Добавить ордер_");
+
+        public string OrderContextMenuItem2 => OsLocalization.ConvertToLocString(
+            "Eng:Delete Order_" +
+            "Ru:Удалить ордер_");
+
+        public string OrderContextMenuItem3 => OsLocalization.ConvertToLocString(
+            "Eng:Add open trade_" +
+            "Ru:Добавить сделку на открытие_");
+
+        public string OrderContextMenuItem4 => OsLocalization.ConvertToLocString(
+             "Eng:Add close trade_" +
+             "Ru:Добавить сделку на закрытие_");
+
+        public string OrderContextMenuItem5 => OsLocalization.ConvertToLocString(
+             "Eng:Delete trade_" +
+             "Ru:Удалить сделку_");
 
         public string TradeColumn1 => OsLocalization.ConvertToLocString(
             "Eng:ID_" +
@@ -362,5 +394,25 @@ namespace OsEngine.Language
         public string ColumnMarketDepth3 => OsLocalization.ConvertToLocString(
             "Eng:Volume_" +
             "Ru:Объём_");
+
+        public string TimeChangeDialogLabel1 => OsLocalization.ConvertToLocString(
+            "Eng:Time selection_" +
+            "Ru:Выбор времени_");
+
+        public string TimeChangeDialogLabel2 => OsLocalization.ConvertToLocString(
+            "Eng:Save time_" +
+            "Ru:Сохранить_");
+
+        public string TimeChangeDialogLabel3 => OsLocalization.ConvertToLocString(
+            "Eng:Hour_" +
+            "Ru:Час_");
+
+        public string TimeChangeDialogLabel4 => OsLocalization.ConvertToLocString(
+            "Eng:Minute_" +
+            "Ru:Минута_");
+
+        public string TimeChangeDialogLabel5 => OsLocalization.ConvertToLocString(
+            "Eng:Second_" +
+            "Ru:Секунда_");
     }
 }
