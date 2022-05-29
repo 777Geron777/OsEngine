@@ -11,9 +11,14 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
 using OsEngine.Entity;
 using OsEngine.Logging;
 using OsEngine.Market.Servers.Entity;
+using RestSharp;
+using System.IO;
+using OsEngine.Market.Servers.Tinkoff.TinkoffJsonSchema;
+
 
 namespace OsEngine.Market.Servers.Tinkoff
 {
@@ -33,16 +38,8 @@ namespace OsEngine.Market.Servers.Tinkoff
 
         public string _token;
 
-        private string _url = "https://invest-public-api.tinkoff.ru/"; 
-        
-        //https://api-invest.tinkoff.ru/openapi/;
+        private string _url = "https://invest-public-api.tinkoff.ru/rest/tinkoff.public.invest.api.contract.v1.";
 
-       // private string _urlWebSocket = "wss://api-invest.tinkoff.ru/openapi/md/v1/md-openapi/ws";
-
-        /// <summary>
-        /// connecto to the exchange
-        /// установить соединение с биржей 
-        /// </summary>
         public void Connect()
         {
             if (string.IsNullOrEmpty(_token))
@@ -59,10 +56,6 @@ namespace OsEngine.Market.Servers.Tinkoff
 
         }
 
-        /// <summary>
-        /// bring the program to the start. Clear all objects involved in connecting to the server
-        /// привести программу к моменту запуска. Очистить все объекты участвующие в подключении к серверу
-        /// </summary>
         public void Dispose()
         {
             IsConnected = false;
@@ -77,269 +70,125 @@ namespace OsEngine.Market.Servers.Tinkoff
 
         private bool _isDisposed;
 
-        /// <summary>
-        /// shows whether connection works
-        /// работает ли соединение
-        /// </summary>
+        #region реализация запроса к серверу
+
         public bool IsConnected;
 
         private object _queryLocker = new object();
 
-        public string ApiQuery(string url, string type, IDictionary<string, string> req)
+        public string CreatePrivatePostQuery(string end_point, Dictionary<string, string> parameters)
         {
-            try
+            lock(_queryLocker)
             {
-                lock (_queryLocker)
+                _rateGate.WaitToProceed();
+
+                if (parameters == null)
                 {
-                    _rateGate.WaitToProceed();
-
-                    using (var wb = new WebClient())
-                    {
-                        wb.Headers.Add("Authorization", "Bearer " + _token);
-
-                        byte[] response;
-
-                        if (type == "POST" && req.Count != 0)
-                        {
-                            string str = "{";
-                            bool isFirst = true;
-
-                            foreach (var r in req)
-                            {
-                                if (isFirst == false)
-                                {
-                                    str += ",";
-                                }
-
-                                isFirst = false;
-
-                                str += "\"" + r.Key + "\":";
-
-                                try
-                                {
-                                    r.Value.ToDecimal();
-                                    str += r.Value.Replace(",", ".");
-                                }
-                                catch
-                                {
-                                    str += "\"" + r.Value + "\"";
-                                }
-                            }
-                            str += "}";
-
-                            byte[] postData = Encoding.UTF8.GetBytes(str);
-
-                            //MessageBox.Show(str);
-                            response = wb.UploadData(url, type, postData);
-                        }
-                        else // if(type == "GET")
-                        {
-                            response = wb.DownloadData(url);
-                        }
-
-                        return Encoding.UTF8.GetString(response);
-                    }
-                }
-            }
-            catch (Exception error)
-            {
-                // MessageBox.Show(error.ToString());
-                return null;
-            }
-        }
-
-        public static string ByteToString(byte[] buff)
-        {
-            string sbinary = "";
-
-            for (int i = 0; i < buff.Length; i++)
-            {
-                sbinary += buff[i].ToString("X2"); // hex format
-            }
-
-            return (sbinary).ToLowerInvariant();
-        }
-
-        #region Подписка на дату
-
-        List<Security> _securitiesSubscrible = new List<Security>();
-
-        public void SubscribleDepths(Security security)
-        {
-            if (_securitiesSubscrible.Find(s => s.Name == security.Name) != null)
-            {
-                return;
-            }
-            _securitiesSubscrible.Add(security);
-        }
-
-        private DateTime _lastBalanceUpdTime;
-
-        private async void WorkerPlace()
-        {
-            while (true)
-            {
-                try
-                {
-                    await Task.Delay(5000);
-
-                    if (_isDisposed)
-                    {
-                        return;
-                    }
-
-                    if (IsConnected == false)
-                    {
-                        continue;
-                    }
-
-                    if (_portfolios != null &&
-                        _lastBalanceUpdTime.AddSeconds(10) < DateTime.Now)
-                    {
-                        UpdBalance();
-                        UpdPositions();
-                        UpdateMyTrades();
-                        _lastBalanceUpdTime = DateTime.Now;
-                    }
-
-                    for (int i = 0; i < _securitiesSubscrible.Count; i++)
-                    {
-                        GetMarketDepth(_securitiesSubscrible[i]);
-                    }
-                }
-                catch (Exception e)
-                {
-                    SendLogMessage(e.ToString(), LogMessageType.Error);
-                    await Task.Delay(5000);
-                }
-            }
-        }
-
-        #endregion
-
-        #region Запросы
-
-        private List<Portfolio> _portfolios = new List<Portfolio>();
-
-        public void UpdBalance()
-        {
-            try
-            {
-                string url = _url + "/portfolio/currencies";
-
-                var jsonCurrency = ApiQuery(url, "GET", new Dictionary<string, string>());
-
-                if (jsonCurrency == null)
-                {
-                    return;
+                    parameters = new Dictionary<string, string>();
                 }
 
-                var jProperties = JToken.Parse(jsonCurrency).SelectToken("payload");//.Children<JProperty>();
-                var children = jProperties.Children().Children().Children();
+                StringBuilder sb = new StringBuilder();
 
-                foreach (var portfolio in children)
+                int i = 0;
+                foreach (var param in parameters)
                 {
-                    Portfolio newPortfolio = new Portfolio();
-
-                    newPortfolio.Number = portfolio.SelectToken("currency").ToString();
-
-                    newPortfolio.ValueBegin = portfolio.SelectToken("balance").ToString().ToDecimal();
-                    newPortfolio.ValueCurrent = newPortfolio.ValueBegin;
-
-                    Portfolio oldPortfolio =
-                        _portfolios.Find(p => p.Number == newPortfolio.Number);
-                    if (oldPortfolio == null)
+                    if(param.Value.StartsWith("["))
                     {
-                        _portfolios.Add(newPortfolio);
+                        sb.Append("\"" + param.Key + "\"" + ": " + param.Value);
+                    }
+                    else if (param.Value.StartsWith("{"))
+                    {
+                        sb.Append("\"" + param.Key + "\"" + ": " + param.Value);
                     }
                     else
                     {
-
-                        oldPortfolio.ValueCurrent = newPortfolio.ValueCurrent;
+                        sb.Append("\"" + param.Key + "\"" + ": \"" + param.Value + "\"");
                     }
-                }
-
-
-                if (UpdatePortfolio != null)
-                {
-                    for (int i = 0; i < _portfolios.Count; i++)
+                    
+                    i++;
+                    if (i < parameters.Count)
                     {
-                        UpdatePortfolio(_portfolios[i]);
+                        sb.Append(",");
                     }
                 }
-            }
-            catch (Exception e)
-            {
-                SendLogMessage(e.ToString(), LogMessageType.Error);
+
+
+                string url = end_point;
+
+                string str_data = "{" + sb.ToString() + "}";
+
+                byte[] data = Encoding.UTF8.GetBytes(str_data);
+
+                Uri uri = new Uri(url);
+
+                var web_request = (HttpWebRequest)WebRequest.Create(uri);
+
+                web_request.Accept = "application/json";
+                web_request.Method = "POST";
+                web_request.ContentType = "application/json";
+                web_request.ContentLength = data.Length;
+                web_request.Headers.Add("Authorization", "Bearer " + _token);
+
+                using (Stream req_tream = web_request.GetRequestStream())
+                {
+                    req_tream.Write(data, 0, data.Length);
+                }
+
+                var resp = web_request.GetResponse();
+
+                HttpWebResponse httpWebResponse = (HttpWebResponse)resp;
+
+                string response_msg;
+
+                using (var stream = httpWebResponse.GetResponseStream())
+                {
+                    using (StreamReader reader = new StreamReader(stream))
+                    {
+                        response_msg = reader.ReadToEnd();
+                    }
+                }
+
+                httpWebResponse.Close();
+
+                return response_msg;
             }
         }
 
-        public void UpdPositions()
-        {
-            string url = _url + "portfolio";
+        #endregion 
 
-            var jsonCurrency = ApiQuery(url, "GET", new Dictionary<string, string>());
-
-            if (jsonCurrency == null)
-            {
-                return;
-            }
-            var jProperties = JToken.Parse(jsonCurrency).SelectToken("payload");//.Children<JProperty>();
-            var children = jProperties.Children().Children().Children();
-
-            string res = children.ToString();
-
-            if (res == "")
-            {
-                return;
-            }
-
-            foreach (var position in children)
-            {
-                PositionOnBoard pos = new PositionOnBoard();
-
-                pos.SecurityNameCode = position.SelectToken("ticker").ToString();
-                pos.ValueCurrent = position.SelectToken("balance").ToString().ToDecimal();
-                pos.PortfolioName = position.SelectToken("expectedYield").SelectToken("currency").ToString();
-
-                Portfolio myPortfolio =
-                    _portfolios.Find(p => p.Number == pos.PortfolioName);
-
-                if (myPortfolio == null)
-                {
-                    continue;
-                }
-
-                myPortfolio.SetNewPosition(pos);
-            }
-
-
-            if (UpdatePortfolio != null)
-            {
-                for (int i = 0; i < _portfolios.Count; i++)
-                {
-                    UpdatePortfolio(_portfolios[i]);
-                }
-            }
-        }
+        #region Запросы
 
         public void GetSecurities()
         {
             List<Security> securities = new List<Security>();
 
-            List<Security> stocks = GetSecurities(_url + "market/stocks", SecurityType.Stock);
+            List<Security> currencies = GetSecurities(_url + "InstrumentsService/Currencies", SecurityType.CurrencyPair);
+            securities.AddRange(currencies);
 
+            List<Security> stocks = GetSecurities(_url + "InstrumentsService/Shares", SecurityType.Stock);
             securities.AddRange(stocks);
-            securities.AddRange(GetSecurities(_url + "market/bonds", SecurityType.Bond));
-            securities.AddRange(GetSecurities(_url + "market/etfs", SecurityType.Stock));
-            securities.AddRange(GetSecurities(_url + "market/currencies", SecurityType.CurrencyPair));
+
+            List<Security> futures = GetSecurities(_url + "InstrumentsService/Futures", SecurityType.Futures);
+            securities.AddRange(stocks);
+
+            List<Security> etfs = GetSecurities(_url + "InstrumentsService/Etfs", SecurityType.Stock);
+            securities.AddRange(etfs);
+
+            List<Security> bonds = GetSecurities(_url + "InstrumentsService/Bonds", SecurityType.Bond);
+            securities.AddRange(bonds);
+
+            _allSecurities = securities;
 
             if (UpdatePairs != null)
             {
                 UpdatePairs(securities);
             }
+        }
 
-            _allSecurities = securities;
+        private Security GetSecurityByFigi(string figi)
+        {
+            Security mySec = _allSecurities.Find(s => s.NameId == figi);
+            return mySec;
         }
 
         private List<Security> _allSecurities = new List<Security>();
@@ -348,52 +197,55 @@ namespace OsEngine.Market.Servers.Tinkoff
         {
             string secClass = type.ToString();
 
-            var jsonCurrency = ApiQuery(url, "GET", new Dictionary<string, string>());
+            Dictionary<string, string> param = new Dictionary<string, string>();
 
-            if (jsonCurrency == null)
+            param.Add("instrumentStatus", "INSTRUMENT_STATUS_UNSPECIFIED");
+
+            var res = CreatePrivatePostQuery(url, param);
+
+            if (res == null)
             {
                 return null;
             }
-
-            var jProperties = JToken.Parse(jsonCurrency).SelectToken("payload").Children().Children().Children();
+            
+            InstrumentsResponse securitiesResp = JsonConvert.DeserializeAnonymousType(res, new InstrumentsResponse());
 
             List<Security> securities = new List<Security>();
 
-            foreach (var jtSecurity in jProperties)
+            for (int i = 0; i < securitiesResp.instruments.Count; i++)
             {
+                Instrument jtSecurity = securitiesResp.instruments[i];
+
                 Security newSecurity = new Security();
 
-                try
-                {
-                    newSecurity.Name = jtSecurity.SelectToken("ticker").ToString();
-                    newSecurity.NameId = jtSecurity.SelectToken("figi").ToString();
-                    newSecurity.NameFull = jtSecurity.SelectToken("name").ToString();
-                    string str = jtSecurity.ToString();
+                newSecurity.Name = jtSecurity.ticker;
+                newSecurity.NameId = jtSecurity.figi;
+                newSecurity.NameFull = jtSecurity.name;
 
-                    if (str.Contains("minPriceIncrement"))
-                    {
-                        newSecurity.PriceStep = jtSecurity.SelectToken("minPriceIncrement").ToString().ToDecimal();
-                    }
-                    else
-                    {
-                        newSecurity.PriceStep = 1;
-                    }
-
-                    newSecurity.PriceStepCost = newSecurity.PriceStep;
-                }
-                catch
+                if(jtSecurity.minPriceIncrement != null)
                 {
-                    continue;
+                    newSecurity.PriceStep = jtSecurity.minPriceIncrement.GetValue() / 100;
                 }
+                else
+                {
+                    newSecurity.PriceStep = 1;
+                }
+
+                if(newSecurity.PriceStep == 0)
+                {
+                    newSecurity.PriceStep = 1;
+                }
+
+                newSecurity.PriceStepCost = newSecurity.PriceStep;
 
                 if (secClass == "Stock" &&
-                    jtSecurity.SelectToken("currency").ToString() == "RUB")
+                    jtSecurity.currency == "rub")
                 {
                     newSecurity.NameClass = secClass + " Ru";
                 }
                 else if (secClass == "Stock" &&
-                         (jtSecurity.SelectToken("currency").ToString() == "EUR" ||
-                          jtSecurity.SelectToken("currency").ToString() == "USD"))
+                         (jtSecurity.currency == "EUR" ||
+                          jtSecurity.currency == "USD"))
                 {
                     newSecurity.NameClass = secClass + " US";
                 }
@@ -403,7 +255,7 @@ namespace OsEngine.Market.Servers.Tinkoff
                 }
 
                 newSecurity.SecurityType = type;
-                newSecurity.Lot = jtSecurity.SelectToken("lot").ToString().ToDecimal();
+                newSecurity.Lot = jtSecurity.lot.ToDecimal();
 
                 securities.Add(newSecurity);
             }
@@ -411,12 +263,28 @@ namespace OsEngine.Market.Servers.Tinkoff
             return securities;
         }
 
-        public List<Candle> GetCandleHistory(string nameSec, TimeFrame tf, DateTime from, DateTime to)
+        public List<Candle> GetCandleHistory(string nameId, TimeFrame tf, DateTime from, DateTime to)
         {
             List<Candle> candles = new List<Candle>();
+
+            while(from.Hour > 1)
+            {
+                from = from.AddHours(-1);
+            }
+
+            while (from.Minute > 1)
+            {
+                from = from.AddMinutes(-1);
+            }
+
+            while (from.Second > 1)
+            {
+                from = from.AddSeconds(-1);
+            }
+
             while (from <= to)
             {
-                candles.AddRange(GetCandleHistoryFromDay(from, nameSec, tf));
+                candles.AddRange(GetCandleHistoryFromDay(from, nameId, tf));
 
                 from = from.AddDays(1);
             }
@@ -426,104 +294,220 @@ namespace OsEngine.Market.Servers.Tinkoff
 
         private List<Candle> GetCandleHistoryFromDay(DateTime time, string nameSec, TimeFrame tf)
         {
-            string url = CreateCandleUrl(
-                nameSec,
-                new DateTime(time.Year, time.Month, time.Day, 1, 0, 0),
-                new DateTime(time.Year, time.Month, time.Day, 23, 55, 0),
-                tf);
+            /* {
+                 "figi": "string",
+                 "from": "2022-05-25T12:51:29.091Z",
+                 "to": "2022-05-25T12:51:29.091Z",
+                 "interval": "CANDLE_INTERVAL_UNSPECIFIED"
+               }*/
+            string portUrl = _url + "MarketDataService/GetCandles";
 
-            var jsonCurrency = ApiQuery(url, "GET", new Dictionary<string, string>());
+            Dictionary<string, string> param = new Dictionary<string, string>();
 
+            param.Add("figi", nameSec);
 
-            if (jsonCurrency == null)
-            {
-                return null;
-            }
+            string dateFrom = ToIso8601(time);
+            param.Add("from", dateFrom);
 
-            var jProperties = JToken.Parse(jsonCurrency).SelectToken("payload").Children().Children().Children();
+            string dateTo = ToIso8601(time.AddDays(1));
+            param.Add("to", dateTo);
 
+            string tfStr = CreateTimeFrameString(tf);
+            param.Add("interval", tfStr);
+
+            var resPort = CreatePrivatePostQuery(portUrl, param);
+
+            CandlesResponse candlesResp = JsonConvert.DeserializeAnonymousType(resPort, new CandlesResponse());
+
+            List<Candle> candles = ConvertToOsEngineCandles(candlesResp);
+
+            List<Candle> candlesCollapsed = CollapseCandles(candles, CountCandleCollapse(tf));
+
+            return candlesCollapsed;
+        }
+        
+        private List<Candle> ConvertToOsEngineCandles(CandlesResponse responce)
+        {
             List<Candle> candles = new List<Candle>();
 
-            foreach (var jtSecurity in jProperties)
+            for(int i = 0;i < responce.candles.Count;i++)
             {
-                Candle newCandle = new Candle();
+                CandleTinkoff canTin = responce.candles[i];
 
-                newCandle.TimeStart = FromIso8601(jtSecurity.SelectToken("time").ToString());
+                Candle candle = new Candle();
+                candle.Open = canTin.open.GetValue().ToStringWithNoEndZero().ToDecimal();
+                candle.Close = canTin.close.GetValue().ToStringWithNoEndZero().ToDecimal();
+                candle.High = canTin.high.GetValue().ToStringWithNoEndZero().ToDecimal();
+                candle.Low = canTin.low.GetValue().ToStringWithNoEndZero().ToDecimal();
 
-                newCandle.Open = jtSecurity.SelectToken("o").ToString().ToDecimal();
-                newCandle.High = jtSecurity.SelectToken("h").ToString().ToDecimal();
-                newCandle.Low = jtSecurity.SelectToken("l").ToString().ToDecimal();
-                newCandle.Close = jtSecurity.SelectToken("c").ToString().ToDecimal();
-                newCandle.Volume = jtSecurity.SelectToken("v").ToString().ToDecimal();
+                candle.TimeStart = FromIso8601(canTin.time);
 
-
-                candles.Add(newCandle);
+                candles.Add(candle);
             }
 
             return candles;
         }
 
-        private string CreateCandleUrl(string figi, DateTime from, DateTime to, TimeFrame tf)
+        private List<Candle> CollapseCandles(List<Candle> candles, int collapseCount)
         {
-            string result = "https://api-invest.tinkoff.ru/openapi/market/candles?";
+            if(collapseCount == 1)
+            {
+                return candles;
+            }
 
-            result += "figi=" + figi + "&";
-            result += "from=" + ToIso8601(from) + "&";
-            result += "to=" + ToIso8601(to) + "&";
-            result += "interval=";
+            List<Candle> newCandles = new List<Candle>();
 
+            int curNumCollapse = 0;
+
+            for(int i = 0;i < candles.Count;i++)
+            {
+                if(curNumCollapse == 0 
+                    || candles[i].TimeStart.DayOfYear 
+                    != newCandles[newCandles.Count - 1].TimeStart.DayOfYear)
+                {
+                    Candle newCandle = new Candle();
+                    newCandle.TimeStart = candles[i].TimeStart;
+                    newCandle.Open = candles[i].Open;
+                    newCandle.Close = candles[i].Close;
+                    newCandle.Low = candles[i].Low;
+                    newCandle.High = candles[i].High;
+                    newCandle.Volume = candles[i].Volume;
+                    newCandles.Add(newCandle);
+
+                    curNumCollapse++;
+                }
+                else
+                {
+                    curNumCollapse++;
+                    newCandles[newCandles.Count - 1] = newCandles[newCandles.Count - 1].Merge(candles[i]);
+                }
+
+                if (curNumCollapse == collapseCount)
+                {
+                    curNumCollapse = 0;
+                }
+            }
+
+
+            return newCandles;
+        }
+
+        private int CountCandleCollapse(TimeFrame tf)
+        {
+            int result = 1;
+            //CANDLE_INTERVAL_1_MIN, CANDLE_INTERVAL_5_MIN, CANDLE_INTERVAL_15_MIN, CANDLE_INTERVAL_HOUR, CANDLE_INTERVAL_DAY
             if (tf == TimeFrame.Min1)
             {
-                result += "1min";
+               
             }
-            else if (tf == TimeFrame.Min2)
+            if (tf == TimeFrame.Min2)
             {
-                result += "2min";
+                result = 2;
             }
-            else if (tf == TimeFrame.Min3)
+            if (tf == TimeFrame.Min3)
             {
-                result += "3min";
+                result = 3;
             }
             else if (tf == TimeFrame.Min5)
             {
-                result += "5min";
+                
             }
             else if (tf == TimeFrame.Min10)
             {
-                result += "10min";
+                result = 2;
             }
             else if (tf == TimeFrame.Min15)
             {
-                result += "15min";
+               
             }
             else if (tf == TimeFrame.Min30)
             {
-                result += "30min";
+                result = 2;
+            }
+            else if (tf == TimeFrame.Min45)
+            {
+                result = 3;
             }
             else if (tf == TimeFrame.Hour1)
             {
-                result += "hour";
+                
+            }
+            else if (tf == TimeFrame.Hour2)
+            {
+                result = 2;
+            }
+            else if (tf == TimeFrame.Hour4)
+            {
+                result = 3;
             }
             else if (tf == TimeFrame.Day)
             {
-                result += "day";
+               
             }
 
-            // Available values : 1min, 2min, 3min, 5min, 10min, 15min, 30min, hour, day, week, month
+            return result;
+        }
 
-            //"curl -X GET "https://api-invest.tinkoff.ru/openapi/market/candles?figi=BBG000BBJQV0&from=2019-10-21T10%3A00%3A00.0%2B00%3A00&to=2019-10-21T23%3A55%3A00.0%2B00%3A00&interval=5min"
-            //-H "accept: application/json" -H "Authorization: Bearer t.ZmEaoirPe5unR6Cw0o7YSq-Hl4lCkGES-0XgZmOg9XGl_Ds6OeAzdS9P-x1lRmQjzu7Ol6cMTgN-QUv9ISvyGQ"
+        private string CreateTimeFrameString(TimeFrame tf)
+        {
+            string result = "";
+            //CANDLE_INTERVAL_1_MIN, CANDLE_INTERVAL_5_MIN, CANDLE_INTERVAL_15_MIN, CANDLE_INTERVAL_HOUR, CANDLE_INTERVAL_DAY
+            if (tf == TimeFrame.Min1)
+            {
+                result += "CANDLE_INTERVAL_1_MIN";
+            }
+            if (tf == TimeFrame.Min2)
+            {
+                result += "CANDLE_INTERVAL_1_MIN";
+            }
+            if (tf == TimeFrame.Min3)
+            {
+                result += "CANDLE_INTERVAL_1_MIN";
+            }
+            else if (tf == TimeFrame.Min5)
+            {
+                result += "CANDLE_INTERVAL_5_MIN";
+            }
+            else if (tf == TimeFrame.Min10)
+            {
+                result += "CANDLE_INTERVAL_5_MIN";
+            }
+            else if (tf == TimeFrame.Min15)
+            {
+                result += "CANDLE_INTERVAL_15_MIN";
+            }
+            else if (tf == TimeFrame.Min30)
+            {
+                result += "CANDLE_INTERVAL_15_MIN";
+            }
+            else if (tf == TimeFrame.Min45)
+            {
+                result += "CANDLE_INTERVAL_15_MIN";
+            }
+            else if (tf == TimeFrame.Hour1)
+            {
+                result += "CANDLE_INTERVAL_HOUR";
+            }
+            else if (tf == TimeFrame.Hour2)
+            {
+                result += "CANDLE_INTERVAL_HOUR";
+            }
+            else if (tf == TimeFrame.Hour4)
+            {
+                result += "CANDLE_INTERVAL_HOUR";
+            }
+            else if (tf == TimeFrame.Day)
+            {
+                result += "CANDLE_INTERVAL_DAY";
+            }
 
             return result;
         }
 
         private string ToIso8601(DateTime time)
         {
-            // 2019-10-21T10:00:00.0+00:00
-            // 2019-10-21T10%3A00%3A00.0%2B00%3A00
+            // "2022-05-25T12:51:29.091Z",
 
-            // 2019-10-21T23:55:00.0+00:00
-            // 2019-10-21T23%3A55%3A00.0%2B00%3A00&
             string result = "";
 
             result += time.Year + "-";
@@ -545,32 +529,33 @@ namespace OsEngine.Market.Servers.Tinkoff
             {
                 result += time.Day + "T";
             }
+            // "2022-05-25T12:51:29.091Z",
 
             if (time.Hour < 10)
             {
-                result += "0" + time.Hour + "%3A";
+                result += "0" + time.Hour + ":";
             }
             else
             {
-                result += time.Hour + "%3A";
+                result += time.Hour + ":";
             }
 
             if (time.Minute < 10)
             {
-                result += "0" + time.Minute + "%3A";
+                result += "0" + time.Minute + ":";
             }
             else
             {
-                result += time.Minute + "%3A";
+                result += time.Minute + ":";
             }
-
+            // "2022-05-25T12:51:29.091Z",
             if (time.Second < 10)
             {
-                result += "0" + time.Second + ".0%2B03%3A00";
+                result += "0" + time.Second + ".091Z";
             }
             else
             {
-                result += time.Second + ".0%2B03%3A00";
+                result += time.Second + ".091Z";
             }
 
             return result;
@@ -578,65 +563,266 @@ namespace OsEngine.Market.Servers.Tinkoff
 
         private DateTime FromIso8601(string str)
         {
-            DateTime time = Convert.ToDateTime(str);
+            string timeInStr = str;
+
+            int year = Convert.ToInt32(timeInStr.Substring(0, 4));
+            int month = Convert.ToInt32(timeInStr.Substring(5, 2));
+            int day = Convert.ToInt32(timeInStr.Substring(8, 2));
+            int hour = Convert.ToInt32(timeInStr.Substring(11, 2));
+            int minute = Convert.ToInt32(timeInStr.Substring(14, 2));
+            DateTime time = new DateTime(year, month, day, hour, minute, 0);
 
             return time;
         }
 
-        public void GetMarketDepth(Security security)
+        #endregion
+
+        #region Имитация потоковых сервисов
+
+        private async void WorkerPlace()
+        {
+            await Task.Delay(10000);
+
+            while (true)
+            {
+                try
+                {
+                    await Task.Delay(20);
+
+                    if (_isDisposed)
+                    {
+                        return;
+                    }
+
+                    if (IsConnected == false)
+                    {
+                        continue;
+                    }
+
+                    if (_portfolios != null &&
+                        _lastBalanceUpdTime.AddSeconds(10) < DateTime.Now)
+                    {
+                        UpdBalance();
+                        UpdateMyTradesAndOrders();
+                        _lastBalanceUpdTime = DateTime.Now;
+                    }
+
+                    UpDateLastPrices();
+
+                    for (int i = 0; i < _securitiesSubscrible.Count; i++)
+                    {
+                        GetMarketDepth(_securitiesSubscrible[i]);
+                    }
+                }
+                catch (Exception e)
+                {
+                    SendLogMessage(e.ToString(), LogMessageType.Error);
+                    await Task.Delay(5000);
+                }
+            }
+        }
+
+        private DateTime _lastBalanceUpdTime;
+
+        // обезличенные сделки и стаканы
+
+        public void SubscribleDepthsAndTrades(Security security)
+        {
+            if (_securitiesSubscrible.Find(s => s.Name == security.Name) != null)
+            {
+                return;
+            }
+            _securitiesSubscrible.Add(security);
+        }
+
+        List<Security> _securitiesSubscrible = new List<Security>();
+
+        public void UpDateLastPrices()
         {
             if (_securitiesSubscrible.Count == 0)
             {
                 return;
             }
 
-            //https://api-invest.tinkoff.ru/openapi/market/orderbook?figi=BBG001DJNR51&depth=10
+            string url = _url + "MarketDataService/GetLastPrices";
 
-            string url = _url + "market/orderbook?";
-            url += "figi=" + security.NameId;
-            url += "&depth=7";
+            Dictionary<string, string> param = new Dictionary<string, string>();
 
-            var jsonCurrency = ApiQuery(url, "GET", new Dictionary<string, string>());
+            string figiResponse = "[";
 
+            for(int i = 0;i < _securitiesSubscrible.Count;i++)
+            {
+                figiResponse 
+                    += "\"" 
+                    + _securitiesSubscrible[i].NameId
+                    + "\"";
 
-            if (jsonCurrency == null)
+                if(i + 1 != _securitiesSubscrible.Count)
+                {
+                    figiResponse += ",";
+                }
+            }
+            figiResponse += "]";
+
+            //["BBG00ZHCX1X2"]
+
+            param.Add("figi", figiResponse);
+
+            var res = CreatePrivatePostQuery(url, param);
+
+            if (res == null)
             {
                 return;
             }
 
-            MarketDepth depth = new MarketDepth();
-            depth.SecurityNameCode = security.Name;
-            depth.Time = DateTime.Now;
-            //  var time = JToken.Parse(jsonCurrency).SelectToken("payload").SelectToken("time");
+            LastPricesResponse priceResp = JsonConvert.DeserializeAnonymousType(res, new LastPricesResponse());
 
-            var jBid = JToken.Parse(jsonCurrency).SelectToken("payload").SelectToken("bids");
+            List<Trade> newFakeTrades = new List<Trade>();
 
-            List<MarketDepthLevel> bids = new List<MarketDepthLevel>();
-
-            foreach (var bid in jBid)
+            for(int i = 0;i < priceResp.lastPrices.Count;i++)
             {
-                MarketDepthLevel newBid = new MarketDepthLevel();
+                LastPrice price = priceResp.lastPrices[i];
+                Security mySec = GetSecurityByFigi(price.figi);
 
-                newBid.Bid = bid.SelectToken("quantity").ToString().ToDecimal();
-                newBid.Price = bid.SelectToken("price").ToString().ToDecimal();
+                if(mySec == null)
+                {
+                    continue;
+                }
 
-                bids.Add(newBid);
+                Trade newTrade = new Trade();
+
+                newTrade.SecurityNameCode = mySec.Name;
+                newTrade.Time = FromIso8601(price.time);
+                newTrade.Price = price.price.GetValue().ToStringWithNoEndZero().ToDecimal();
+                newTrade.Volume = 1;
+                newTrade.Id = newTrade.Time.Ticks.ToString();
+
+                newFakeTrades.Add(newTrade);
             }
 
+            if (NewTradesEvent != null)
+            {
+                NewTradesEvent(newFakeTrades);
+            }
+
+            if (_securitiesSubscrible.Count >= 3)
+            {
+                CreateFakeMd(newFakeTrades);
+            }
+        }
+
+        private void CreateFakeMd(List<Trade> trades)
+        {
+            for(int i = 0;i < trades.Count;i++)
+            {
+                CreateFakeMdByTrade(trades[i]);
+            }
+        }
+
+        private void CreateFakeMdByTrade(Trade trade)
+        {
+            List<MarketDepthLevel> bids = new List<MarketDepthLevel>();
+
+            MarketDepthLevel newBid = new MarketDepthLevel();
+            newBid.Bid = trade.Volume;
+            newBid.Price = trade.Price;
+            bids.Add(newBid);
+            
+
+            MarketDepth depth = new MarketDepth();
+
+            depth.SecurityNameCode = trade.SecurityNameCode;
+            depth.Time = MaxTimeOnServer;
             depth.Bids = bids;
-
-
-            var jAsk = JToken.Parse(jsonCurrency).SelectToken("payload").SelectToken("asks");
 
             List<MarketDepthLevel> asks = new List<MarketDepthLevel>();
 
-            foreach (var ask in jAsk)
+            MarketDepthLevel newAsk = new MarketDepthLevel();
+            newAsk.Ask = trade.Volume;
+            newAsk.Price = trade.Price;
+            asks.Add(newAsk);
+            
+            depth.Asks = asks;
+
+            if (depth.Asks == null ||
+                depth.Asks.Count == 0 ||
+                depth.Bids == null ||
+                depth.Bids.Count == 0)
+            {
+                return;
+            }
+
+            if (UpdateMarketDepth != null)
+            {
+                UpdateMarketDepth(depth);
+            }
+        }
+
+        private DateTime MaxTimeOnServer
+        {
+            set
+            {
+                if(value < _timeOnServer)
+                {
+                    return;
+                }
+
+                _timeOnServer = value;
+            }
+            get
+            {
+                return _timeOnServer;
+            }
+        }
+
+        private DateTime _timeOnServer;
+
+        public void GetMarketDepth(Security security)
+        {
+            if (_securitiesSubscrible.Count == 0 ||
+                _securitiesSubscrible.Count >= 3)
+            {
+                return;
+            }
+
+            string url = _url + "MarketDataService/GetOrderBook";
+
+            Dictionary<string, string> param = new Dictionary<string, string>();
+
+            param.Add("figi", security.NameId);
+            param.Add("depth", "5");
+
+            var res = CreatePrivatePostQuery(url, param);
+
+            if (res == null)
+            {
+                return;
+            }
+
+            MarketDepthTinkoffResponse mdResp = JsonConvert.DeserializeAnonymousType(res, new MarketDepthTinkoffResponse());
+
+            List<MarketDepthLevel> bids = new List<MarketDepthLevel>();
+
+            for(int i = 0;i < mdResp.bids.Count;i++)
+            {
+                MarketDepthLevel newBid = new MarketDepthLevel();
+                newBid.Bid = Convert.ToDecimal(mdResp.bids[i].quantity);
+                newBid.Price = mdResp.bids[i].price.GetValue().ToStringWithNoEndZero().ToDecimal();
+                bids.Add(newBid);
+            }
+
+            MarketDepth depth = new MarketDepth();
+            depth.SecurityNameCode = security.Name;
+            depth.Time = MaxTimeOnServer;
+            depth.Bids = bids;
+
+            List<MarketDepthLevel> asks = new List<MarketDepthLevel>();
+
+            for (int i = 0; i < mdResp.asks.Count; i++)
             {
                 MarketDepthLevel newAsk = new MarketDepthLevel();
-
-                newAsk.Ask = ask.SelectToken("quantity").ToString().ToDecimal();
-                newAsk.Price = ask.SelectToken("price").ToString().ToDecimal();
-
+                newAsk.Ask = Convert.ToDecimal(mdResp.asks[i].quantity);
+                newAsk.Price = mdResp.asks[i].price.GetValue().ToStringWithNoEndZero().ToDecimal();
                 asks.Add(newAsk);
             }
 
@@ -656,91 +842,63 @@ namespace OsEngine.Market.Servers.Tinkoff
             }
         }
 
-        private List<MyTrade> _myTrades = new List<MyTrade>();
+        // портфели и позиции
 
-        private List<Order> _canselOrders = new List<Order>();
+        private List<Portfolio> _portfolios = new List<Portfolio>();
 
-        public void UpdateMyTrades()
+        private AccountsResponse _accountsResponse;
+
+        public void UpdBalance()
         {
             try
             {
-
-                //curl - X GET "https://api-invest.tinkoff.ru/openapi/operations?from=2019-11-01T01%3A00%3A00.0%2B00%3A00&to=2019-11-01T23%3A50%3A00.0%2B00%3A00"
-                //- H "accept: application/json"
-                //- H "Authorization: Bearer t.ZmEaoirPe5unR6Cw0o7YSq-Hl4lCkGES-0XgZmOg9XGl_Ds6OeAzdS9P-x1lRmQjzu7Ol6cMTgN-QUv9ISvyGQ"
-
-                DateTime now = DateTime.Now;
-                DateTime from = new DateTime(now.Year, now.Month, now.Day, 1, 0, 0);
-                DateTime to = new DateTime(now.Year, now.Month, now.Day, 23, 50, 0);
-
-                string url = _url + "operations?";
-                url += "from=" + ToIso8601(from) + "&";
-                url += "to=" + ToIso8601(to) + "&";
-
-
-                var jsonCurrency = ApiQuery(url, "GET", new Dictionary<string, string>());
-
-                if (jsonCurrency == null)
+                if (_accountsResponse == null)
                 {
-                    return;
-                }
+                    string url = _url + "UsersService/GetAccounts";
 
-                var jOrders = JToken.Parse(jsonCurrency).SelectToken("payload").SelectToken("operations");//.Children<JProperty>();
+                    var res = CreatePrivatePostQuery(url, new Dictionary<string, string>());
 
-                foreach (var order in jOrders)
-                {
-                    Order newOrder = new Order();
-                    newOrder.NumberMarket = order.SelectToken("id").ToString();
-                    string state = order.SelectToken("status").ToString();
-
-                    if (state == "Decline")
+                    if (res == null)
                     {
-                        newOrder.State = OrderStateType.Cancel;
-
-                        if (_canselOrders.Find(ord => ord.NumberMarket == newOrder.NumberMarket) == null &&
-                            MyOrderEvent != null)
-                        {
-                            string figa = order.SelectToken("figi").ToString();
-                            Security security = _allSecurities.Find(sec => sec.NameId == figa);
-                            if (security != null)
-                            {
-                                newOrder.SecurityNameCode = security.Name;
-                            }
-
-                            _canselOrders.Add(newOrder);
-                            MyOrderEvent(newOrder);
-                        }
+                        return;
                     }
 
-                    var jTrades = order.SelectToken("trades");
-                    if (jTrades != null)
+                    _accountsResponse = JsonConvert.DeserializeAnonymousType(res, new AccountsResponse());
+                }
+
+                for (int i = 0; i < _accountsResponse.accounts.Count; i++)
+                {
+                    Account account = _accountsResponse.accounts[i];
+
+                    if (string.IsNullOrEmpty(account.id))
                     {
-                        foreach (var trade in jTrades)
-                        {
-                            string num = trade.SelectToken("tradeId").ToString();
+                        continue;
+                    }
 
-                            if (_myTrades.Find(t => t.NumberTrade == num) == null && MyTradeEvent != null)
-                            {
-                                // "operationType": "Sell",
-                                MyTrade myTrade = new MyTrade();
-                                myTrade.NumberTrade = num;
-                                myTrade.NumberOrderParent = newOrder.NumberMarket;
-                                myTrade.Price = trade.SelectToken("price").ToString().ToDecimal();
-                                myTrade.Volume = trade.SelectToken("quantity").ToString().ToDecimal();
-                                myTrade.Time = Convert.ToDateTime(trade.SelectToken("date").ToString());
-                                Enum.TryParse(order.SelectToken("operationType").ToString(), out myTrade.Side);
+                    string portUrl = _url + "OperationsService/GetPortfolio";
 
-                                string figa = order.SelectToken("figi").ToString();
-                                Security security = _allSecurities.Find(sec => sec.NameId == figa);
-                                if (security != null)
-                                {
-                                    myTrade.SecurityNameCode = security.Name;
-                                }
+                    Dictionary<string, string> param = new Dictionary<string, string>();
 
-                                MyTradeEvent(myTrade);
-                                _myTrades.Add(myTrade);
-                            }
-                        }
+                    param.Add("accountId", account.id);
+
+                    var resPort = CreatePrivatePostQuery(portUrl, param);
+
+                    if (resPort == null)
+                    {
+                        continue;
+                    }
+
+                    PortfoliosResponse portfoliosResponse = JsonConvert.DeserializeAnonymousType(resPort, new PortfoliosResponse());
+
+                    UpdatePortfolioFromJson(portfoliosResponse, account.id);
+                    UpdatePositionsInPortfolio(portfoliosResponse, portfoliosResponse.positions, account.id);
+                }
+
+                if (UpdatePortfolio != null)
+                {
+                    for (int i = 0; i < _portfolios.Count; i++)
+                    {
+                        UpdatePortfolio(_portfolios[i]);
                     }
                 }
             }
@@ -750,9 +908,101 @@ namespace OsEngine.Market.Servers.Tinkoff
             }
         }
 
+        public void UpdatePortfolioFromJson(PortfoliosResponse portfolio, string porfolioId)
+        {
+            Portfolio myPortfolio = _portfolios.Find(p => p.Number == porfolioId);
+
+            if (myPortfolio == null)
+            {
+                myPortfolio = new Portfolio();
+                myPortfolio.Number = porfolioId;
+                myPortfolio.ValueCurrent = 1;
+                _portfolios.Add(myPortfolio);
+            }
+
+            List<PositionOnBoard> sectionByPower = new List<PositionOnBoard>();
+
+            PositionOnBoard totalAmountBonds = ConverToPosOnBoard(portfolio.totalAmountBonds, porfolioId, "BondsBuyPower");
+            sectionByPower.Add(totalAmountBonds);
+
+            PositionOnBoard totalAmountFutures = ConverToPosOnBoard(portfolio.totalAmountFutures, porfolioId, "FutBuyPower");
+            sectionByPower.Add(totalAmountFutures);
+
+            PositionOnBoard totalAmountCurrencies = ConverToPosOnBoard(portfolio.totalAmountCurrencies, porfolioId, "CurBuyPower");
+            sectionByPower.Add(totalAmountCurrencies);
+
+            PositionOnBoard totalAmountShares = ConverToPosOnBoard(portfolio.totalAmountShares, porfolioId, "SharesBuyPower");
+            sectionByPower.Add(totalAmountShares);
+
+            PositionOnBoard totalAmountEtf = ConverToPosOnBoard(portfolio.totalAmountEtf, porfolioId, "EtfBuyPower");
+            sectionByPower.Add(totalAmountEtf);
+
+            for (int i = 0; i < sectionByPower.Count; i++)
+            {
+                myPortfolio.SetNewPosition(sectionByPower[i]);
+            }
+        }
+
+        private PositionOnBoard ConverToPosOnBoard(CurrencyQuotation currency, string portfolioId, string sectionName)
+        {
+            PositionOnBoard totalAmount = new PositionOnBoard();
+            totalAmount.PortfolioName = portfolioId;
+            totalAmount.SecurityNameCode = sectionName + "_" + currency.currency;
+            totalAmount.ValueBegin = currency.GetValue();
+            totalAmount.ValueCurrent = totalAmount.ValueBegin;
+
+            return totalAmount;
+        }
+
+        public void UpdatePositionsInPortfolio(PortfoliosResponse portfolio, List<TinkoffApiPosition> positions, string porfolioName)
+        {
+            if (positions == null
+                || positions.Count == 0
+                || _allSecurities == null
+                || _allSecurities.Count == 0)
+            {
+                return;
+            }
+
+            Portfolio myPortfolio = _portfolios.Find(p => p.Number == porfolioName);
+
+            if (myPortfolio == null)
+            {
+                return;
+            }
+
+            List<PositionOnBoard> sectionByPower = new List<PositionOnBoard>();
+
+            for (int i = 0; i < positions.Count; i++)
+            {
+                Security mySec = GetSecurityByFigi(positions[i].figi);
+
+                if (mySec == null)
+                {
+                    continue;
+                }
+
+                PositionOnBoard pos = new PositionOnBoard();
+                pos.PortfolioName = porfolioName;
+                pos.ValueCurrent = positions[i].quantity.GetValue();
+                pos.ValueBegin = positions[i].quantity.GetValue();
+                pos.SecurityNameCode = mySec.Name;
+
+                sectionByPower.Add(pos);
+            }
+
+            for (int i = 0; i < sectionByPower.Count; i++)
+            {
+                myPortfolio.SetNewPosition(sectionByPower[i]);
+            }
+
+
+
+        }
+
         #endregion
 
-        #region work with orders
+        #region работа с ордерами
 
         /// <summary>
         /// execute order
@@ -761,7 +1011,6 @@ namespace OsEngine.Market.Servers.Tinkoff
         /// <param name="order"></param>
         public void ExecuteOrder(Order order)
         {
-
             lock (_lockOrder)
             {
                 try
@@ -778,19 +1027,7 @@ namespace OsEngine.Market.Servers.Tinkoff
                         return;
                     }
 
-
-                    string request = "";
-
-                    Dictionary<string, string> param = new Dictionary<string, string>();
-
-                    param.Add("lots", order.Volume.ToString());
-                    param.Add("operation", order.Side.ToString());
-                    param.Add("price", order.Price.ToString());
-
-                    // curl - X POST "https://api-invest.tinkoff.ru/openapi/orders/limit-order?figi=BBG004730N88" -
-                    // H "accept: application/json" - H "Authorization: Bearer t.ZmEaoirPe5unR6Cw0o7YSq-Hl4lCkGES-0XgZmOg9XGl_Ds6OeAzdS9P-x1lRmQjzu7Ol6cMTgN-QUv9ISvyGQ"
-                    // - 
-                    //H "Content-Type: application/json" - d "{\"lots\":1,\"operation\":\"Buy\",\"price\":230}"
+                    string url = _url + "OrdersService/PostOrder";
 
                     Security security = _allSecurities.Find(sec => sec.Name == order.SecurityNameCode);
 
@@ -799,15 +1036,64 @@ namespace OsEngine.Market.Servers.Tinkoff
                         return;
                     }
 
-                    string url = _url + "orders/limit-order?figi=" + security.NameId;
+                    Dictionary<string, string> param = new Dictionary<string, string>();
+                    param.Add("figi", security.NameId);
+                    param.Add("quantity", order.Volume.ToString());
+                    param.Add("price", ToQuotation(order.Price));
+                    
 
-                    var jsonCurrency = ApiQuery(url, "POST", param);
+                    string side = "ORDER_DIRECTION_BUY";
+                    if(order.Side == Side.Sell)
+                    {
+                        side = "ORDER_DIRECTION_SELL";
+                    }
+                    param.Add("direction", side);
 
+                    param.Add("accountId", order.PortfolioNumber);
 
-                    if (jsonCurrency == null)
+                    string type = "ORDER_TYPE_LIMIT";
+                    if(order.TypeOrder == OrderPriceType.Market)
+                    {
+                        type = "ORDER_TYPE_MARKET";
+                    }
+                    param.Add("orderType", type);
+
+                    param.Add("orderId", order.NumberUser.ToString());
+                    string json = null;
+                    try
+                    {
+                        json = CreatePrivatePostQuery(url, param);
+                    }
+                    catch(Exception error)
+                    {
+                        if(error.GetType().Name == "WebException")
+                        {
+                            WebException wExp = (WebException)error;
+
+                            SendLogMessage("Error on order Execution \n" + wExp.Message.ToString(), LogMessageType.Error);
+
+                            SendLogMessage(wExp.Response.ToString() + "\n" 
+                                + wExp.Response.Headers.ToString() + "\n"
+                                , LogMessageType.Error);
+                        }
+                        else
+                        {
+                            SendLogMessage("Error on order Execution \n" + error.Message.ToString(), LogMessageType.Error);
+                        }
+
+                        order.State = OrderStateType.Fail;
+                        if (MyOrderEvent != null)
+                        {
+                            MyOrderEvent(order);
+                        }
+
+                        return;
+                    }
+                    
+
+                    if (json == null)
                     {
                         order.State = OrderStateType.Fail;
-
 
                         if (MyOrderEvent != null)
                         {
@@ -817,13 +1103,29 @@ namespace OsEngine.Market.Servers.Tinkoff
                         return;
                     }
 
-                    var jorder = JToken.Parse(jsonCurrency).SelectToken("payload");
 
-                    order.NumberMarket = jorder.SelectToken("orderId").ToString();
-                    //order.NumberUser = Convert.ToInt32(Convert.ToInt64(order.NumberMarket) - 100000000);
-                    order.State = OrderStateType.Activ;
-                    order.TimeCallBack = DateTime.Now;
+                    OrderTinkoff orderResponse = JsonConvert.DeserializeAnonymousType(json, new OrderTinkoff());
 
+                    //EXECUTION_REPORT_STATUS_UNSPECIFIED, 
+                    //EXECUTION_REPORT_STATUS_FILL, 
+                    //EXECUTION_REPORT_STATUS_REJECTED, 
+                    //EXECUTION_REPORT_STATUS_CANCELLED, 
+                    //EXECUTION_REPORT_STATUS_NEW, 
+                    //EXECUTION_REPORT_STATUS_PARTIALLYFILL
+
+                    if (orderResponse.executionReportStatus == "EXECUTION_REPORT_STATUS_REJECTED")
+                    {
+                        order.State = OrderStateType.Fail;
+                    }
+                    else
+                    {
+                        order.State = OrderStateType.Activ;
+                        order.NumberMarket = orderResponse.orderId;
+                        lock (_openOrdersArrayLocker)
+                        {
+                            _openedOrders.Add(order);
+                        }
+                    }
 
                     if (MyOrderEvent != null)
                     {
@@ -836,6 +1138,35 @@ namespace OsEngine.Market.Servers.Tinkoff
                     SendLogMessage(ex.ToString(), LogMessageType.Error);
                 }
             }
+        }
+
+        private string ToQuotation(decimal value)
+        {
+            string valueInStr = value.ToStringWithNoEndZero().Replace(",", ".");
+
+            string units = valueInStr.Split('.')[0];
+            string nano = "0";
+
+            if (valueInStr.Split('.').Length > 1)
+            {
+                nano = valueInStr.Split('.')[1];
+            }
+            //650000000
+            while (nano.Length < 9)
+            {
+                nano += "0";
+            }
+
+            //{"nano": 6,"units": "units"}
+            //{"nano": 113,"units": "89"}
+
+            string res = "{\"nano\": ";
+
+            res +=  nano + ",\"units\": ";
+
+            res += "\"" + units + "\"" + "}";
+
+            return res;
         }
 
         private object _lockOrder = new object();
@@ -848,38 +1179,73 @@ namespace OsEngine.Market.Servers.Tinkoff
         {
             lock (_lockOrder)
             {
+
+                string url = _url + "OrdersService/CancelOrder";
+
+                Security security = _allSecurities.Find(sec => sec.Name == order.SecurityNameCode);
+
+                if (security == null)
+                {
+                    return;
+                }
+
+                Dictionary<string, string> param = new Dictionary<string, string>();
+
+                param.Add("accountId", order.PortfolioNumber);
+
+                param.Add("orderId", order.NumberMarket.ToString());
+
+                string json = null;
                 try
                 {
-                    if (IsConnected == false)
-                    {
-                        SendLogMessage("Cansel order fail. Exchange isnt work", LogMessageType.Error);
-                        return;
-                    }
-
-                    //curl -X POST "https://api-invest.tinkoff.ru/openapi/orders/cancel?orderId=18846767867" -H "accept: application/json"
-                    //-H "Authorization: Bearer t.ZmEaoirPe5unR6Cw0o7YSq-Hl4lCkGES-0XgZmOg9XGl_Ds6OeAzdS9P-x1lRmQjzu7Ol6cMTgN-QUv9ISvyGQ"
-                    //-H "Content-Type: application/json"
-
-                    Dictionary<string, string> param = new Dictionary<string, string>();
-
-                    param.Add("trackingId", "string");
-
-                    string url = _url + "orders/cancel?orderId=" + order.NumberMarket;
-
-                    string result = ApiQuery(url, "POST", param);
-
-                    order.State = OrderStateType.Cancel;
-
-                    if (MyOrderEvent != null)
-                    {
-                        MyOrderEvent(order);
-                    }
-
+                    json = CreatePrivatePostQuery(url, param);
                 }
-                catch (Exception ex)
+                catch (Exception error)
                 {
-                    SendLogMessage(ex.ToString(), LogMessageType.Error);
+                    if (error.GetType().Name == "WebException")
+                    {
+                        WebException wExp = (WebException)error;
 
+                        SendLogMessage("Error on order Cansel \n" + wExp.Message.ToString(), LogMessageType.Error);
+
+                        SendLogMessage(wExp.Response.ToString() + "\n"
+                            + wExp.Response.Headers.ToString() + "\n"
+                            , LogMessageType.Error);
+                    }
+                    else
+                    {
+                        SendLogMessage("Error on order Cansel \n" + error.Message.ToString(), LogMessageType.Error);
+                    }
+
+                    return;
+                }
+
+                if (json == null)
+                {
+                    return;
+                }
+
+
+                OrderCancelResponce orderResponse = JsonConvert.DeserializeAnonymousType(json, new OrderCancelResponce());
+
+                Order canceledOrder = new Order();
+                canceledOrder.NumberUser = order.NumberUser;
+                canceledOrder.NumberMarket = order.NumberMarket;
+                canceledOrder.SecurityNameCode = order.SecurityNameCode;
+                canceledOrder.PortfolioNumber = order.PortfolioNumber;
+                canceledOrder.Side = order.Side;
+                canceledOrder.Price = order.Price;
+                canceledOrder.TypeOrder = order.TypeOrder;
+                canceledOrder.Volume = order.Volume;
+                canceledOrder.IsStopOrProfit = order.IsStopOrProfit;
+                canceledOrder.LifeTime = order.LifeTime;
+                canceledOrder.SecurityClassCode = order.SecurityClassCode;
+                canceledOrder.State = OrderStateType.Cancel;
+                canceledOrder.TimeCancel = _timeOnServer;
+
+                if (MyOrderEvent != null)
+                {
+                    MyOrderEvent(canceledOrder);
                 }
             }
         }
@@ -890,8 +1256,218 @@ namespace OsEngine.Market.Servers.Tinkoff
         /// </summary>
         public bool GetAllOrders(List<Order> oldOpenOrders)
         {
+            for(int i = 0;i < oldOpenOrders.Count;i++)
+            {
+                if(oldOpenOrders[i].ServerType != ServerType.Tinkoff)
+                {
+                    continue;
+                }
+                _openedOrders.Add(oldOpenOrders[i]);
+            }
 
             return false;
+        }
+
+        private List<Order> _openedOrders = new List<Order>();
+
+        private string _openOrdersArrayLocker = "ordersLocker";
+
+        public void UpdateMyTradesAndOrders()
+        {
+            try
+            {
+                lock(_openOrdersArrayLocker)
+                {
+                    for (int i = 0; i < _openedOrders.Count; i++)
+                    {
+                        Order orderFromArray = _openedOrders[i];
+
+                        if(string.IsNullOrEmpty(orderFromArray.NumberMarket))
+                        {
+                            continue;
+                        }
+
+                        Order curOrder = GetOldOrderState(orderFromArray.PortfolioNumber, orderFromArray.NumberMarket, _openedOrders[i]);
+
+                        if(curOrder == null)
+                        {
+                            continue;
+                        }
+
+                        if (curOrder.State == OrderStateType.Done ||
+                            curOrder.State == OrderStateType.Fail ||
+                            curOrder.State == OrderStateType.Cancel)
+                        {
+                            _openedOrders.RemoveAt(i);
+                            i--;
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                SendLogMessage(e.ToString(), LogMessageType.Error);
+            }
+        }
+
+        private Order GetOldOrderState(string portfolioId, string orderId, Order oldOrder)
+        {
+            if(IsConnected == false)
+            {
+                return null;
+            }
+
+            OrderStateResponce orderResp = GetHistorycalOrderResponce(portfolioId, orderId);
+
+            if(orderResp == null)
+            {
+                return null;
+            }
+
+            Order order = GenerateOrder(orderResp, oldOrder);
+
+            if (orderResp.stages != null && 
+                orderResp.stages.Count != 0)
+            {
+                List<MyTrade> myTrades = GenerateMyTrades(orderResp, oldOrder);
+
+                if(MyTradeEvent != null)
+                {
+                    for(int i = 0;i < myTrades.Count;i++)
+                    {
+                        MyTradeEvent(myTrades[i]);
+                    }
+                }
+            }
+
+            if(MyOrderEvent != null)
+            {
+                MyOrderEvent(order);
+            }
+
+            return order;
+        }
+
+        private Order GenerateOrder(OrderStateResponce orderResp, Order oldOrder)
+        {
+            Order order = new Order();
+
+            order.NumberUser = oldOrder.NumberUser;
+            order.NumberMarket = oldOrder.NumberMarket;
+            order.SecurityNameCode = oldOrder.SecurityNameCode;
+            order.PortfolioNumber = oldOrder.PortfolioNumber;
+            order.Side = oldOrder.Side;
+            order.TypeOrder = oldOrder.TypeOrder;
+            order.Volume = oldOrder.Volume;
+            order.IsStopOrProfit = oldOrder.IsStopOrProfit;
+            order.LifeTime = oldOrder.LifeTime;
+            order.SecurityClassCode = oldOrder.SecurityClassCode;
+
+            order.Price = oldOrder.Price;
+            order.TimeCreate = oldOrder.TimeCreate;
+            order.TimeCallBack = FromIso8601(orderResp.orderDate);
+
+            /// <summary>
+            /// EXECUTION_REPORT_STATUS_UNSPECIFIED, 
+            /// EXECUTION_REPORT_STATUS_FILL, 
+            /// EXECUTION_REPORT_STATUS_REJECTED, 
+            /// EXECUTION_REPORT_STATUS_CANCELLED, 
+            /// EXECUTION_REPORT_STATUS_NEW, 
+            /// EXECUTION_REPORT_STATUS_PARTIALLYFILL
+            /// </summary>
+
+            if (orderResp.executionReportStatus == "EXECUTION_REPORT_STATUS_UNSPECIFIED")
+            {
+                order.State = OrderStateType.None;
+            }
+            else if (orderResp.executionReportStatus == "EXECUTION_REPORT_STATUS_FILL")
+            {
+                order.State = OrderStateType.Done;
+            }
+            else if (orderResp.executionReportStatus == "EXECUTION_REPORT_STATUS_REJECTED")
+            {
+                order.State = OrderStateType.Fail;
+            }
+            else if (orderResp.executionReportStatus == "EXECUTION_REPORT_STATUS_CANCELLED")
+            {
+                order.State = OrderStateType.Cancel;
+            }
+            else if (orderResp.executionReportStatus == "EXECUTION_REPORT_STATUS_NEW")
+            {
+                order.State = OrderStateType.Activ;
+            }
+            else if (orderResp.executionReportStatus == "EXECUTION_REPORT_STATUS_PARTIALLYFILL")
+            {
+                order.State = OrderStateType.Patrial;
+            }
+
+            return order;
+        }
+
+        private List<MyTrade> GenerateMyTrades(OrderStateResponce orderResp, Order oldOrder)
+        {
+            List<MyTrade> trades = new List<MyTrade>();
+
+            for(int i = 0;i < orderResp.stages.Count;i++)
+            {
+                MyTrade trade = new MyTrade();
+                trade.SecurityNameCode = oldOrder.SecurityNameCode;
+                trade.Side = oldOrder.Side;
+
+                trade.Volume = orderResp.stages[i].quantity.ToDecimal();
+                trade.Price = orderResp.stages[i].price.GetValue().ToStringWithNoEndZero().ToDecimal();
+                trade.NumberTrade = orderResp.stages[i].tradeId;
+                trade.Time = FromIso8601(orderResp.orderDate);
+                trades.Add(trade);
+            }
+
+            return trades;
+        }
+
+        private OrderStateResponce GetHistorycalOrderResponce(string portfolioId, string orderId)
+        {
+            string url = _url + "OrdersService/GetOrderState";
+
+            Dictionary<string, string> param = new Dictionary<string, string>();
+
+            param.Add("accountId", portfolioId);
+
+            param.Add("orderId", orderId);
+
+            string json = null;
+            try
+            {
+                json = CreatePrivatePostQuery(url, param);
+            }
+            catch (Exception error)
+            {
+                if (error.GetType().Name == "WebException")
+                {
+                    WebException wExp = (WebException)error;
+
+                    SendLogMessage("Get order State Exception \n" + wExp.Message.ToString(), LogMessageType.Error);
+
+                    SendLogMessage(wExp.Response.ToString() + "\n"
+                        + wExp.Response.Headers.ToString() + "\n"
+                        , LogMessageType.Error);
+                }
+                else
+                {
+                    SendLogMessage("Get order State Exception \n" + error.Message.ToString(), LogMessageType.Error);
+                }
+
+                return null;
+            }
+
+            if (json == null)
+            {
+                return null;
+            }
+
+
+            OrderStateResponce orderResponse = JsonConvert.DeserializeAnonymousType(json, new OrderStateResponce());
+
+            return orderResponse;
         }
 
         #endregion
@@ -969,27 +1545,5 @@ namespace OsEngine.Market.Servers.Tinkoff
         public event Action<string, LogMessageType> LogMessageEvent;
 
         #endregion
-    }
-
-    public static class Helpers
-    {
-        public static NameValueCollection ToNameValueCollection<TKey, TValue>(this IDictionary<TKey, TValue> dict)
-        {
-            var nameValueCollection = new NameValueCollection();
-
-            foreach (var kvp in dict)
-            {
-                string value = string.Empty;
-                if (kvp.Value != null)
-                    value = kvp.Value.ToString();
-
-                nameValueCollection.Add(kvp.Key.ToString(), value);
-            }
-
-            return nameValueCollection;
-        }
-
-
-
     }
 }
