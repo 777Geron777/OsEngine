@@ -53,11 +53,12 @@ namespace OsEngine.Market.Servers
 
                 CreateParameterInt(OsLocalization.Market.ServerParam6, 300);
                 _neadToSaveCandlesCountParam = (ServerParameterInt)ServerParameters[ServerParameters.Count - 1];
+                _neadToSaveCandlesCountParam.ValueChange += _neadToSaveCandlesCountParam_ValueChange;
 
                 CreateParameterBoolean(OsLocalization.Market.ServerParam7, false);
                 _needToLoadBidAskInTrades = (ServerParameterBool)ServerParameters[ServerParameters.Count - 1];
 
-                CreateParameterBoolean(OsLocalization.Market.ServerParam8, false);
+                CreateParameterBoolean(OsLocalization.Market.ServerParam8, true);
                 _needToRemoveTradesFromMemory = (ServerParameterBool)ServerParameters[ServerParameters.Count - 1];
 
                 CreateParameterBoolean(OsLocalization.Market.ServerParam9, false);
@@ -74,6 +75,7 @@ namespace OsEngine.Market.Servers
 
                 _candleStorage = new ServerCandleStorage(this);
                 _candleStorage.NeadToSave = _neadToSaveCandlesParam.Value;
+                _candleStorage.CandlesSaveCount = _neadToSaveCandlesCountParam.Value;
                 _candleStorage.LogMessageEvent += SendLogMessage;
 
                 Task task0 = new Task(ExecutorOrdersThreadArea);
@@ -107,6 +109,11 @@ namespace OsEngine.Market.Servers
 
             }
             get { return _serverRealization; }
+        }
+
+        private void _neadToSaveCandlesCountParam_ValueChange()
+        {
+            _candleStorage.CandlesSaveCount = _neadToSaveCandlesCountParam.Value;
         }
 
         private object trades_locker = new object();
@@ -870,22 +877,17 @@ namespace OsEngine.Market.Servers
                                 if (_needToRemoveTradesFromMemory.Value == true && _allTrades != null)
 
                                 {
-                                    foreach (var el in _allTrades)
+                                    for (int i = 0; i < _allTrades.Length; i++)
                                     {
-                                        if (el.Count > 100)
+                                        List<Trade> curTrades = _allTrades[i];
+
+                                        if (curTrades.Count > 100)
                                         {
-                                            for (int i = el.Count - 100; i > 0; i--)
-                                            {
-                                                if (el[i] == null)
-                                                {
-                                                    break;
-                                                }
-                                                el[i] = null;
-                                            }
+                                            curTrades = curTrades.GetRange(curTrades.Count - 101, 100);
+                                            _allTrades[i] = curTrades;
                                         }
                                     }
                                 }
-
                             }
                         }
                     }
@@ -1133,6 +1135,8 @@ namespace OsEngine.Market.Servers
         }
         private List<Security> _securities;
 
+        private List<Security> _frequentlyUsedSecurities = new List<Security>();
+
         /// <summary>
         /// take the instrument as a Security by name of instrument
         /// взять инструмент в виде класса Security, по имени инструмента 
@@ -1144,11 +1148,21 @@ namespace OsEngine.Market.Servers
                 return null;
             }
 
+            for (int i = 0; i < _frequentlyUsedSecurities.Count; i++)
+            {
+                if (_frequentlyUsedSecurities[i].Name == securityName &&
+                    _frequentlyUsedSecurities[i].NameClass == securityClass)
+                {
+                    return _frequentlyUsedSecurities[i];
+                }
+            }
+
             for (int i = 0; i < _securities.Count; i++)
             {
                 if(_securities[i].Name == securityName &&
                     _securities[i].NameClass == securityClass)
                 {
+                    _frequentlyUsedSecurities.Add(_securities[i]);
                     return _securities[i];
                 }
             }
@@ -1370,7 +1384,7 @@ namespace OsEngine.Market.Servers
                 series.IsMergedByCandlesFromFile = true;
 
                 List<Candle> candles = _candleStorage.GetCandles(series.Specification, _neadToSaveCandlesCountParam.Value);
-                series.CandlesAll.Merge(candles);
+                series.CandlesAll = series.CandlesAll.Merge(candles);
             }
 
             if (_needToRemoveCandlesFromMemory.Value == true
@@ -2186,6 +2200,7 @@ namespace OsEngine.Market.Servers
                         _needToSaveOrders == true)
                     {
                         SaveOrders();
+                        _needToSaveOrders = false;
                         myExecureOrdersCount = _myExecuteOrders.Count;
                         myCanselOrdersCount = _myCanselOrders.Count;
                     }

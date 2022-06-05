@@ -41,20 +41,34 @@ namespace OsEngine.Charts.CandleChart
         {
             _name = nameBoss + "ChartMaster";
             _startProgram = startProgram;
+            UpDateChartPainter();
 
-            ChartCandle = new WinFormsChartPainter(nameBoss, startProgram);
-
-            ChartCandle.ChartClickEvent += ChartCandle_ChartClickEvent;
-            ChartCandle.LogMessageEvent += NewLogMessage;
-            ChartCandle.ClickToIndexEvent += _chartCandle_ClickToIndexEvent;
-            ChartCandle.SizeAxisXChangeEvent += ChartCandle_SizeAxisXChangeEvent;
-
-            if(startProgram != StartProgram.IsOsOptimizer)
+            if (startProgram != StartProgram.IsOsOptimizer)
             {
                 Load();
             }
            
             _canSave = true;
+           
+        }
+
+        private void UpDateChartPainter()
+        {
+            if(ChartCandle != null)
+            {
+                ChartCandle.Delete();
+                ChartCandle.ChartClickEvent -= ChartCandle_ChartClickEvent;
+                ChartCandle.LogMessageEvent -= NewLogMessage;
+                ChartCandle.ClickToIndexEvent -= _chartCandle_ClickToIndexEvent;
+                ChartCandle.SizeAxisXChangeEvent -= ChartCandle_SizeAxisXChangeEvent;
+            }
+
+            ChartCandle = new WinFormsChartPainter(_name, _startProgram);
+
+            ChartCandle.ChartClickEvent += ChartCandle_ChartClickEvent;
+            ChartCandle.LogMessageEvent += NewLogMessage;
+            ChartCandle.ClickToIndexEvent += _chartCandle_ClickToIndexEvent;
+            ChartCandle.SizeAxisXChangeEvent += ChartCandle_SizeAxisXChangeEvent;
         }
 
         /// <summary>
@@ -669,12 +683,6 @@ namespace OsEngine.Charts.CandleChart
         {
             try
             {
-                if (((MenuItem)sender).Text == @"Trades")
-                {
-                    ChartCandle.DeleteTickArea();
-                    Save();
-                    return;
-                }
                 int number = ((MenuItem)sender).Index;
 
                 if ((_indicators == null || _indicators.Count <= number))
@@ -1248,30 +1256,6 @@ namespace OsEngine.Charts.CandleChart
             }
         }
 
-        // drawing ticks прорисовка тиков
-
-        /// <summary>
-        /// ticks in connector have been updated
-        /// в коннекторе обновились тики
-        /// </summary>
-        /// <param name="trades">ticks/тики</param>
-        public void SetTick(List<Trade> trades)
-        {
-            if(_startProgram == StartProgram.IsOsOptimizer)
-            {
-                return;
-            }
-
-            try
-            {
-                ChartCandle.ProcessTrades(trades);
-            }
-            catch (Exception error)
-            {
-                SendErrorMessage(error);
-            }
-        }
-
         //position drawing прорисовка позиций
 
         /// <summary>
@@ -1348,6 +1332,8 @@ namespace OsEngine.Charts.CandleChart
                 _grid.Children.Clear();
                 _grid = null;
             }
+
+            UpDateChartPainter();
         }
 
         /// <summary>

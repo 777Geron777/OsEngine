@@ -247,6 +247,8 @@ namespace OsEngine.Entity
         /// </summary>
         private int _lastTradeIndex;
 
+        private DateTime _lastTradeTime;
+
         /// <summary>
         /// добавить в серию новые тики
         /// </summary>
@@ -270,20 +272,70 @@ namespace OsEngine.Entity
                 return;
             }
 
-            if (_lastTradeIndex >= trades.Count)
+            try
+            {
+                if (_lastTradeTime >= trades[trades.Count - 1].Time)
+                {
+                    return;
+                }
+            }
+            catch
             {
                 return;
             }
 
-            if (_lastTradeIndex == 0)
-            {
+            List<Trade> newTrades = new List<Trade>();
 
+
+            if (trades.Count > 1000)
+            { // если удаление трейдов из системы выключено
+
+                int newTradesCount = trades.Count - _lastTradeIndex;
+
+                if (newTradesCount <= 0)
+                {
+                    return;
+                }
+
+                newTrades = trades.GetRange(_lastTradeIndex, newTradesCount);
+            }
+            else
+            {
+                if (_lastTradeTime == DateTime.MinValue)
+                {
+                    newTrades = trades;
+                }
+                else
+                {
+                    for (int i = 0; i < trades.Count; i++)
+                    {
+                        try
+                        {
+                            if (trades[i].Time <= _lastTradeTime)
+                            {
+                                continue;
+                            }
+                            newTrades.Add(trades[i]);
+                        }
+                        catch
+                        {
+                            continue;
+                        }
+                    }
+                }
             }
 
-            // обновилось неизвесное кол-во тиков
-            for (int i = _lastTradeIndex; i < trades.Count; i++)
+            if(newTrades.Count == 0)
             {
-                Trade trade = trades[i];
+                return;
+            }
+
+            _lastTradeTime = newTrades[newTrades.Count - 1].Time;
+
+            // обновилось неизвесное кол-во тиков
+            for (int i = 0; i < newTrades.Count; i++)
+            {
+                Trade trade = newTrades[i];
 
                 if (trade == null)
                 {
