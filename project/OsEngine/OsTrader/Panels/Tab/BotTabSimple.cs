@@ -57,8 +57,11 @@ namespace OsEngine.OsTrader.Panels.Tab
                 _connector.LogMessageEvent += SetNewLogMessage;
                 _connector.ConnectorStartedReconnectEvent += _connector_ConnectorStartedReconnectEvent;
 
-                _marketDepthPainter = new MarketDepthPainter(TabName);
-                _marketDepthPainter.LogMessageEvent += SetNewLogMessage;
+                if(startProgram != StartProgram.IsOsOptimizer)
+                {
+                    _marketDepthPainter = new MarketDepthPainter(TabName);
+                    _marketDepthPainter.LogMessageEvent += SetNewLogMessage;
+                }
 
                 _journal = new Journal.Journal(TabName, startProgram);
 
@@ -242,7 +245,10 @@ namespace OsEngine.OsTrader.Panels.Tab
                 ManualPositionSupport.Delete();
                 _chartMaster.Delete();
 
-                _marketDepthPainter.Delete();
+                if(_marketDepthPainter != null)
+                {
+                    _marketDepthPainter.Delete();
+                }
 
                 if (File.Exists(@"Engine\" + TabName + @"SettingsBot.txt"))
                 {
@@ -2990,8 +2996,7 @@ namespace OsEngine.OsTrader.Panels.Tab
                 }
 
                 if (position.State == PositionStateType.Done ||
-                    position.State == PositionStateType.OpeningFail ||
-                    position.State == PositionStateType.Closing)
+                    position.State == PositionStateType.OpeningFail)
                 {
                     return;
                 }
@@ -3051,8 +3056,7 @@ namespace OsEngine.OsTrader.Panels.Tab
                 }
 
                 if (position.State == PositionStateType.Done ||
-                    position.State == PositionStateType.OpeningFail ||
-                    position.State == PositionStateType.Closing)
+                    position.State == PositionStateType.OpeningFail)
                 {
                     return;
                 }
@@ -3712,7 +3716,10 @@ namespace OsEngine.OsTrader.Panels.Tab
         {
             MarketDepth = marketDepth;
 
-            _marketDepthPainter.ProcessMarketDepth(marketDepth);
+            if(_marketDepthPainter != null)
+            {
+                _marketDepthPainter.ProcessMarketDepth(marketDepth);
+            }
 
             if (MarketDepthUpdateEvent != null)
             {
@@ -4069,7 +4076,7 @@ namespace OsEngine.OsTrader.Panels.Tab
 
             Trade trade = trades[trades.Count - 1];
 
-            if (_firstTickToDaySend == false && FirstTickToDayEvent != null)
+            if (trade != null && _firstTickToDaySend == false && FirstTickToDayEvent != null)
             {
                 if (trade.Time.Hour == 10
                     && (trade.Time.Minute == 1 || trade.Time.Minute == 0))
@@ -4119,12 +4126,20 @@ namespace OsEngine.OsTrader.Panels.Tab
                 }
             }
             
-
             if (newTrades.Count == 0)
             {
                 return;
             }
 
+            for (int i2 = 0; i2 < newTrades.Count; i2++)
+            {
+                if (newTrades[i2] == null)
+                {
+                    newTrades.RemoveAt(i2);
+                    i2--;
+                    continue;
+                }
+            }
 
             List<Position> openPositions = _journal.OpenPositions;
 
@@ -4148,11 +4163,6 @@ namespace OsEngine.OsTrader.Panels.Tab
 
             for (int i2 = 0; i2 < newTrades.Count; i2++)
             {
-                if (newTrades[i2] == null)
-                {
-                    newTrades.RemoveAt(i2);
-                    return;
-                }
                 CheckStopOpener(newTrades[i2].Price);
 
                 if (NewTickEvent != null)

@@ -72,15 +72,8 @@ namespace OsEngine.Entity
         {
             get
             {
-                StringBuilder result = new StringBuilder();
-
-                string _specification = "";
-
-                result.Append(Security.NameFull + "_");
-                //result.Append(Security.NameClass + "_");
-                result.Append(TimeFrameBuilder.Specification);
-
-                _specification = result.ToString();
+                string _specification 
+                    = Security.NameFull + "_" + TimeFrameBuilder.Specification;
 
                 _specification =
                     _specification.Replace("(", "")
@@ -328,6 +321,16 @@ namespace OsEngine.Entity
             if(newTrades.Count == 0)
             {
                 return;
+            }
+
+            for (int i2 = 0; i2 < newTrades.Count; i2++)
+            {
+                if (newTrades[i2] == null)
+                {
+                    newTrades.RemoveAt(i2);
+                    i2--;
+                    continue;
+                }
             }
 
             _lastTradeTime = newTrades[newTrades.Count - 1].Time;

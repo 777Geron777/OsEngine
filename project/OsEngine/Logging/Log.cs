@@ -122,11 +122,24 @@ namespace OsEngine.Logging
 
             if (_watcher == null)
             {
+                CreateErrorLogGreed();
                 Activate();
             }
 
-            AddToLogsToCheck(this);
+            if(_startProgram != StartProgram.IsOsOptimizer)
+            {
+                CreateGrid();
+                AddToLogsToCheck(this);
+            }
 
+            if (_startProgram == StartProgram.IsOsTrader)
+            {
+                _messageSender = new MessageSender(uniqName, _startProgram);
+            }
+        }
+
+        private void CreateGrid()
+        {
             _grid = DataGridFactory.GetDataGridView(DataGridViewSelectionMode.FullRowSelect, DataGridViewAutoSizeRowsMode.AllCellsExceptHeaders);
             _grid.ScrollBars = ScrollBars.Vertical;
             DataGridViewTextBoxCell cell0 = new DataGridViewTextBoxCell();
@@ -137,7 +150,7 @@ namespace OsEngine.Logging
             column0.HeaderText = OsLocalization.Logging.Column1;
             column0.ReadOnly = true;
             column0.Width = 170;
-            
+
             _grid.Columns.Add(column0);
 
             DataGridViewColumn column1 = new DataGridViewColumn();
@@ -157,10 +170,6 @@ namespace OsEngine.Logging
 
             _grid.Rows.Add(null, null);
             _grid.DoubleClick += _grid_DoubleClick;
-
-            _messageSender = new MessageSender(uniqName,_startProgram);
-
-            CreateErrorLogGreed();
         }
 
         /// <summary>
@@ -382,56 +391,26 @@ namespace OsEngine.Logging
                 return;
             }
 
-            LogMessage messageLog = new LogMessage { Message = message, Time = DateTime.Now, Type = type };
-            _incomingMessages.Enqueue(messageLog);
-            _messageSender.AddNewMessage(messageLog);
-
-            if (messageLog.Type == LogMessageType.Error)
+            if(_startProgram != StartProgram.IsOsOptimizer)
             {
+                LogMessage messageLog = new LogMessage { Message = message, Time = DateTime.Now, Type = type };
+                _incomingMessages.Enqueue(messageLog);
+
+                if (_messageSender != null)
+                {
+                    _messageSender.AddNewMessage(messageLog);
+                }
+            }
+            if(type == LogMessageType.Error)
+            {
+                LogMessage messageLog = new LogMessage { Message = message, Time = DateTime.Now, Type = type };
                 SetNewErrorMessage(messageLog);
-            }
-        }
-
-        private void PaintMessage(LogMessage messageLog)
-        {
-            try
-            {
-                if (_grid.InvokeRequired)
-                {
-                    _grid.Invoke(new Action<LogMessage>(PaintMessage), messageLog);
-                    return;
-                }
-
-                if (_messageses == null)
-                {
-                    _messageses = new List<LogMessage>();
-                }
-
-                _messageses.Add(messageLog);
-
-                
-
-                DataGridViewRow row = new DataGridViewRow();
-                row.Cells.Add(new DataGridViewTextBoxCell());
-                row.Cells[0].Value = messageLog.Time;
-
-                row.Cells.Add(new DataGridViewTextBoxCell());
-                row.Cells[1].Value = messageLog.Type;
-
-                row.Cells.Add(new DataGridViewTextBoxCell());
-                row.Cells[2].Value = messageLog.Message;
-                _grid.Rows.Insert(0, row);
-
-            }
-            catch (Exception)
-            {
-                // ignore
             }
         }
 
         private void TryPaintLog()
         {
-            if (_host != null && !_incomingMessages.IsEmpty)
+            if (!_incomingMessages.IsEmpty)
             {
                 List<LogMessage> elements = new List<LogMessage>();
 
@@ -450,6 +429,45 @@ namespace OsEngine.Logging
                 {
                     PaintMessage(elements[i]);
                 }
+            }
+        }
+
+        private void PaintMessage(LogMessage messageLog)
+        {
+            try
+            {
+                if (_grid != null 
+                    && _grid.InvokeRequired)
+                {
+                    _grid.Invoke(new Action<LogMessage>(PaintMessage), messageLog);
+                    return;
+                }
+
+                if (_messageses == null)
+                {
+                    _messageses = new List<LogMessage>();
+                }
+
+                _messageses.Add(messageLog);
+
+
+                if(_grid != null)
+                {
+                    DataGridViewRow row = new DataGridViewRow();
+                    row.Cells.Add(new DataGridViewTextBoxCell());
+                    row.Cells[0].Value = messageLog.Time;
+
+                    row.Cells.Add(new DataGridViewTextBoxCell());
+                    row.Cells[1].Value = messageLog.Type;
+
+                    row.Cells.Add(new DataGridViewTextBoxCell());
+                    row.Cells[2].Value = messageLog.Message;
+                    _grid.Rows.Insert(0, row);
+                }
+            }
+            catch (Exception)
+            {
+                // ignore
             }
         }
 
@@ -475,6 +493,10 @@ namespace OsEngine.Logging
         /// </summary>
         public void TrySaveLog()
         {
+            if(_startProgram == StartProgram.IsOsOptimizer)
+            {
+                return;
+            }
             if (!Directory.Exists(@"Engine\Log\"))
             {
                 Directory.CreateDirectory(@"Engine\Log\");
@@ -524,7 +546,10 @@ namespace OsEngine.Logging
         /// </summary>
         void _grid_DoubleClick(object sender, EventArgs e)
         {
-            _messageSender.ShowDialog();
+            if(_messageSender != null)
+            {
+                _messageSender.ShowDialog();
+            }
         }
 
         // drawing
