@@ -677,10 +677,14 @@ namespace OsEngine.OsTrader
             }
         }
 
-        void _journalUi_Closed(object sender, EventArgs e)
+        private void _journalUi_Closed(object sender, EventArgs e)
         {
+            _journalUi.LogMessageEvent -= SendNewLogMessage;
+            _journalUi.Closed -= _journalUi_Closed;
             _journalUi.IsErase = true;
             _journalUi = null;
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
         }
 
         // log / логироавние

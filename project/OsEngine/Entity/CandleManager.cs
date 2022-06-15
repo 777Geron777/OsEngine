@@ -774,7 +774,17 @@ namespace OsEngine.Entity
                     return;
                 }
 
-                _activSeries.Remove(series);
+                series.СandleUpdeteEvent -= series_СandleUpdeteEvent;
+                series.СandleFinishedEvent -= series_СandleFinishedEvent;
+
+                for(int i = 0;i < _activSeries.Count;i++)
+                {
+                    if(_activSeries[i].UID == series.UID)
+                    {
+                        _activSeries.RemoveAt(i);
+                        break;
+                    }
+                }
             }
             catch (Exception error)
             {
@@ -848,10 +858,13 @@ namespace OsEngine.Entity
                 // ignore
             }
 
-            _server.NewTradeEvent -= server_NewTradeEvent;
-            _server.TimeServerChangeEvent -= _server_TimeServerChangeEvent;
-            _server.NewMarketDepthEvent -= _server_NewMarketDepthEvent;
-            _server = null;
+            if (_server != null)
+            {
+                _server.NewTradeEvent -= server_NewTradeEvent;
+                _server.TimeServerChangeEvent -= _server_TimeServerChangeEvent;
+                _server.NewMarketDepthEvent -= _server_NewMarketDepthEvent;
+                _server = null;
+            }
         }
 
         private bool _isDisposed;

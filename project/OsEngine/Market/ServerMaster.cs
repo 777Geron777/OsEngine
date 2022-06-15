@@ -116,6 +116,11 @@ namespace OsEngine.Market
             }
         }
 
+        public static bool HasActiveServers()
+        {
+            return _servers != null && _servers.Count > 0;
+        }
+
         public static List<ServerType> ActiveServersTypes
         {
             get
@@ -421,6 +426,7 @@ namespace OsEngine.Market
                 if (_servers[i].ServerType == ServerType.Optimizer &&
                     ((OptimizerServer)_servers[i]).NumberServer == server.NumberServer)
                 {
+                    ((OptimizerServer)_servers[i]).Clear();
                     _servers.RemoveAt(i);
                     break;
                 }
