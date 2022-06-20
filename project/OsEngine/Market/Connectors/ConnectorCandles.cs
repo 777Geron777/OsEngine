@@ -72,6 +72,18 @@ namespace OsEngine.Market.Connectors
         }
 
         /// <summary>
+        /// program that created the bot which created this connection
+        /// программа создавшая робота который создал это подключение
+        /// </summary>
+        public StartProgram StartProgram;
+
+        /// <summary>
+        /// shows whether it is possible to save settings
+        /// можно ли сохранять настройки
+        /// </summary>
+        private bool _canSave;
+
+        /// <summary>
         /// upload
         /// загрузить
         /// </summary>
@@ -100,18 +112,6 @@ namespace OsEngine.Market.Connectors
                 // ignore
             }
         }
-
-        /// <summary>
-        /// program that created the bot which created this connection
-        /// программа создавшая робота который создал это подключение
-        /// </summary>
-        public StartProgram StartProgram;
-
-        /// <summary>
-        /// shows whether it is possible to save settings
-        /// можно ли сохранять настройки
-        /// </summary>
-        private bool _canSave;
 
         /// <summary>
         /// save object settings in file
@@ -148,10 +148,14 @@ namespace OsEngine.Market.Connectors
         /// </summary>
         public void Delete()
         {
-            TimeFrameBuilder.Delete();
-            if (File.Exists(@"Engine\" + _name + @"ConnectorPrime.txt"))
+          if(StartProgram != StartProgram.IsOsOptimizer)
             {
-                File.Delete(@"Engine\" + _name + @"ConnectorPrime.txt");
+                TimeFrameBuilder.Delete();
+
+                if (File.Exists(@"Engine\" + _name + @"ConnectorPrime.txt"))
+                {
+                    File.Delete(@"Engine\" + _name + @"ConnectorPrime.txt");
+                }
             }
 
             if (_mySeries != null)
@@ -183,6 +187,7 @@ namespace OsEngine.Market.Connectors
                 _myServer.NewTradeEvent -= ConnectorBot_NewTradeEvent;
                 _myServer.TimeServerChangeEvent -= myServer_TimeServerChangeEvent;
                 _myServer.NeadToReconnectEvent -= _myServer_NeadToReconnectEvent;
+                _myServer = null;
             }
 
             _neadToStopThread = true;
