@@ -332,7 +332,7 @@ namespace OsEngine.Market.Servers.Tester
         public void TestingStart()
         {
             TesterRegime = TesterRegime.Pause;
-            Thread.Sleep(2000);
+            Thread.Sleep(200);
             _serverTime = DateTime.MinValue;
 
             ServerMaster.ClearOrders();
@@ -355,7 +355,8 @@ namespace OsEngine.Market.Servers.Tester
                 NeadToReconnectEvent();
             }
 
-            Thread.Sleep(5000);
+            Thread.Sleep(200);
+
             _candleManager.Clear();
 
             _allTrades = null;
