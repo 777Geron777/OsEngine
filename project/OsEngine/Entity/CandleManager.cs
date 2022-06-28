@@ -359,7 +359,6 @@ namespace OsEngine.Entity
                         }
                         else if (serverType == ServerType.Tester ||
                                  serverType == ServerType.Optimizer ||
-                                 serverType == ServerType.Oanda||
                                  serverType == ServerType.BitStamp
                             )
                         {
@@ -787,21 +786,39 @@ namespace OsEngine.Entity
                     return;
                 }
 
+                if(series == null 
+                    || series.UID == null)
+                {
+                    return;
+                }
+
                 series.СandleUpdeteEvent -= series_СandleUpdeteEvent;
                 series.СandleFinishedEvent -= series_СandleFinishedEvent;
 
-                for(int i = 0;i < _activSeries.Count;i++)
+                for(int i = 0; _activSeries != null && i < _activSeries.Count;i++)
                 {
-                    if(_activSeries[i].UID == series.UID)
+                    CandleSeries curSeries = _activSeries[i];
+
+                    if(curSeries == null ||
+                        curSeries.UID == null)
                     {
-                        _activSeries.RemoveAt(i);
+                        return;
+                    }
+
+                    if (curSeries.UID == series.UID)
+                    {
+                        if(_activSeries != null)
+                        {
+                            _activSeries.RemoveAt(i);
+                        }
+                        
                         break;
                     }
                 }
             }
             catch (Exception error)
             {
-                SendLogMessage(error.ToString(), LogMessageType.Error);
+                //SendLogMessage(error.ToString(), LogMessageType.Error);
             }
         }
 
