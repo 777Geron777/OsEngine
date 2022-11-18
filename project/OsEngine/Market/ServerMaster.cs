@@ -46,6 +46,7 @@ using MessageBox = System.Windows.MessageBox;
 using OsEngine.Market.Servers.GateIo.Futures;
 using OsEngine.Market.Servers.FTX;
 using OsEngine.Market.Servers.Bybit;
+using OsEngine.Market.Servers.OKX;
 
 namespace OsEngine.Market
 {
@@ -103,6 +104,7 @@ namespace OsEngine.Market
                 serverTypes.Add(ServerType.HuobiFuturesSwap);
                 serverTypes.Add(ServerType.FTX);
                 serverTypes.Add(ServerType.Bybit);
+                serverTypes.Add(ServerType.OKX);
 
                 serverTypes.Add(ServerType.InteractiveBrokers);
                 serverTypes.Add(ServerType.NinjaTrader);
@@ -128,12 +130,29 @@ namespace OsEngine.Market
                     }
                 }
 
-                for (int i = 0;i < popularity.Count;i++)
+                for (int i = 0; i < popularity.Count; i++)
                 {
-                    if(popularity[i].ServerType == ServerType.Tester)
+                    if (popularity[i].ServerType == ServerType.Tester)
                     {
                         continue;
                     }
+
+                    bool isInArray = false;
+
+                    for (int i2 = 0; i2 < serverTypes.Count; i2++)
+                    {
+                        if(serverTypes[i2].ToString() == popularity[i].ServerType.ToString())
+                        {
+                            isInArray = true;
+                            break;
+                        }
+                    }
+
+                    if(isInArray)
+                    {
+                        continue;
+                    }
+
                     serverTypes.Insert(0, popularity[i].ServerType);
                 }
 
@@ -232,6 +251,10 @@ namespace OsEngine.Market
                 SaveMostPopularServers(type);
 
                 IServer newServer = null;
+                if (type == ServerType.OKX)
+                {
+                    newServer = new OkxServer();
+                }
                 if (type == ServerType.FTX)
                 {
                     newServer = new FTXServer();
@@ -1262,6 +1285,12 @@ namespace OsEngine.Market
         /// <summary>
         /// Bybit exchange
         /// </summary>
-        Bybit
+        Bybit,
+
+        /// <summary>
+        /// OKX exchange
+        /// </summary>
+        OKX
+
     }
 }
