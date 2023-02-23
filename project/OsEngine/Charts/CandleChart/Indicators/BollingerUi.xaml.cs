@@ -38,6 +38,8 @@ namespace OsEngine.Charts.CandleChart.Indicators
         public BollingerUi(Bollinger bollinger)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _bollinger = bollinger;
 
             TextBoxDeviation.Text = _bollinger.Deviation.ToString();
@@ -57,6 +59,8 @@ namespace OsEngine.Charts.CandleChart.Indicators
             LabelIndicatorPeriod.Content = OsLocalization.Charts.LabelIndicatorPeriod;
             LabelIndicatorDeviation.Content = OsLocalization.Charts.LabelIndicatorDeviation;
 
+            this.Activate();
+            this.Focus();
         }
 
         /// <summary>

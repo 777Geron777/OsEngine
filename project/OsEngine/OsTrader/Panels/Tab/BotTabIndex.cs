@@ -34,7 +34,7 @@ namespace OsEngine.OsTrader.Panels.Tab
     public class BotTabIndex : IIBotTab
     {
         public BotTabIndex(string name, StartProgram  startProgram)
-        {
+        { 
             TabName = name;
             _startProgram = startProgram;
 
@@ -127,7 +127,30 @@ namespace OsEngine.OsTrader.Panels.Tab
                 }
             }
 
-            ConnectorCandles connector = new ConnectorCandles(TabName + Tabs.Count, _startProgram);
+            int num = Tabs.Count;
+
+            while(true)
+            {
+                bool isNotInArray = true;
+
+                for(int i = 0;i < Tabs.Count;i++)
+                {
+                    if(Tabs[i].UniqName == TabName + num)
+                    {
+                        num++;
+                        isNotInArray = false;
+                        break;
+                    }
+                }
+
+                if(isNotInArray == true)
+                {
+                    break;
+                }
+            }
+
+
+            ConnectorCandles connector = new ConnectorCandles(TabName + num, _startProgram);
             connector.SaveTradesInCandles = false;
 
             connector.ServerType = creator.ServerType;
@@ -135,6 +158,7 @@ namespace OsEngine.OsTrader.Panels.Tab
             connector.SecurityClass = security.SecurityClass;
             connector.TimeFrame = creator.TimeFrame;
             connector.EmulatorIsOn = creator.EmulatorIsOn;
+            connector.NeadToLoadServerData = false;
             connector.CandleCreateMethodType = creator.CandleCreateMethodType;
             connector.CandleMarketDataType = creator.CandleMarketDataType;
             connector.SetForeign = creator.SetForeign;
@@ -149,6 +173,7 @@ namespace OsEngine.OsTrader.Panels.Tab
             connector.ComissionType = creator.ComissionType;
             connector.ComissionValue = creator.ComissionValue;
             connector.SaveTradesInCandles = creator.SaveTradesInCandles;
+            
 
             Tabs.Add(connector);
             Tabs[Tabs.Count - 1].NewCandlesChangeEvent += BotTabIndex_NewCandlesChangeEvent;
@@ -247,17 +272,40 @@ namespace OsEngine.OsTrader.Panels.Tab
                     writer.WriteLine(save);
 
                     writer.WriteLine(_userFormula);
-
+                    writer.WriteLine(EventsIsOn);
                     writer.Close();
                 }
             }
             catch (Exception)
             {
+                EventsIsOn = true;
                 // ignore
             }
         }
 
         bool _isLoaded = false;
+
+        /// <summary>
+        /// включена ли подача событий на верх или нет
+        /// </summary>
+        public bool EventsIsOn
+        {
+            get
+            {
+                return _eventsIsOn;
+            }
+            set
+            {
+                if (_eventsIsOn == value)
+                {
+                    return;
+                }
+                _eventsIsOn = value;
+                Save();
+            }
+        }
+
+        private bool _eventsIsOn = true;
 
         /// <summary>
         /// load / 
@@ -282,17 +330,32 @@ namespace OsEngine.OsTrader.Panels.Tab
                         ConnectorCandles newConnector = new ConnectorCandles(save2[i], _startProgram);
                         newConnector.SaveTradesInCandles = false;
 
+                        if(newConnector.CandleMarketDataType != CandleMarketDataType.MarketDepth)
+                        {
+                            newConnector.NeadToLoadServerData = false;
+                        }
+
                         Tabs.Add(newConnector);
                         Tabs[Tabs.Count - 1].NewCandlesChangeEvent += BotTabIndex_NewCandlesChangeEvent;
                     }
 
                     UserFormula = reader.ReadLine();
 
+                    if(reader.EndOfStream == false)
+                    {
+                        _eventsIsOn = Convert.ToBoolean(reader.ReadLine());
+                    }
+                    else
+                    {
+                        _eventsIsOn = true;
+                    }
+
                     reader.Close();
                 }
             }
             catch (Exception)
             {
+                _eventsIsOn = true;
                 _isLoaded = false;
                 // ignore
             }
@@ -416,7 +479,7 @@ namespace OsEngine.OsTrader.Panels.Tab
 
                     _chartMaster.SetCandles(Candles);
 
-                    if (SpreadChangeEvent != null)
+                    if (SpreadChangeEvent != null && EventsIsOn == true)
                     {
                         SpreadChangeEvent(Candles);
                     }
@@ -472,7 +535,7 @@ namespace OsEngine.OsTrader.Panels.Tab
 
                         _chartMaster.SetCandles(Candles);
 
-                        if (SpreadChangeEvent != null)
+                        if (SpreadChangeEvent != null && EventsIsOn == true)
                         {
                             SpreadChangeEvent(Candles);
                         }
@@ -567,6 +630,14 @@ namespace OsEngine.OsTrader.Panels.Tab
                 }
 
                 if (formula == "-+")
+                {
+                    return "";
+                }
+
+                if (formula == "+" ||
+                    formula == "-" ||
+                    formula == "*" ||
+                    formula == "/")
                 {
                     return "";
                 }

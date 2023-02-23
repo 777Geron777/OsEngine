@@ -35,6 +35,8 @@ namespace OsEngine.Charts.CandleChart.Indicators
         public MacdHistogramUi(MacdHistogram macd)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _macd = macd;
 
             HostColorUp.Child = new TextBox();
@@ -48,7 +50,10 @@ namespace OsEngine.Charts.CandleChart.Indicators
             ButtonColorDown.Content = OsLocalization.Charts.LabelButtonIndicatorColorDown;
             CheckBoxPaintOnOff.Content = OsLocalization.Charts.LabelPaintIntdicatorIsVisible;
             ButtonAccept.Content = OsLocalization.Charts.LabelButtonIndicatorAccept;
-         }
+
+            this.Activate();
+            this.Focus();
+        }
 
         /// <summary>
         /// accept button

@@ -24,6 +24,8 @@ namespace OsEngine.Logging
         {
             _sender = sender;
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             LoadDateOnForm();
 
             Title = OsLocalization.Logging.TitleMessageSenderUi;
@@ -56,6 +58,9 @@ namespace OsEngine.Logging
             CheckBoxWebhookError.Content = OsLocalization.Logging.Label8;
             CheckBoxWebhookSystem.Content = OsLocalization.Logging.Label9;
             CheckBoxWebhookConnect.Content = OsLocalization.Logging.Label10;
+
+            this.Activate();
+            this.Focus();
         }
 
         /// <summary>

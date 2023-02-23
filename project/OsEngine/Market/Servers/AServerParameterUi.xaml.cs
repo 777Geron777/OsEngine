@@ -25,6 +25,8 @@ namespace OsEngine.Market.Servers
         public AServerParameterUi(AServer server)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _server = server;
 
             _server.Log.StartPaint(HostLog);
@@ -47,6 +49,9 @@ namespace OsEngine.Market.Servers
                 TabItemLog.IsSelected = true;
             }
             this.Closed += AServerParameterUi_Closed;
+
+            this.Activate();
+            this.Focus();
         }
 
         public void Dispose()
@@ -58,7 +63,7 @@ namespace OsEngine.Market.Servers
             _paramsGrid.CellValueChanged -= _newGrid_CellValueChanged;
             _paramsGrid.Click -= _newGrid_Click;
             _paramsGrid.Rows.Clear();
-            DataGridFactory.ClearLink(_paramsGrid);
+            DataGridFactory.ClearLinks(_paramsGrid);
             _paramsGrid = null;
 
           

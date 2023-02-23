@@ -18,6 +18,8 @@ namespace OsEngine.Robots.CounterTrend
         public StrategyBollingerUi(StrategyBollinger strategy)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _strategy = strategy;
 
             TextBoxVolumeOne.Text = _strategy.Volume.ToString();
@@ -34,6 +36,9 @@ namespace OsEngine.Robots.CounterTrend
             LabelRegime.Content = OsLocalization.Trader.Label115;
             LabelSlippage.Content = OsLocalization.Trader.Label92;
             ButtonAccept.Content = OsLocalization.Trader.Label17;
+
+            this.Activate();
+            this.Focus();
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)

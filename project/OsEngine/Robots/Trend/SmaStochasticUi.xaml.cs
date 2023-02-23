@@ -17,6 +17,8 @@ namespace OsEngine.Robots.Trend
         public SmaStochasticUi(SmaStochastic strategy)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _strategy = strategy;
 
             TextBoxVolumeOne.Text = _strategy.VolumeFix.ToString();
@@ -40,6 +42,9 @@ namespace OsEngine.Robots.Trend
             LabelStohasticUp.Content = OsLocalization.Trader.Label149;
             LabelStochasticLow.Content = OsLocalization.Trader.Label150;
             LabelStep.Content = OsLocalization.Trader.Label151;
+
+            this.Activate();
+            this.Focus();
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)

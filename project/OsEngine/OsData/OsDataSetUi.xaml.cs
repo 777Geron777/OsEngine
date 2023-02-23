@@ -39,7 +39,8 @@ namespace OsEngine.OsData
         public OsDataSetUi(OsDataSet set)
         {
             InitializeComponent();
-
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _set = set;
 
             if (set.SetName != "Set_")
@@ -117,7 +118,6 @@ namespace OsEngine.OsData
 
             ComboBoxMarketDepthDepth.SelectedItem = _set.MarketDepthDepth;
 
-
             CreateSecuritiesTable();
             ReloadSecuritiesOnTable();
             CheckButtons();
@@ -134,6 +134,8 @@ namespace OsEngine.OsData
             CheckBoxNeadToLoadDataInServers.Content = OsLocalization.Data.Label21;
             CheckBoxNeadToUpDate.Content = OsLocalization.Data.Label22;
 
+            this.Activate();
+            this.Focus();
         }
 
         /// <summary>

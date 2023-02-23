@@ -37,6 +37,8 @@ namespace OsEngine.Charts.CandleChart.Indicators
         public CmoUi(Cmo cmo)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _cmo = cmo;
             TextBoxLenght.Text = _cmo.Period.ToString();
 
@@ -49,6 +51,8 @@ namespace OsEngine.Charts.CandleChart.Indicators
             ButtonAccept.Content = OsLocalization.Charts.LabelButtonIndicatorAccept;
             LabelIndicatorPeriod.Content = OsLocalization.Charts.LabelIndicatorPeriod;
 
+            this.Activate();
+            this.Focus();
         }
 
         /// <summary>

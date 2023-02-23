@@ -17,6 +17,8 @@ namespace OsEngine.OsTrader.Panels.Tab
         public BotTabIndexUi(BotTabIndex spread)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             CreateTable();
             _spread = spread;
             ReloadSecurityTable();
@@ -26,6 +28,9 @@ namespace OsEngine.OsTrader.Panels.Tab
             ButtonAccept.Content = OsLocalization.Trader.Label17;
 
             this.Closed += BotTabIndexUi_Closed;
+
+            this.Activate();
+            this.Focus();
         }
 
         public bool IndexOrSourcesChanged = false;
@@ -33,7 +38,7 @@ namespace OsEngine.OsTrader.Panels.Tab
         private void BotTabIndexUi_Closed(object sender, System.EventArgs e)
         {
             _sourcesGrid.CellDoubleClick -= Grid1CellValueChangeClick;
-            DataGridFactory.ClearLink(_sourcesGrid);
+            DataGridFactory.ClearLinks(_sourcesGrid);
             _sourcesGrid.Rows.Clear();
             _sourcesGrid = null;
             _spread = null;

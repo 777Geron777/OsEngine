@@ -18,6 +18,8 @@ namespace OsEngine.Robots.CounterTrend
         public WilliamsRangeTradeUi(WilliamsRangeTrade strategy)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _strategy = strategy;
 
             TextBoxVolumeOne.Text = _strategy.VolumeFix.ToString();
@@ -40,6 +42,9 @@ namespace OsEngine.Robots.CounterTrend
             ButtonAccept.Content = OsLocalization.Trader.Label17;
             LabelUp.Content = OsLocalization.Trader.Label155;
             LabelLow.Content = OsLocalization.Trader.Label156;
+
+            this.Activate();
+            this.Focus();
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)

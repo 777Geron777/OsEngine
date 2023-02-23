@@ -19,6 +19,8 @@ using MessageBox = System.Windows.MessageBox;
 using ProgressBar = System.Windows.Controls.ProgressBar;
 using OsEngine.OsOptimizer.OptEntity;
 using System.Threading;
+using OsEngine.Layout;
+using System.IO;
 
 namespace OsEngine.OsOptimizer
 {
@@ -31,6 +33,7 @@ namespace OsEngine.OsOptimizer
         public OptimizerUi()
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
             Thread.Sleep(200);
 
             _master = new OptimizerMaster();
@@ -177,6 +180,10 @@ namespace OsEngine.OsOptimizer
             _resultsCharting.LogMessageEvent += _master.SendLogMessage;
 
             this.Closing += Ui_Closing;
+            this.Activate();
+            this.Focus();
+
+            GlobalGUILayout.Listen(this, "optimizerUi");
 
             Task.Run(new Action(StrategyLoader));
         }
@@ -494,7 +501,6 @@ namespace OsEngine.OsOptimizer
             // Проверка параметра Regime (наличие/состояние) / конец
         }
 
-
         // processing controls by clicking on them by the user/обработка контролов по нажатию их пользователем
 
         /// <summary>
@@ -527,6 +533,15 @@ namespace OsEngine.OsOptimizer
             }
             else if (ButtonGo.Content.ToString() == OsLocalization.Optimizer.Label32)
             {
+                AcceptDialogUi ui = new AcceptDialogUi(OsLocalization.Optimizer.Label51);
+
+                ui.ShowDialog();
+
+                if (!ui.UserAcceptActioin)
+                {
+                    return;
+                }
+
                 _master.Stop();
                 ButtonGo.Content = OsLocalization.Optimizer.Label9;
             }
@@ -616,6 +631,9 @@ namespace OsEngine.OsOptimizer
             PaintTableParametrs();
             PaintTableTabsIndex();
             PaintCountBotsInOptimization();
+
+            LoadTableTabsSimpleSecuritiesSettings();
+            LoadTableTabsIndexSecuritiesSettings();
         }
 
         void TextBoxStartPortfolio_TextChanged(object sender, TextChangedEventArgs e)
@@ -704,7 +722,7 @@ namespace OsEngine.OsOptimizer
         /// </summary>
         private void CreateTableTabsSimple()
         {
-            _gridTableTabsSimple = DataGridFactory.GetDataGridView(DataGridViewSelectionMode.ColumnHeaderSelect, DataGridViewAutoSizeRowsMode.None);
+            _gridTableTabsSimple = DataGridFactory.GetDataGridView(DataGridViewSelectionMode.ColumnHeaderSelect, DataGridViewAutoSizeRowsMode.AllCells);
 
             DataGridViewTextBoxCell cell0 = new DataGridViewTextBoxCell();
             cell0.Style = _gridTableTabsSimple.DefaultCellStyle;
@@ -871,7 +889,6 @@ namespace OsEngine.OsOptimizer
         /// пользователь поменял что-то в таблице обычных вкладок робота
         /// </summary>
         void _grid_CellValueChanged(object sender, DataGridViewCellEventArgs e)
-
         {
             for (int i = 0; i < _gridTableTabsSimple.Rows.Count; i++)
             {
@@ -896,6 +913,115 @@ namespace OsEngine.OsOptimizer
             }
 
             _master.TabsSimpleNamesAndTimeFrames = _tabs;
+
+            SaveTableTabsSimpleSecuritiesSettings();
+        }
+
+        private void SaveTableTabsSimpleSecuritiesSettings()
+        {
+            string savePath = @"Engine\" + "OptimizerSettinsTabsSimpleSecurities_" + _master.StrategyName + ".txt";
+
+            try
+            {
+                using (StreamWriter writer = new StreamWriter(savePath, false)
+                    )
+                {
+                    List<TabSimpleEndTimeFrame> _tabs = _master.TabsSimpleNamesAndTimeFrames;
+
+                    for (int i = 0; i < _tabs.Count; i++)
+                    {
+                        writer.WriteLine(_tabs[i].GetSaveString());
+                    }
+
+                    writer.Close();
+                }
+            }
+            catch (Exception)
+            {
+                // ignore
+            }
+        }
+
+        private void LoadTableTabsSimpleSecuritiesSettings()
+        {
+            if (_gridTableTabsSimple.InvokeRequired)
+            {
+                _gridTableTabsSimple.Invoke(new Action(LoadTableTabsSimpleSecuritiesSettings));
+                return;
+            }
+
+            string loadPath = @"Engine\" + "OptimizerSettinsTabsSimpleSecurities_" + _master.StrategyName + ".txt";
+
+            if (!File.Exists(loadPath))
+            {
+                return;
+            }
+
+            _gridTableTabsSimple.CellValueChanged -= _grid_CellValueChanged;
+
+            try
+            {
+
+                List<TabSimpleEndTimeFrame> _tabs = new List<TabSimpleEndTimeFrame>();
+
+                using (StreamReader reader = new StreamReader(loadPath))
+                {
+                    while (reader.EndOfStream == false)
+                    {
+                        string saveStr = reader.ReadLine();
+
+                        TabSimpleEndTimeFrame newTab = new TabSimpleEndTimeFrame();
+                        newTab.SetFromString(saveStr);
+                        _tabs.Add(newTab);
+
+                        int rowIndx = _tabs.Count - 1;
+
+                        DataGridViewComboBoxCell nameCell = (DataGridViewComboBoxCell)_gridTableTabsSimple.Rows[rowIndx].Cells[1];
+
+                        for (int i = 0; nameCell.Items != null && i < nameCell.Items.Count; i++)
+                        {
+                            if (nameCell.Items[i] == null)
+                            {
+                                continue;
+                            }
+                            if (nameCell.Items[i].ToString() == newTab.NameSecurity)
+                            {
+                                nameCell.Value = newTab.NameSecurity;
+                                break;
+                            }
+                        }
+
+                        DataGridViewComboBoxCell timeFrameCell = (DataGridViewComboBoxCell)_gridTableTabsSimple.Rows[rowIndx].Cells[2];
+
+                        for (int i = 0; timeFrameCell.Items != null && i < timeFrameCell.Items.Count; i++)
+                        {
+                            if (timeFrameCell.Items[i] == null)
+                            {
+                                continue;
+                            }
+                            if (timeFrameCell.Items[i].ToString() == newTab.TimeFrame.ToString())
+                            {
+                                timeFrameCell.Value = newTab.TimeFrame.ToString();
+                                break;
+                            }
+                        }
+                    }
+
+                    reader.Close();
+                }
+                if (_tabs != null)
+                {
+                    _master.TabsSimpleNamesAndTimeFrames = _tabs;
+                }
+
+            }
+            catch (Exception)
+            {
+                //ignore
+            }
+
+            _gridTableTabsSimple.CellValueChanged += _grid_CellValueChanged;
+
         }
 
         // table of papers and time frames for indexes таблица Бумаг и таймФреймов для индексов
@@ -912,7 +1038,7 @@ namespace OsEngine.OsOptimizer
         /// </summary>
         private void CreateTableTabsIndex()
         {
-            _gridTableTabsIndex = DataGridFactory.GetDataGridView(DataGridViewSelectionMode.ColumnHeaderSelect, DataGridViewAutoSizeRowsMode.None);
+            _gridTableTabsIndex = DataGridFactory.GetDataGridView(DataGridViewSelectionMode.ColumnHeaderSelect, DataGridViewAutoSizeRowsMode.AllCells);
 
             DataGridViewTextBoxCell cell0 = new DataGridViewTextBoxCell();
             cell0.Style = _gridTableTabsIndex.DefaultCellStyle;
@@ -1016,7 +1142,78 @@ namespace OsEngine.OsOptimizer
                 if (ui.NeadToSave)
                 {
                     _master.TabsIndexNamesAndTimeFrames[e.RowIndex] = ui.Index;
+                    SaveTableTabsIndexSecuritiesSettings();
                 }
+            }
+        }
+
+        private void SaveTableTabsIndexSecuritiesSettings()
+        {
+            string savePath = @"Engine\" + "OptimizerSettinsTabsIndexSecurities_" + _master.StrategyName + ".txt";
+
+            try
+            {
+                using (StreamWriter writer = new StreamWriter(savePath, false)
+                    )
+                {
+                    List<TabIndexEndTimeFrame> _tabs = _master.TabsIndexNamesAndTimeFrames;
+
+                    for (int i = 0; i < _tabs.Count; i++)
+                    {
+                        writer.WriteLine(_tabs[i].GetSaveString());
+                    }
+
+                    writer.Close();
+                }
+            }
+            catch (Exception)
+            {
+                // ignore
+            }
+        }
+
+        private void LoadTableTabsIndexSecuritiesSettings()
+        {
+            if (_gridTableTabsSimple.InvokeRequired)
+            {
+                _gridTableTabsSimple.Invoke(new Action(LoadTableTabsIndexSecuritiesSettings));
+                return;
+            }
+
+            string loadPath = @"Engine\" + "OptimizerSettinsTabsIndexSecurities_" + _master.StrategyName + ".txt";
+
+            if (!File.Exists(loadPath))
+            {
+                return;
+            }
+
+            try
+            {
+
+                List<TabIndexEndTimeFrame> _tabs = new List<TabIndexEndTimeFrame>();
+
+                using (StreamReader reader = new StreamReader(loadPath))
+                {
+                    while (reader.EndOfStream == false)
+                    {
+                        string saveStr = reader.ReadLine();
+
+                        TabIndexEndTimeFrame newTab = new TabIndexEndTimeFrame();
+                        newTab.SetFromString(saveStr);
+                        _tabs.Add(newTab);
+                    }
+
+                    reader.Close();
+                }
+                if (_tabs != null)
+                {
+                    _master.TabsIndexNamesAndTimeFrames = _tabs;
+                }
+
+            }
+            catch (Exception)
+            {
+                //ignore
             }
         }
 
@@ -1051,7 +1248,7 @@ namespace OsEngine.OsOptimizer
         /// </summary>
         private void CreateTableOptimizeFazes()
         {
-            _gridFazes = DataGridFactory.GetDataGridView(DataGridViewSelectionMode.CellSelect, DataGridViewAutoSizeRowsMode.None);
+            _gridFazes = DataGridFactory.GetDataGridView(DataGridViewSelectionMode.CellSelect, DataGridViewAutoSizeRowsMode.AllCells);
             _gridFazes.ScrollBars = ScrollBars.Vertical;
 
             DataGridViewTextBoxCell cell0 = new DataGridViewTextBoxCell();
@@ -1224,7 +1421,7 @@ namespace OsEngine.OsOptimizer
         /// </summary>
         private void CreateTableParametrs()
         {
-            _gridParametrs = DataGridFactory.GetDataGridView(DataGridViewSelectionMode.CellSelect, DataGridViewAutoSizeRowsMode.None);
+            _gridParametrs = DataGridFactory.GetDataGridView(DataGridViewSelectionMode.CellSelect, DataGridViewAutoSizeRowsMode.AllCells);
             _gridParametrs.ScrollBars = ScrollBars.Vertical;
 
             DataGridViewTextBoxCell cell0 = new DataGridViewTextBoxCell();
@@ -1242,7 +1439,7 @@ namespace OsEngine.OsOptimizer
             column1.CellTemplate = cell0;
             column1.HeaderText = OsLocalization.Optimizer.Message29;
             column1.ReadOnly = true;
-            column1.Width = 150;
+            column1.Width = 600;
 
             _gridParametrs.Columns.Add(column1);
 
@@ -1250,7 +1447,7 @@ namespace OsEngine.OsOptimizer
             column.CellTemplate = cell0;
             column.HeaderText = OsLocalization.Optimizer.Message24;
             column.ReadOnly = true;
-            column1.Width = 100;
+            column.Width = 100;
             _gridParametrs.Columns.Add(column);
 
             DataGridViewComboBoxColumn column2 = new DataGridViewComboBoxColumn();
@@ -1639,7 +1836,7 @@ namespace OsEngine.OsOptimizer
         /// </summary>
         private void CreateTableFazes()
         {
-            _gridFazesEnd = DataGridFactory.GetDataGridView(DataGridViewSelectionMode.FullRowSelect, DataGridViewAutoSizeRowsMode.None);
+            _gridFazesEnd = DataGridFactory.GetDataGridView(DataGridViewSelectionMode.FullRowSelect, DataGridViewAutoSizeRowsMode.AllCells);
             _gridFazesEnd.ScrollBars = ScrollBars.Vertical;
             DataGridViewTextBoxCell cell0 = new DataGridViewTextBoxCell();
             cell0.Style = _gridFazesEnd.DefaultCellStyle;
@@ -2333,6 +2530,8 @@ namespace OsEngine.OsOptimizer
 
         private void StrategyLoader()
         {
+            Thread.Sleep(500);
+
             _master.SendLogMessage(OsLocalization.Optimizer.Message11, LogMessageType.System);
 
             List<string> strategies = BotFactory.GetNamesStrategyWithParametersSync();

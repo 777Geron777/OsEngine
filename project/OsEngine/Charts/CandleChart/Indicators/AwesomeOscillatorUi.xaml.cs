@@ -38,6 +38,8 @@ namespace OsEngine.Charts.CandleChart.Indicators
         public AwesomeOscillatorUi(AwesomeOscillator awesomeOscillator)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _awesomeOscillatoro = awesomeOscillator;
 
             TextBoxLenghtLong.Text = _awesomeOscillatoro.LenghtLong.ToString();
@@ -64,6 +66,9 @@ namespace OsEngine.Charts.CandleChart.Indicators
             LabelIndicatorLongPeriod.Content = OsLocalization.Charts.LabelIndicatorLongPeriod;
             LabelIndicatorShortPeriod.Content = OsLocalization.Charts.LabelIndicatorShortPeriod;
             LabelIndicatorMethod.Content = OsLocalization.Charts.LabelIndicatorMethod;
+
+            this.Activate();
+            this.Focus();
         }
 
         /// <summary>

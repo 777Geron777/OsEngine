@@ -18,6 +18,8 @@ namespace OsEngine.Robots.Patterns
         public ThreeSoldierUi(ThreeSoldier strategy)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _strategy = strategy;
 
             ComboBoxRegime.Items.Add(BotTradeRegime.Off);
@@ -43,6 +45,8 @@ namespace OsEngine.Robots.Patterns
             LabelProfit.Content = OsLocalization.Trader.Label87 + " %";
             LabelStop.Content = OsLocalization.Trader.Label86 + " %";
 
+            this.Activate();
+            this.Focus();
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)

@@ -10,6 +10,7 @@ using OsEngine.Charts.CandleChart;
 using OsEngine.Entity;
 using OsEngine.Language;
 using OsEngine.Market;
+using OsEngine.Layout;
 
 namespace OsEngine.OsTrader.Gui
 {
@@ -21,6 +22,7 @@ namespace OsEngine.OsTrader.Gui
         public TesterUiLight()
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
             ServerMaster.SetHostTable(HostPositionOnBoard, HostOrdersOnBoard);
             ServerMaster.CreateServer(ServerType.Tester, false);
             ServerMaster.GetServers();
@@ -35,6 +37,14 @@ namespace OsEngine.OsTrader.Gui
             Local();
 
             BotTabsPainter painter = new BotTabsPainter(_strategyKeeper,BotsHost);
+
+            TabControlPrime.SelectionChanged += TabControlPrime_SelectionChanged;
+            TabControlPrime.MouseEnter += TabControlPrime_MouseEnter;
+            TabControlPrime.MouseLeave += TabControlPrime_MouseLeave;
+
+            this.Activate();
+            this.Focus();
+            GlobalGUILayout.Listen(this, "testerUiLight");
         }
 
         private void Local()
@@ -59,18 +69,37 @@ namespace OsEngine.OsTrader.Gui
 
         private OsTraderMaster _strategyKeeper;
 
-
         private void TabControlPrime_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
+            TabControlPrime.SelectionChanged -= TabControlPrime_SelectionChanged;
+
             int index = TabControlPrime.SelectedIndex;
 
-            if(index == 4)
+            if (index == 4 && _mouseOnTabControl)
             {
-                ServerMaster.ShowDialog(true);
                 TabControlPrime.SelectedIndex = 0;
+                TabControlPrime.SelectedItem = TabControlPrime.Items[0];
+                ServerMaster.ShowDialog(true);
+            }
+            else if (index == 4 && _mouseOnTabControl == false)
+            {
+                TabControlPrime.SelectedIndex = 0;
+                TabControlPrime.SelectedItem = TabControlPrime.Items[0];
             }
 
-           
+            TabControlPrime.SelectionChanged += TabControlPrime_SelectionChanged;
+        }
+
+        bool _mouseOnTabControl = false;
+
+        private void TabControlPrime_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            _mouseOnTabControl = false;
+        }
+
+        private void TabControlPrime_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            _mouseOnTabControl = true;
         }
     }
 }

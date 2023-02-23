@@ -20,6 +20,8 @@ namespace OsEngine.Alerts
         public AlertToPriceCreateUi(AlertToPrice alert)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             MyAlert = alert;
 
             CheckBoxOnOff.IsChecked = MyAlert.IsOn;
@@ -62,6 +64,9 @@ namespace OsEngine.Alerts
             OsLocalization.LocalizationTypeChangeEvent += ChangeText;
 
             LabelOsa.MouseDown += LabelOsa_MouseDown;
+
+            this.Activate();
+            this.Focus();
         }
 
         private void ChangeText()

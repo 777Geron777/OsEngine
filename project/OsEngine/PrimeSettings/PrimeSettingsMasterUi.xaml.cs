@@ -17,6 +17,8 @@ namespace OsEngine.PrimeSettings
         public PrimeSettingsMasterUi()
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
 
             List<OsLocalization.OsLocalType> localizations = OsLocalization.GetExistLocalizationTypes();
 
@@ -44,15 +46,20 @@ namespace OsEngine.PrimeSettings
             TextBoxIp.Text = PrimeSettingsMaster.Ip;
             TextBoxPort.Text = PrimeSettingsMaster.Port;
             AutoStartChb.IsChecked = PrimeSettingsMaster.AutoStartApi;
+            TextBoxBotHeader.Text = PrimeSettingsMaster.LabelInHeaderBotStation;
 
             CheckBoxExtraLogWindow.Click += CheckBoxExtraLogWindow_Click;
             CheckBoxExtraLogSound.Click += CheckBoxExtraLogSound_Click;
             CheckBoxTransactionSound.Click += CheckBoxTransactionSound_Click;
             CheckBoxServerTestingIsActive.Click += CheckBoxServerTestingIsActive_Click;
             AutoStartChb.Click += AutoStartChb_Click;
+            TextBoxBotHeader.TextChanged += TextBoxBotHeader_TextChanged;
 
             ChangeText();
             OsLocalization.LocalizationTypeChangeEvent += ChangeText;
+
+            this.Activate();
+            this.Focus();
         }
 
         private void ChangeText()
@@ -74,6 +81,13 @@ namespace OsEngine.PrimeSettings
             LabelPort.Content = OsLocalization.PrimeSettings.LblPort;
 
             LabelConfirm.Content = OsLocalization.PrimeSettings.LblAdminPanel;
+            LabelHeader.Content = OsLocalization.PrimeSettings.LabelBotHeader;
+        }
+
+
+        private void TextBoxBotHeader_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            PrimeSettingsMaster.LabelInHeaderBotStation = TextBoxBotHeader.Text;
         }
 
         private void CheckBoxServerTestingIsActive_Click(object sender, RoutedEventArgs e)

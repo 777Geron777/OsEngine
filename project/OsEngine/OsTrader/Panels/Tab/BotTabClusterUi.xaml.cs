@@ -19,6 +19,8 @@ namespace OsEngine.OsTrader.Panels.Tab
         public BotTabClusterUi(BotTabCluster tab)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _tab = tab;
 
             TextBoxStep.Text = _tab.LineStep.ToString();
@@ -37,7 +39,8 @@ namespace OsEngine.OsTrader.Panels.Tab
             LabelLinesStep.Content = OsLocalization.Trader.Label80;
             ButtonAccept.Content = OsLocalization.Trader.Label17;
 
-
+            this.Activate();
+            this.Focus();
         }
 
         private void TextBoxStep_TextChanged(object sender, TextChangedEventArgs e)

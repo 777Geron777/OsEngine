@@ -26,12 +26,17 @@ namespace OsEngine.Entity
         public SecuritiesUi(IServer server)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             CreateTable();
             PaintSecurities(server.Securities);
             server.SecuritiesChangeEvent += _server_SecuritiesChangeEvent;
             _server = server;
 
             Title = OsLocalization.Entity.TitleSecuritiesUi;
+
+            this.Activate();
+            this.Focus();
         }
 
         /// <summary>

@@ -17,8 +17,10 @@ namespace OsEngine.Logging
          public ServerMailDeliveryUi() // constructor / конструктор
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
 
-             ServerMail serverMail = ServerMail.GetServer();
+            ServerMail serverMail = ServerMail.GetServer();
 
             TextBoxMyAdress.Text = serverMail.MyAdress;
             TextBoxPassword.Text = serverMail.MyPassword;
@@ -50,6 +52,9 @@ namespace OsEngine.Logging
             Label12.Content = OsLocalization.Logging.Label12;
             Label13.Content = OsLocalization.Logging.Label13;
             Label14.Content = OsLocalization.Logging.Label14;
+
+            this.Activate();
+            this.Focus();
         }
 
         private void buttonAccept_Click(object sender, RoutedEventArgs e) // accept / принять

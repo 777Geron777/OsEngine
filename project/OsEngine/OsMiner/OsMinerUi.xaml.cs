@@ -1,5 +1,6 @@
 ﻿
 using OsEngine.Language;
+using OsEngine.Layout;
 
 namespace OsEngine.OsMiner
 {
@@ -12,12 +13,18 @@ namespace OsEngine.OsMiner
         public OsMinerUi()
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
             _miner = new OsMinerMaster(HostLog, HostSets, HostPatternSets, HostChart,RectChart);
 
             Label5.Header = OsLocalization.Miner.Label5;
             Label6.Header = OsLocalization.Miner.Label6;
             Label52.Content = OsLocalization.Miner.Label5;
             Label7.Content = OsLocalization.Miner.Label7;
+
+            this.Activate();
+            this.Focus();
+
+            GlobalGUILayout.Listen(this, "OsMinerUi");
         }
 
         private OsMinerMaster _miner;

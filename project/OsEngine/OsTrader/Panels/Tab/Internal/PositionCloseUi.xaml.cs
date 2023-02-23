@@ -17,11 +17,13 @@ namespace OsEngine.OsTrader.Panels.Tab.Internal
         {
 
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
 
-            TextBoxPrice.Text = lastSecurityPrice.ToString(new CultureInfo("ru-RU"));
+            TextBoxPrice.Text = lastSecurityPrice.ToStringWithNoEndZero();
             TextBoxSecurity.Text = position.OpenOrders[0].SecurityNameCode;
             TextBoxPositionNumber.Text = position.Number.ToString(new CultureInfo("ru-RU"));
-            TextBoxVolume.Text = position.OpenVolume.ToString(new CultureInfo("ru-RU"));
+            TextBoxVolume.Text = position.OpenVolume.ToStringWithNoEndZero();
             TextBoxAcebergOrdersCount.Text = "1";
 
 
@@ -39,6 +41,9 @@ namespace OsEngine.OsTrader.Panels.Tab.Internal
             LabelOrderType.Content = OsLocalization.Trader.Label103;
             LabelOrdersToIceberg.Content = OsLocalization.Trader.Label104;
             ButtonAccept.Content = OsLocalization.Trader.Label17;
+
+            this.Activate();
+            this.Focus();
         }
 
         void ComboBoxOrderType_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
@@ -91,7 +96,7 @@ namespace OsEngine.OsTrader.Panels.Tab.Internal
         {
             try
             {
-                Price = Convert.ToDecimal(TextBoxPrice.Text);
+                Price = TextBoxPrice.Text.ToDecimal();
 
                 Enum.TryParse(ComboBoxOrderType.Text, true, out OpenType);
 

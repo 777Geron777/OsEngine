@@ -13,11 +13,16 @@ namespace OsEngine.OsMiner.Patterns
         public PatternsCreateUi(int patternNum)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
 
             TextBoxPatternName.Text = OsLocalization.Miner.Label25 + patternNum;
             Title = OsLocalization.Miner.Label26;
             LabelName.Content = OsLocalization.Miner.Message4;
             ButtonAccept.Content = OsLocalization.Miner.Button1;
+
+            this.Activate();
+            this.Focus();
         }
 
         private void ButtonAccept_Click(object sender, RoutedEventArgs e)

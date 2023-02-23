@@ -16,6 +16,8 @@ namespace OsEngine.OsConverter
         public OsConverterUi()
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
 
             LabelOsa.Content = "V " + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
 
@@ -28,6 +30,8 @@ namespace OsEngine.OsConverter
             Label4.Header = OsLocalization.Converter.Label4;
             ButtonStart.Content = OsLocalization.Converter.Label5;
 
+            this.Activate();
+            this.Focus();
         }
 
         private OsConverterMaster _master;

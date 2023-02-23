@@ -12,6 +12,8 @@ namespace OsEngine.OsMiner
         public OsMinerSetUi(int numSet, OsMinerSet set)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _set = set;
 
             if (string.IsNullOrEmpty(_set.Name))
@@ -27,6 +29,9 @@ namespace OsEngine.OsMiner
             Title = OsLocalization.Miner.Title1;
             Label3.Content = OsLocalization.Miner.Label3;
             ButtonAccept.Content = OsLocalization.Miner.Button1;
+
+            this.Activate();
+            this.Focus();
         }
 
         public bool IsActivate;

@@ -336,7 +336,7 @@ namespace OsEngine.Alerts
                 GridViewBox.Rows.Clear();
                 GridViewBox.Click -= GridViewBox_Click;
                 GridViewBox.DoubleClick -= GridViewBox_DoubleClick;
-                DataGridFactory.ClearLink(GridViewBox);
+                DataGridFactory.ClearLinks(GridViewBox);
                 GridViewBox = null;
             }
 
@@ -741,6 +741,11 @@ namespace OsEngine.Alerts
                 catch (Exception error)
                 {
                     SendNewMessage(error.ToString(), LogMessageType.Error);
+                    return;
+                }
+
+                if(pricePoint == 0)
+                {
                     return;
                 }
 

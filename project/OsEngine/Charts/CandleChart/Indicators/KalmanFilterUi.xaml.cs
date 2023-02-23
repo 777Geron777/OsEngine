@@ -38,6 +38,8 @@ namespace OsEngine.Charts.CandleChart.Indicators
         public KalmanFilterUi(KalmanFilter indicator)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _indicator = indicator;
 
             TextBoxSharpness.Text = _indicator.Sharpness.ToString();
@@ -51,6 +53,9 @@ namespace OsEngine.Charts.CandleChart.Indicators
             CheckBoxPaintOnOff.Content = OsLocalization.Charts.LabelPaintIntdicatorIsVisible;
             ButtonAccept.Content = OsLocalization.Charts.LabelButtonIndicatorAccept;
             ButtonColorAdx.Content = OsLocalization.Charts.LabelButtonIndicatorColor;
+
+            this.Activate();
+            this.Focus();
         }
 
         /// <summary>

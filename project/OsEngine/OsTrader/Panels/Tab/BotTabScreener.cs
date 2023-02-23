@@ -97,9 +97,13 @@ namespace OsEngine.OsTrader.Panels.Tab
                 }
                 Thread.Sleep(500);
 
-                for (int i = 0; i < _screeners.Count; i++)
+                for (int i = 0; _screeners != null &&
+                    _screeners.Count != 0 &&
+                    i < _screeners.Count; i++)
                 {
-                    for (int i2 = 0; i2 < _screeners[i].Tabs.Count; i2++)
+                    for (int i2 = 0; _screeners[i].Tabs != null &&
+                        _screeners[i].Tabs.Count != 0 &&
+                        i2 < _screeners[i].Tabs.Count; i2++)
                     {
                         PaintLastBidAsk(_screeners[i].Tabs[i2], _screeners[i].SecuritiesDataGrid);
                     }
@@ -172,7 +176,6 @@ namespace OsEngine.OsTrader.Panels.Tab
         }
 
         #endregion
-
 
         #region сервис
 
@@ -275,6 +278,42 @@ namespace OsEngine.OsTrader.Panels.Tab
         private bool _tabIsLoad = false;
 
         /// <summary>
+        /// включена ли подача событий на верх или нет
+        /// </summary>
+        public bool EventsIsOn
+        {
+            get
+            {
+                return _eventsIsOn;
+            }
+            set
+            {
+                if(_eventsIsOn == value)
+                {
+                    return;
+                }
+
+                _eventsIsOn = value;
+
+                try
+                {
+                    for (int i = 0; i < Tabs.Count; i++)
+                    {
+                        Tabs[i].Connector.EventsIsOn = value;
+                    }
+                }
+                catch
+                {
+                    // ignore
+                }
+
+                SaveSettings();
+            }
+        }
+
+        private bool _eventsIsOn = true;
+
+        /// <summary>
         /// load / 
         /// загрузить настройки из файла
         /// </summary>
@@ -307,7 +346,7 @@ namespace OsEngine.OsTrader.Panels.Tab
 
                         Tabs.Add(newTab);
                         SubscribleOnTab(newTab);
-                        UpdateTabSettings(Tabs[Tabs.Count - 1]);
+                        //UpdateTabSettings(Tabs[Tabs.Count - 1]);
                         PaintNewRow();
 
                         if (NewTabCreateEvent != null)
@@ -328,7 +367,9 @@ namespace OsEngine.OsTrader.Panels.Tab
             {
                 SendNewLogMessage(error.ToString(), LogMessageType.Error);
             }
-           
+
+            ReloadIndicatorsOnTabs();
+
         }
 
         /// <summary>
@@ -359,6 +400,7 @@ namespace OsEngine.OsTrader.Panels.Tab
                     writer.WriteLine(ComissionType);
                     writer.WriteLine(ComissionValue);
                     writer.WriteLine(SaveTradesInCandles);
+                    writer.WriteLine(_eventsIsOn);
 
                     for (int i = 0; i < SecuritiesNames.Count; i++)
                     {
@@ -409,6 +451,7 @@ namespace OsEngine.OsTrader.Panels.Tab
                     Enum.TryParse(reader.ReadLine(), out ComissionType);
                     ComissionValue = reader.ReadLine().ToDecimal();
                     SaveTradesInCandles = Convert.ToBoolean(reader.ReadLine());
+                    _eventsIsOn = Convert.ToBoolean(reader.ReadLine());
 
                     while (reader.EndOfStream == false)
                     {
@@ -508,7 +551,7 @@ namespace OsEngine.OsTrader.Panels.Tab
         /// <summary>
         /// таймфрейм
         /// </summary>
-        public TimeFrame TimeFrame = TimeFrame.Min30;
+        public TimeFrame TimeFrame = TimeFrame.Min1;
 
         /// <summary>
         /// тип сервера
@@ -590,6 +633,8 @@ namespace OsEngine.OsTrader.Panels.Tab
         /// </summary>
         public bool SaveTradesInCandles;
 
+        public bool IsLoadTabs = false;
+
         public bool NeadToReloadTabs = false;
 
         /// <summary>
@@ -635,13 +680,13 @@ namespace OsEngine.OsTrader.Panels.Tab
 
             // 2 обновляем во вкладках данные
 
-            for (int i = 0; i < Tabs.Count; i++)
-            {
-                UpdateTabSettings(Tabs[i]);
-            }
+            //for (int i = 0; i < Tabs.Count; i++)
+            //{
+            //    UpdateTabSettings(Tabs[i]);
+            //}
 
             // 3 создаём не достающие вкладки
-
+            IsLoadTabs = true;
             for (int i = 0; i < SecuritiesNames.Count; i++)
             {
                 int tabCount = Tabs.Count;
@@ -659,7 +704,7 @@ namespace OsEngine.OsTrader.Panels.Tab
                     }
                 }
             }
-
+            IsLoadTabs = false;
             ReloadIndicatorsOnTabs();
 
             if (Tabs.Count != 0)
@@ -818,6 +863,7 @@ namespace OsEngine.OsTrader.Panels.Tab
             }
 
             SuncFirstTab();
+            SaveIndicators();
         }
 
         /// <summary>
@@ -1020,6 +1066,8 @@ namespace OsEngine.OsTrader.Panels.Tab
             newGrid.Click += NewGrid_Click;
         }
 
+		private int prevActiveRow;
+
         /// <summary>
         /// клик по таблице
         /// </summary>
@@ -1047,9 +1095,13 @@ namespace OsEngine.OsTrader.Panels.Tab
                 {
                     ShowChart(tabRow);
                 }
+				
+                SecuritiesDataGrid.Rows[prevActiveRow].DefaultCellStyle.ForeColor = System.Drawing.Color.FromArgb(154, 156, 158);
+                SecuritiesDataGrid.Rows[tabRow].DefaultCellStyle.ForeColor = System.Drawing.Color.FromArgb(255, 255, 255);
+                prevActiveRow = tabRow;		
             }
         }
-
+        
         /// <summary>
         /// перерисовать грид
         /// </summary>
@@ -1225,6 +1277,61 @@ namespace OsEngine.OsTrader.Panels.Tab
         {
             try
             {
+                if(Tabs != null 
+                    && Tabs.Count != 0)
+                {
+                    _indicators = new List<IndicatorOnTabs>();
+
+                    List<IIndicator> indic = Tabs[0].Indicators;
+
+                    for (int i = 0; indic != null && i < indic.Count; i++)
+                    {
+                        if(indic[i].GetType().BaseType.Name != "Aindicator")
+                        {
+                            continue;
+                        }
+
+                        Aindicator aindicator = (Aindicator)indic[i];
+
+                        IndicatorOnTabs indicator = new IndicatorOnTabs();
+                        indicator.Num = i+1;
+
+                        indicator.Type = indic[i].GetType().Name;
+                        indicator.NameArea = indic[i].NameArea;
+
+                        List<string> parameters = new List<string>();
+
+
+                        for (int i2 = 0; i2 < aindicator.Parameters.Count; i2++)
+                        {
+                            string curParam = "";
+
+                            if (aindicator.Parameters[i2].Type == IndicatorParameterType.Int)
+                            {
+                                curParam = ((IndicatorParameterInt)aindicator.Parameters[i2]).ValueInt.ToString() ;
+                            }
+                            if (aindicator.Parameters[i2].Type == IndicatorParameterType.Decimal)
+                            {
+                                curParam = ((IndicatorParameterDecimal)aindicator.Parameters[i2]).ValueDecimal.ToString();
+                            }
+                            if (aindicator.Parameters[i2].Type == IndicatorParameterType.Bool)
+                            {
+                                curParam = ((IndicatorParameterBool)aindicator.Parameters[i2]).ValueBool.ToString();
+                            }
+                            if (aindicator.Parameters[i2].Type == IndicatorParameterType.String)
+                            {
+                                curParam = ((IndicatorParameterString)aindicator.Parameters[i2]).ValueString;
+                            }
+                            parameters.Add(curParam);
+                        }
+
+                        indicator.Params = parameters;
+
+                        _indicators.Add(indicator);
+
+                    }
+                }
+
                 using (StreamWriter writer = new StreamWriter(@"Engine\" + TabName + @"ScreenerIndicators.txt", false))
                 {
                     for (int i = 0; i < _indicators.Count; i++)
@@ -1264,7 +1371,7 @@ namespace OsEngine.OsTrader.Panels.Tab
         {
             for (int i = 0; i < Tabs.Count; i++)
             {
-                Aindicator newIndicator = IndicatorsFactory.CreateIndicatorByName(ind.Type, ind.Num + ind.Type, false);
+                Aindicator newIndicator = IndicatorsFactory.CreateIndicatorByName(ind.Type, ind.Num + ind.Type + TabName, false);
                 newIndicator.CanDelete = false;
 
                 try
@@ -1488,6 +1595,61 @@ namespace OsEngine.OsTrader.Panels.Tab
         /// </summary>
         public event Action<string, LogMessageType> LogMessageEvent;
 
+        // внешнее управление позициями
+
+        public void CloseAllPositionAtMarket()
+        {
+            try
+            {
+                if (Tabs == null)
+                {
+                    return;
+                }
+
+                for (int i = 0; i < Tabs.Count; i++)
+                {
+                    Tabs[i].CloseAllAtMarket();
+                }
+            }
+            catch (Exception error)
+            {
+                SendNewLogMessage(error.ToString(), LogMessageType.Error);
+            }
+        }
+
+        public BotTabSimple GetTabWithThisPosition(int positionNum)
+        {
+            try
+            {
+                BotTabSimple tabWithPosition = null;
+
+                for (int i = 0; i < Tabs.Count; i++)
+                {
+                    List<Position> posOnThisTab = Tabs[i].PositionsOpenAll;
+
+                    for (int i2 = 0; i2 < posOnThisTab.Count; i2++)
+                    {
+                        if (posOnThisTab[i2].Number == positionNum)
+                        {
+                            tabWithPosition = Tabs[i];
+                        }
+                    }
+
+                    if (tabWithPosition != null)
+                    {
+                        break;
+                    }
+                }
+
+                return tabWithPosition;
+            }
+            catch(Exception error)
+            {
+                SendNewLogMessage(error.ToString(), LogMessageType.Error);
+            }
+            return null;
+        }
+
         // исходящие события
 
         /// <summary>
@@ -1504,7 +1666,7 @@ namespace OsEngine.OsTrader.Panels.Tab
 
             tab.CandleFinishedEvent += (List<Candle> candles) =>
             {
-                if(CandleFinishedEvent != null)
+                if(CandleFinishedEvent != null && EventsIsOn)
                 {
                     CandleFinishedEvent(candles, tab);
                 }
@@ -1512,42 +1674,42 @@ namespace OsEngine.OsTrader.Panels.Tab
 
             tab.CandleUpdateEvent += (List<Candle> candles) =>
             {
-                if (CandleUpdateEvent != null)
+                if (CandleUpdateEvent != null && EventsIsOn)
                 {
                     CandleUpdateEvent(candles, tab);
                 }
             };
             tab.NewTickEvent += (Trade trade) =>
             {
-                if (NewTickEvent != null)
+                if (NewTickEvent != null && EventsIsOn)
                 {
                     NewTickEvent(trade, tab);
                 }
             };
             tab.MyTradeEvent += (MyTrade trade) =>
             {
-                if (MyTradeEvent != null)
+                if (MyTradeEvent != null && EventsIsOn)
                 {
                     MyTradeEvent(trade, tab);
                 }
             };
             tab.MyTradeEvent += (MyTrade trade) =>
             {
-                if (MyTradeEvent != null)
+                if (MyTradeEvent != null && EventsIsOn)
                 {
                     MyTradeEvent(trade, tab);
                 }
             };
             tab.OrderUpdateEvent += (Order order) =>
             {
-                if (OrderUpdateEvent != null)
+                if (OrderUpdateEvent != null && EventsIsOn)
                 {
                     OrderUpdateEvent(order, tab);
                 }
             };
             tab.MarketDepthUpdateEvent += (MarketDepth md) =>
             {
-                if (MarketDepthUpdateEvent != null)
+                if (MarketDepthUpdateEvent != null && EventsIsOn)
                 {
                     MarketDepthUpdateEvent(md, tab);
                 }
@@ -1555,63 +1717,63 @@ namespace OsEngine.OsTrader.Panels.Tab
 
             tab.PositionClosingSuccesEvent += (Position pos) =>
             {
-                if (PositionClosingSuccesEvent != null)
+                if (PositionClosingSuccesEvent != null && EventsIsOn)
                 {
                     PositionClosingSuccesEvent(pos, tab);
                 }
             };
             tab.PositionOpeningSuccesEvent += (Position pos) =>
             {
-                if (PositionOpeningSuccesEvent != null)
+                if (PositionOpeningSuccesEvent != null && EventsIsOn)
                 {
                     PositionOpeningSuccesEvent(pos, tab);
                 }
             };
             tab.PositionNetVolumeChangeEvent += (Position pos) =>
             {
-                if (PositionNetVolumeChangeEvent != null)
+                if (PositionNetVolumeChangeEvent != null && EventsIsOn)
                 {
                     PositionNetVolumeChangeEvent(pos, tab);
                 }
             };
             tab.PositionOpeningFailEvent += (Position pos) =>
             {
-                if (PositionOpeningFailEvent != null)
+                if (PositionOpeningFailEvent != null && EventsIsOn)
                 {
                     PositionOpeningFailEvent(pos, tab);
                 }
             };
             tab.PositionClosingFailEvent += (Position pos) =>
             {
-                if (PositionClosingFailEvent != null)
+                if (PositionClosingFailEvent != null && EventsIsOn)
                 {
                     PositionClosingFailEvent(pos, tab);
                 }
             };
             tab.PositionStopActivateEvent += (Position pos) =>
             {
-                if (PositionStopActivateEvent != null)
+                if (PositionStopActivateEvent != null && EventsIsOn)
                 {
                     PositionStopActivateEvent(pos, tab);
                 }
             };
             tab.PositionProfitActivateEvent += (Position pos) =>
             {
-                if (PositionProfitActivateEvent != null)
+                if (PositionProfitActivateEvent != null && EventsIsOn)
                 {
                     PositionProfitActivateEvent(pos, tab);
                 }
             };
             tab.PositionBuyAtStopActivateEvent += (Position pos) =>
             {
-                if (PositionBuyAtStopActivateEvent != null)
+                if (PositionBuyAtStopActivateEvent != null && EventsIsOn)
                 {
                     PositionBuyAtStopActivateEvent(pos, tab);
                 }
             };
             tab.PositionSellAtStopActivateEvent += (Position pos) =>
             {
-                if (PositionSellAtStopActivateEvent != null)
+                if (PositionSellAtStopActivateEvent != null && EventsIsOn)
                 {
                     PositionSellAtStopActivateEvent(pos, tab);
                 }

@@ -17,6 +17,8 @@ namespace OsEngine.Robots.CounterTrend
         public RsiContrtrendUi(RsiContrtrend strategy)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _strategy = strategy;
 
             ComboBoxRegime.Items.Add(BotTradeRegime.Off);
@@ -38,6 +40,9 @@ namespace OsEngine.Robots.CounterTrend
             ButtonAccept.Content = OsLocalization.Trader.Label17;
             LabelRsiOverbought.Content = OsLocalization.Trader.Label141;
             LabelRsiOversold.Content = OsLocalization.Trader.Label142;
+
+            this.Activate();
+            this.Focus();
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)

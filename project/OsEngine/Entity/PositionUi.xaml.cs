@@ -35,6 +35,8 @@ namespace OsEngine.Entity
             _startProgramm = startProgram;
             _position = position;
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             CreateMainTable();
             CreateOrdersTable();
             CreateTradeTable();
@@ -46,6 +48,9 @@ namespace OsEngine.Entity
             PositionLabel2.Content = OsLocalization.Entity.PositionLabel2;
             PositionLabel3.Content = OsLocalization.Entity.PositionLabel3;
             SaveChangesButton.Content = OsLocalization.Entity.PositionLabel4;
+
+            this.Activate();
+            this.Focus();
         }
 
         StartProgram _startProgramm;
@@ -763,9 +768,14 @@ namespace OsEngine.Entity
             int number;
             try
             {
-                number = _openOrdersGrid.CurrentCell.RowIndex;
+                number = _tradesGrid.CurrentCell.RowIndex;
             }
             catch (Exception)
+            {
+                return;
+            }
+
+            if(number >= _tradesGrid.Rows.Count)
             {
                 return;
             }

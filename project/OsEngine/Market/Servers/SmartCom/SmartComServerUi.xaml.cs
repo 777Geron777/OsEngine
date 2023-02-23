@@ -18,6 +18,8 @@ namespace OsEngine.Market.Servers.SmartCom
         public SmartComServerUi(SmartComServer server, Log log)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _server = server;
 
             TextBoxServerAdress.Text = _server.ServerAdress;
@@ -40,6 +42,8 @@ namespace OsEngine.Market.Servers.SmartCom
             ButtonConnect.Content = OsLocalization.Market.ButtonConnect;
             ButtonAbort.Content = OsLocalization.Market.ButtonDisconnect;
 
+            this.Activate();
+            this.Focus();
         }
 
         void _server_ConnectStatusChangeEvent(string state)

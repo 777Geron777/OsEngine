@@ -835,7 +835,7 @@ namespace OsEngine.Charts.CandleChart
         {
             get { return _indicators; }
         }
-        private List<IIndicator> _indicators;
+        private List<IIndicator> _indicators = new List<IIndicator>();
 
         /// <summary>
         /// to create a new indicator. If there is already one with this name, the existing one returned
@@ -850,6 +850,11 @@ namespace OsEngine.Charts.CandleChart
             {
                 indicator.NameArea = nameArea;
 
+                if (indicator.GetType().BaseType.Name == "Aindicator")
+                {
+                    ((Aindicator)indicator).StartProgram = _startProgram;
+                }
+
                 if (_indicators != null)
                 {
                     // check if there is such indicator in the collection
@@ -863,8 +868,6 @@ namespace OsEngine.Charts.CandleChart
                     }
                 }
 
-                LoadIndicatorOnChart(indicator);
-
                 if (_indicators == null)
                 {
                     _indicators = new List<IIndicator>();
@@ -874,6 +877,8 @@ namespace OsEngine.Charts.CandleChart
                 {
                     _indicators.Add(indicator);
                 }
+
+                LoadIndicatorOnChart(indicator);
 
                 indicator.NeadToReloadEvent += indicator_NeadToReloadEvent;
                 indicator_NeadToReloadEvent(indicator);

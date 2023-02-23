@@ -36,6 +36,8 @@ namespace OsEngine.Charts.CandleChart.Indicators
         public OnBalanceVolumeUi(OnBalanceVolume obv)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _obv = obv;
 
             HostColorBase.Child = new TextBox();
@@ -45,6 +47,9 @@ namespace OsEngine.Charts.CandleChart.Indicators
             ButtonColor.Content = OsLocalization.Charts.LabelButtonIndicatorColor;
             CheckBoxPaintOnOff.Content = OsLocalization.Charts.LabelPaintIntdicatorIsVisible;
             ButtonAccept.Content = OsLocalization.Charts.LabelButtonIndicatorAccept;
+
+            this.Activate();
+            this.Focus();
         }
 
         /// <summary>

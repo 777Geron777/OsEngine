@@ -21,6 +21,8 @@ namespace OsEngine.Market.Servers.AstsBridge
         public AstsServerUi(AstsBridgeServer server, Log log)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _server = server;
 
             TextBoxServerAdress.Text = _server.ServerAdress;
@@ -52,6 +54,9 @@ namespace OsEngine.Market.Servers.AstsBridge
             LabelPassword.Content = OsLocalization.Market.Message64;
             CheckBoxNeadToSaveTrade.Content = OsLocalization.Market.ServerParam1;
             LabelDaysToLoad.Content = OsLocalization.Market.ServerParam2;
+
+            this.Activate();
+            this.Focus();
 
         }
 

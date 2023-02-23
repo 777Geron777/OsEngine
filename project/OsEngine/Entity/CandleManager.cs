@@ -29,7 +29,6 @@ using OsEngine.Market.Servers.Huobi.FuturesSwap;
 using OsEngine.Market.Servers.Huobi.Spot;
 using OsEngine.Market.Servers.Tinkoff;
 using OsEngine.Market.Servers.GateIo.Futures;
-using OsEngine.Market.Servers.FTX;
 using OsEngine.Market.Servers.Bybit;
 using OsEngine.Market.Servers.InteractiveBrokers;
 using OsEngine.Market.Servers.OKX;
@@ -80,15 +79,16 @@ namespace OsEngine.Entity
         {
             try
             {
-                if (_activSeries == null)
+                for (int i = 0; _activSeriesBasedOnTrades != null && i < _activSeriesBasedOnTrades.Count; i++)
                 {
-                    return;
+                    _activSeriesBasedOnTrades[i].SetNewTime(dateTime);
                 }
 
-                for (int i = 0; i < _activSeries.Count; i++)
+                for (int i = 0; _activSeriesBasedOnMd != null && i < _activSeriesBasedOnMd.Count; i++)
                 {
-                    _activSeries[i].SetNewTime(dateTime);
+                    _activSeriesBasedOnMd[i].SetNewTime(dateTime);
                 }
+
             }
             catch (Exception error)
             {
@@ -118,22 +118,23 @@ namespace OsEngine.Entity
                     return;
                 }
 
-                if (_activSeries == null)
+                if (_activSeriesBasedOnTrades == null)
                 {
                     return;
                 }
 
-                for (int i = 0; i < _activSeries.Count; i++)
+                string secCode = trades[0].SecurityNameCode;
+
+                for (int i = 0; i < _activSeriesBasedOnTrades.Count; i++)
                 {
-                    if(_activSeries[i] == null ||
-                        _activSeries[i].Security == null)
+                    if(_activSeriesBasedOnTrades[i] == null ||
+                        _activSeriesBasedOnTrades[i].Security == null)
                     {
                         continue;
                     }
-                    if (_activSeries[i].CandleMarketDataType == CandleMarketDataType.Tick &&
-                        _activSeries[i].Security.Name == trades[0].SecurityNameCode)
+                    if (_activSeriesBasedOnTrades[i].Security.Name == secCode)
                     {
-                        _activSeries[i].SetNewTicks(trades);
+                        _activSeriesBasedOnTrades[i].SetNewTicks(trades);
                     }
                 }
             }
@@ -158,17 +159,22 @@ namespace OsEngine.Entity
 
             try
             {
-                if (_activSeries == null)
+                if (_activSeriesBasedOnMd == null)
                 {
                     return;
                 }
 
-                for (int i = 0; i < _activSeries.Count; i++)
+                for (int i = 0; i < _activSeriesBasedOnMd.Count; i++)
                 {
-                    if (_activSeries[i].CandleMarketDataType == CandleMarketDataType.MarketDepth &&
-                        _activSeries[i].Security.Name == marketDepth.SecurityNameCode)
+                    if (_activSeriesBasedOnMd[i] == null ||
+                        _activSeriesBasedOnMd[i].Security == null)
                     {
-                        _activSeries[i].SetNewMarketDepth(marketDepth);
+                        continue;
+                    }
+
+                    if (_activSeriesBasedOnMd[i].Security.Name == marketDepth.SecurityNameCode)
+                    {
+                        _activSeriesBasedOnMd[i].SetNewMarketDepth(marketDepth);
                     }
                 }
             }
@@ -180,14 +186,9 @@ namespace OsEngine.Entity
 
         public CandleSeries GetSeries(TimeFrameBuilder timeFrameBuilder, Security security)
         {
-            if(_activSeries == null)
+            for(int i = 0; _activSeriesBasedOnTrades != null && i < _activSeriesBasedOnTrades.Count;i++)
             {
-                return null;
-            }
-
-            for(int i = 0;i < _activSeries.Count;i++)
-            {
-                CandleSeries curSeries = _activSeries[i];
+                CandleSeries curSeries = _activSeriesBasedOnTrades[i];
 
                 if(curSeries.Security.Name != security.Name ||
                     curSeries.Security.NameClass != security.NameClass)
@@ -200,7 +201,25 @@ namespace OsEngine.Entity
                     continue;
                 }
 
-                return _activSeries[i];
+                return _activSeriesBasedOnTrades[i];
+            }
+
+            for (int i = 0; _activSeriesBasedOnMd != null && i < _activSeriesBasedOnMd.Count; i++)
+            {
+                CandleSeries curSeries = _activSeriesBasedOnMd[i];
+
+                if (curSeries.Security.Name != security.Name ||
+                    curSeries.Security.NameClass != security.NameClass)
+                {
+                    continue;
+                }
+
+                if (curSeries.TimeFrameBuilder.Specification.Equals(timeFrameBuilder.Specification) == false)
+                {
+                    continue;
+                }
+
+                return _activSeriesBasedOnMd[i];
             }
 
             return null;
@@ -219,26 +238,37 @@ namespace OsEngine.Entity
                     _server.ServerType != ServerType.Optimizer &&
                     _server.ServerType != ServerType.Miner)
                 {
-                    series.СandleUpdeteEvent += series_СandleUpdeteEvent; 
+                    series.СandleUpdeteEvent += series_СandleUpdeteEvent;
                 }
 
                 series.TypeTesterData = _typeTesterData;
                 series.СandleFinishedEvent += series_СandleFinishedEvent;
 
-                if (_activSeries == null)
+                if (_activSeriesBasedOnTrades == null)
                 {
-                    _activSeries = new List<CandleSeries>();
+                    _activSeriesBasedOnTrades = new List<CandleSeries>();
                 }
 
-                _activSeries.Add(series);
-
-               if(_startProgram == StartProgram.IsOsOptimizer)
+                if (_activSeriesBasedOnMd == null)
                 {
-                    series.IsStarted = true;
+                    _activSeriesBasedOnMd = new List<CandleSeries>();
                 }
-               else
+
+                if (_startProgram == StartProgram.IsOsTrader)
                 {
                     _candleSeriesNeadToStart.Enqueue(series);
+                }
+                else
+                {
+                    if (series.CandleMarketDataType == CandleMarketDataType.MarketDepth)
+                    {
+                        _activSeriesBasedOnMd.Add(series);
+                    }
+                    else if (series.CandleMarketDataType == CandleMarketDataType.Tick)
+                    {
+                        _activSeriesBasedOnTrades.Add(series);
+                    }
+                    series.IsStarted = true;
                 }
             }
             catch (Exception error)
@@ -282,6 +312,22 @@ namespace OsEngine.Entity
 
                         if (series == null || series.IsStarted)
                         {
+                            continue;
+                        }
+
+                        if (series.IsStarted)
+                        {
+                            if (series.CandleMarketDataType == CandleMarketDataType.MarketDepth)
+                            {
+                                if(_activSeriesBasedOnMd != null)
+                                _activSeriesBasedOnMd.Add(series);
+                            }
+                            else if (series.CandleMarketDataType == CandleMarketDataType.Tick)
+                            {
+                                if (_activSeriesBasedOnTrades != null)
+                                    _activSeriesBasedOnTrades.Add(series);
+                            }
+
                             continue;
                         }
 
@@ -497,7 +543,7 @@ namespace OsEngine.Entity
                             series.UpdateAllCandles();
                             series.IsStarted = true;
                         }
-                        else if (serverType == ServerType.BitMax)
+                        else if (serverType == ServerType.AscendEx_BitMax)
                         {
                             BitMaxProServer bitMax = (BitMaxProServer)_server;
                             if (series.CandleCreateMethodType != CandleCreateMethodType.Simple ||
@@ -563,8 +609,7 @@ namespace OsEngine.Entity
                                 transaq.GetCandleHistory(series);
                             }
                         }
-                        else if (serverType == ServerType.Livecoin ||
-                                 serverType == ServerType.Exmo)
+                        else if (serverType == ServerType.Exmo)
                         {
                             List<Trade> allTrades = _server.GetAllTradesToSecurity(series.Security);
 
@@ -721,27 +766,6 @@ namespace OsEngine.Entity
                             series.UpdateAllCandles();
                             series.IsStarted = true;
                         }
-                        else if (serverType == ServerType.FTX)
-                        {
-                            FTXServer ftxServer = (FTXServer)_server;
-                            if (series.CandleCreateMethodType != CandleCreateMethodType.Simple ||
-                                series.TimeFrameSpan.TotalMinutes < 1)
-                            {
-                                List<Trade> allTrades = _server.GetAllTradesToSecurity(series.Security);
-                                series.PreLoad(allTrades);
-                            }
-                            else
-                            {
-                                List<Candle> candles = ftxServer.GetCandleHistory(series.Security.Name,
-                                    series.TimeFrameSpan);
-                                if (candles != null)
-                                {
-                                    series.CandlesAll = candles;
-                                }
-                            }
-                            series.UpdateAllCandles();
-                            series.IsStarted = true;
-                        }
 
                         else if (serverType == ServerType.Bybit)
                         {
@@ -788,6 +812,17 @@ namespace OsEngine.Entity
                             series.IsStarted = true;
                         }
 
+                        if (series.CandleMarketDataType == CandleMarketDataType.MarketDepth)
+                        {
+                            if (_activSeriesBasedOnMd != null)
+                                _activSeriesBasedOnMd.Add(series);
+                        }
+                        else if (series.CandleMarketDataType == CandleMarketDataType.Tick)
+                        {
+                            if (_activSeriesBasedOnTrades != null)
+                                _activSeriesBasedOnTrades.Add(series);
+                        }
+
                     }
                 }
             }
@@ -806,11 +841,6 @@ namespace OsEngine.Entity
         {
             try
             {
-                if (_activSeries == null)
-                {
-                    return;
-                }
-
                 if(series == null 
                     || series.UID == null)
                 {
@@ -820,9 +850,9 @@ namespace OsEngine.Entity
                 series.СandleUpdeteEvent -= series_СandleUpdeteEvent;
                 series.СandleFinishedEvent -= series_СandleFinishedEvent;
 
-                for(int i = 0; _activSeries != null && i < _activSeries.Count;i++)
+                for(int i = 0; _activSeriesBasedOnTrades != null && i < _activSeriesBasedOnTrades.Count;i++)
                 {
-                    CandleSeries curSeries = _activSeries[i];
+                    CandleSeries curSeries = _activSeriesBasedOnTrades[i];
 
                     if(curSeries == null ||
                         curSeries.UID == null)
@@ -832,11 +862,33 @@ namespace OsEngine.Entity
 
                     if (curSeries.UID == series.UID)
                     {
-                        if(_activSeries != null)
+                        if(_activSeriesBasedOnTrades != null)
                         {
-                            _activSeries.RemoveAt(i);
+                            _activSeriesBasedOnTrades.RemoveAt(i);
                         }
                         
+                        break;
+                    }
+                }
+
+
+                for (int i = 0; _activSeriesBasedOnMd != null && i < _activSeriesBasedOnMd.Count; i++)
+                {
+                    CandleSeries curSeries = _activSeriesBasedOnMd[i];
+
+                    if (curSeries == null ||
+                        curSeries.UID == null)
+                    {
+                        return;
+                    }
+
+                    if (curSeries.UID == series.UID)
+                    {
+                        if (_activSeriesBasedOnMd != null)
+                        {
+                            _activSeriesBasedOnMd.RemoveAt(i);
+                        }
+
                         break;
                     }
                 }
@@ -861,16 +913,20 @@ namespace OsEngine.Entity
         /// </summary>
         public void SetNewCandleInSeries(Candle candle, string nameSecurity, TimeSpan timeFrame)
         {
-            if (_activSeries == null || _activSeries.Count == 0)
+
+            for (int i = 0; _activSeriesBasedOnTrades != null && i < _activSeriesBasedOnTrades.Count; i++)
             {
-                return;
+                if (_activSeriesBasedOnTrades[i].Security.Name == nameSecurity && _activSeriesBasedOnTrades[i].TimeFrameSpan == timeFrame)
+                {
+                    _activSeriesBasedOnTrades[i].SetNewCandleInArray(candle);
+                }
             }
 
-            for (int i = 0; i < _activSeries.Count; i++)
+            for (int i = 0; _activSeriesBasedOnMd != null && i < _activSeriesBasedOnMd.Count; i++)
             {
-                if (_activSeries[i].Security.Name == nameSecurity && _activSeries[i].TimeFrameSpan == timeFrame)
+                if (_activSeriesBasedOnMd[i].Security.Name == nameSecurity && _activSeriesBasedOnMd[i].TimeFrameSpan == timeFrame)
                 {
-                    _activSeries[i].SetNewCandleInArray(candle);
+                    _activSeriesBasedOnMd[i].SetNewCandleInArray(candle);
                 }
             }
         }
@@ -881,14 +937,26 @@ namespace OsEngine.Entity
         /// </summary>
         public void Clear()
         {
-            if (_activSeries == null)
+            if (_activSeriesBasedOnTrades != null)
             {
-                return;
+                for (int i = 0; i < _activSeriesBasedOnTrades.Count; i++)
+                {
+                    _activSeriesBasedOnTrades[i].Clear();
+                }
             }
 
-            for (int i = 0; i < _activSeries.Count; i++)
+            if (_activSeriesBasedOnMd != null)
             {
-                _activSeries[i].Clear();
+                for (int i = 0; i < _activSeriesBasedOnMd.Count; i++)
+                {
+                    _activSeriesBasedOnMd[i].Clear();
+                }
+            }
+
+            if (_candleSeriesNeadToStart != null 
+               && _candleSeriesNeadToStart.Count != 0)
+            {
+                _candleSeriesNeadToStart.Clear();
             }
         }
 
@@ -898,12 +966,25 @@ namespace OsEngine.Entity
 
             try
             {
-                for (int i = 0; _activSeries != null && i < _activSeries.Count; i++)
+                for (int i = 0; _activSeriesBasedOnTrades != null && i < _activSeriesBasedOnTrades.Count; i++)
                 {
-                    _activSeries[i].Clear();
-                    _activSeries[i].Stop();
+                    _activSeriesBasedOnTrades[i].Clear();
+                    _activSeriesBasedOnTrades[i].Stop();
                 }
-                _activSeries = null;
+                _activSeriesBasedOnTrades = null;
+
+                for (int i = 0; _activSeriesBasedOnMd != null && i < _activSeriesBasedOnMd.Count; i++)
+                {
+                    _activSeriesBasedOnMd[i].Clear();
+                    _activSeriesBasedOnMd[i].Stop();
+                }
+                _activSeriesBasedOnMd = null;
+
+                if (_candleSeriesNeadToStart != null
+                    && _candleSeriesNeadToStart.Count != 0)
+                {
+                    _candleSeriesNeadToStart.Clear();
+                }
             }
             catch (Exception error)
             {
@@ -927,22 +1008,22 @@ namespace OsEngine.Entity
         /// </summary>
         public void SynhSeries(List<string> nameSecurities)
         {
-            if (nameSecurities == null || nameSecurities.Count == 0 ||
-               _activSeries == null || _activSeries.Count == 0)
+            if (nameSecurities == null || nameSecurities.Count == 0)
             {
                 return;
             }
 
             List<CandleSeries> mySeries = new List<CandleSeries>();
 
-            for (int i = 0; i < _activSeries.Count; i++)
+            for (int i = 0; _activSeriesBasedOnTrades != null && i < _activSeriesBasedOnTrades.Count; i++)
             {
-                if (nameSecurities.Find(nameSec => nameSec == _activSeries[i].Security.Name) != null)
+                if (nameSecurities.Find(nameSec => nameSec == _activSeriesBasedOnTrades[i].Security.Name) != null)
                 {
-                    mySeries.Add(_activSeries[i]);
+                    mySeries.Add(_activSeriesBasedOnTrades[i]);
                 }
             }
-            _activSeries = mySeries;
+            _activSeriesBasedOnTrades = mySeries;
+
         }
 
         private TesterDataType _typeTesterData;
@@ -956,19 +1037,46 @@ namespace OsEngine.Entity
             set
             {
                 _typeTesterData = value;
-                for (int i = 0;_activSeries != null && i < _activSeries.Count; i++)
+                for (int i = 0;_activSeriesBasedOnTrades != null && i < _activSeriesBasedOnTrades.Count; i++)
                 {
-                    _activSeries[i].TypeTesterData = value;
+                    _activSeriesBasedOnTrades[i].TypeTesterData = value;
+                }
+
+                for (int i = 0; _activSeriesBasedOnMd != null && i < _activSeriesBasedOnMd.Count; i++)
+                {
+                    _activSeriesBasedOnMd[i].TypeTesterData = value;
                 }
             }
             
+        }
+
+        public int ActiveSeriesCount
+        {
+            get
+            {
+                int result = 0;
+
+                if (_activSeriesBasedOnTrades != null)
+                {
+                    result += _activSeriesBasedOnTrades.Count;
+                }
+
+                if (_activSeriesBasedOnMd != null)
+                {
+                    result += _activSeriesBasedOnMd.Count;
+                }
+
+                return result;
+            }
         }
 
         /// <summary>
         /// active series
         /// активные серии
         /// </summary>
-        private List<CandleSeries> _activSeries;
+        private List<CandleSeries> _activSeriesBasedOnTrades;
+
+        private List<CandleSeries> _activSeriesBasedOnMd;
 
         /// <summary>
         /// candles were updated in one of the series. Inbound event

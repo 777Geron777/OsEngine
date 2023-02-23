@@ -36,6 +36,8 @@ namespace OsEngine.Charts.CandleChart.Indicators
         public PriceOscillatorUi(PriceOscillator pO)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _pO = pO;
 
             HostColorBase.Child = new TextBox();
@@ -50,6 +52,9 @@ namespace OsEngine.Charts.CandleChart.Indicators
             CheckBoxPaintOnOff.Content = OsLocalization.Charts.LabelPaintIntdicatorIsVisible;
             ButtonAccept.Content = OsLocalization.Charts.LabelButtonIndicatorAccept;
             LabelIndicatorType.Content = OsLocalization.Charts.LabelIndicatorType;
+
+            this.Activate();
+            this.Focus();
         }
 
         /// <summary>

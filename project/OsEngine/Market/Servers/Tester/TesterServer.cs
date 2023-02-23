@@ -356,14 +356,23 @@ namespace OsEngine.Market.Servers.Tester
 
             _candleSeriesTesterActivate = new List<SecurityTester>();
 
+            int countSeriesInLastTest = _candleManager.ActiveSeriesCount;
+
+            _candleManager.Clear();
+
             if (NeadToReconnectEvent != null)
             {
                 NeadToReconnectEvent();
             }
 
-            Thread.Sleep(200);
+            int timeToWaitConnect = 100 + countSeriesInLastTest * 40;
 
-            _candleManager.Clear();
+            if(timeToWaitConnect > 10000)
+            {
+                timeToWaitConnect = 10000;
+            }
+
+            Thread.Sleep(timeToWaitConnect);
 
             _allTrades = null;
 
@@ -377,7 +386,7 @@ namespace OsEngine.Market.Servers.Tester
 
             while (TimeNow.Minute != 0)
             {
-               TimeNow = TimeNow.AddMinutes(-1);
+                TimeNow = TimeNow.AddMinutes(-1);
             }
 
             while (TimeNow.Second != 0)
@@ -3986,7 +3995,7 @@ namespace OsEngine.Market.Servers.Tester
 		/// save a log message new 
         /// сохранить новую запись в лог
         /// </summary>
-        private void SendLogMessage(string message, LogMessageType type)
+        public void SendLogMessage(string message, LogMessageType type)
         {
             if (LogMessageEvent != null)
             {

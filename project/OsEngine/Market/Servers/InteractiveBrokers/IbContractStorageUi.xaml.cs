@@ -28,6 +28,8 @@ namespace OsEngine.Market.Servers.InteractiveBrokers
         public IbContractStorageUi(List<SecurityIb> secToSubscrible, InteractiveBrokersServerRealization server)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             SecToSubscrible = secToSubscrible;
             _server = server;
 
@@ -99,6 +101,9 @@ namespace OsEngine.Market.Servers.InteractiveBrokers
             Closing += IbContractStorageUi_Closing;
             _grid.Click += _grid_Click;
             _grid.CellValueChanged += _grid_CellValueChanged;
+
+            this.Activate();
+            this.Focus();
         }
 
         private void IbContractStorageUi_Closing(object sender, System.ComponentModel.CancelEventArgs e)

@@ -32,6 +32,8 @@ namespace OsEngine.Charts.CandleChart.Indicators
         public DonchianChannelUi(DonchianChannel donchian)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _donchian = donchian;
 
             TextBoxLenght.Text = _donchian.Lenght.ToString();
@@ -45,6 +47,9 @@ namespace OsEngine.Charts.CandleChart.Indicators
             HostColorAvg.Child.BackColor = _donchian.ColorAvg;
 
             CheckBoxPaintOnOff.IsChecked = _donchian.PaintOn;
+
+            this.Activate();
+            this.Focus();
         }
 
         /// <summary>

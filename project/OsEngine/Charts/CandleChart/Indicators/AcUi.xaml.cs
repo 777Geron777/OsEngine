@@ -37,6 +37,8 @@ namespace OsEngine.Charts.CandleChart.Indicators
         public AcUi(Ac ac)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _ac = ac;
 
             TextBoxLenght.Text = _ac.LenghtLong.ToString();
@@ -55,6 +57,9 @@ namespace OsEngine.Charts.CandleChart.Indicators
             ButtonAccept.Content = OsLocalization.Charts.LabelButtonIndicatorAccept;
             LabelIndicatorLongPeriod.Content = OsLocalization.Charts.LabelIndicatorLongPeriod;
             LabelIndicatorShortPeriod.Content = OsLocalization.Charts.LabelIndicatorShortPeriod;
+
+            this.Activate();
+            this.Focus();
         }
 
         /// <summary>

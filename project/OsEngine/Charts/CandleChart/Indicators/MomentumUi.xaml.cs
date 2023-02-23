@@ -37,6 +37,8 @@ namespace OsEngine.Charts.CandleChart.Indicators
         public MomentumUi(Momentum momentum)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _momentum = momentum;
 
             TextBoxLenght.Text = _momentum.Nperiod.ToString();
@@ -56,6 +58,9 @@ namespace OsEngine.Charts.CandleChart.Indicators
             CheckBoxPaintOnOff.Content = OsLocalization.Charts.LabelPaintIntdicatorIsVisible;
             ButtonAccept.Content = OsLocalization.Charts.LabelButtonIndicatorAccept;
             LabelIndicatorPeriod.Content = OsLocalization.Charts.LabelIndicatorPeriod;
+
+            this.Activate();
+            this.Focus();
         }
 
         /// <summary>

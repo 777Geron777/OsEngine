@@ -38,6 +38,8 @@ namespace OsEngine.Charts.CandleChart.Indicators
         public RviUi(Rvi rvi)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _rvi = rvi;
 
             TextBoxLenght.Text = _rvi.Period.ToString();
@@ -53,6 +55,9 @@ namespace OsEngine.Charts.CandleChart.Indicators
             CheckBoxPaintOnOff.Content = OsLocalization.Charts.LabelPaintIntdicatorIsVisible;
             ButtonAccept.Content = OsLocalization.Charts.LabelButtonIndicatorAccept;
             LabelIndicatorPeriod.Content = OsLocalization.Charts.LabelIndicatorPeriod;
+
+            this.Activate();
+            this.Focus();
         }
 
         /// <summary>

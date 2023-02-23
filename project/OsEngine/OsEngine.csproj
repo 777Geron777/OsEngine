@@ -369,13 +369,16 @@
     <Compile Include="Entity\AcceptDialogUi.xaml.cs">
       <DependentUpon>AcceptDialogUi.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Entity\AwaitObject.cs" />
+    <Compile Include="Entity\AwaitUi.xaml.cs">
+      <DependentUpon>AwaitUi.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Entity\CandleConverter.cs" />
     <Compile Include="Entity\DataGridFactory.cs" />
     <Compile Include="Entity\DateTimeSelectionDialog.xaml.cs">
       <DependentUpon>DateTimeSelectionDialog.xaml</DependentUpon>
     </Compile>
     <Compile Include="Entity\Extensions.cs" />
-    <Compile Include="Entity\GuiLockationMaster.cs" />
     <Compile Include="Entity\HorizontalVolume.cs" />
     <Compile Include="Entity\MarketDepthPainter.cs" />
     <Compile Include="Entity\ProxyHolder.cs" />
@@ -419,6 +422,9 @@
     <Compile Include="Language\OsLocalization.cs" />
     <Compile Include="Language\PrimeSettingsMasterUiLocal.cs" />
     <Compile Include="Language\TraderLocal.cs" />
+    <Compile Include="Layout\DesktopCoordinates.cs" />
+    <Compile Include="Layout\StartupLocation.cs" />
+    <Compile Include="Layout\StickyBorders.cs" />
     <Compile Include="Logging\LogErrorUi.xaml.cs">
       <DependentUpon>LogErrorUi.xaml</DependentUpon>
     </Compile>
@@ -452,6 +458,7 @@
     <Compile Include="Market\Servers\Binance\Futures\Entity\AgregatedHistoryTrade.cs" />
     <Compile Include="Market\Servers\Binance\Futures\Entity\BinanceFutureseDepthResponse.cs" />
     <Compile Include="Market\Servers\Binance\Futures\Entity\OrderUpdResponse.cs" />
+    <Compile Include="Market\Servers\Binance\Futures\Entity\TradesResponseReserches.cs" />
     <Compile Include="Market\Servers\Binance\Spot\BinanceClientSpot.cs" />
     <Compile Include="Market\Servers\Binance\Spot\BinanceSpotEntity\AccountResponse.cs" />
     <Compile Include="Market\Servers\Binance\Spot\BinanceSpotEntity\AccountResponseMargin.cs" />
@@ -522,17 +529,6 @@
     <Compile Include="Market\Servers\FixProtocolEntities\FixEntity.cs" />
     <Compile Include="Market\Servers\FixProtocolEntities\FixMessage.cs" />
     <Compile Include="Market\Servers\FixProtocolEntities\StandartHeaderSettings.cs" />
-    <Compile Include="Market\Servers\FTX\EntityCreators\FTXCandlesCreator.cs" />
-    <Compile Include="Market\Servers\FTX\EntityCreators\FTXPortfolioCreator.cs" />
-    <Compile Include="Market\Servers\FTX\EntityCreators\FTXMarketDepthCreator.cs" />
-    <Compile Include="Market\Servers\FTX\EntityCreators\FTXOrderCreator.cs" />
-    <Compile Include="Market\Servers\FTX\EntityCreators\FTXSecurityCreator.cs" />
-    <Compile Include="Market\Servers\FTX\EntityCreators\FTXTradesCreator.cs" />
-    <Compile Include="Market\Servers\FTX\FTXApi\ClientApiKeys.cs" />
-    <Compile Include="Market\Servers\FTX\FtxRestClient.cs" />
-    <Compile Include="Market\Servers\FTX\FTXApi\Util\FtxWebSockerRequestGenerator.cs" />
-    <Compile Include="Market\Servers\FTX\FTXApi\Util\Util.cs" />
-    <Compile Include="Market\Servers\FTX\FTXServer.cs" />
     <Compile Include="Market\Servers\GateIo\EntityCreators\GateMarketDepthCreator.cs" />
     <Compile Include="Market\Servers\GateIo\EntityCreators\GateOrderCreator.cs" />
     <Compile Include="Market\Servers\GateIo\EntityCreators\GatePortfolioCreator.cs" />
@@ -672,10 +668,6 @@
     <Compile Include="Market\Servers\Kraken\Sockets\Messages\TradeValues.cs" />
     <Compile Include="Market\Servers\Kraken\Sockets\Messages\Unsubscribe.cs" />
     <Compile Include="Market\Servers\Kraken\Sockets\SecureStringExtensions.cs" />
-    <Compile Include="Market\Servers\Livecoin\LivecoinClient.cs" />
-    <Compile Include="Market\Servers\Livecoin\LivecoinEntity\LivecoinEntity.cs" />
-    <Compile Include="Market\Servers\Livecoin\LivecoinEntity\protobuf\ProtoB.cs" />
-    <Compile Include="Market\Servers\Livecoin\LivecoinServer.cs" />
     <Compile Include="Market\Servers\Lmax\LmaxEntity\FixMessageCreator.cs" />
     <Compile Include="Market\Servers\Lmax\LmaxEntity\FixMessageParser.cs" />
     <Compile Include="Market\Servers\Lmax\LmaxEntity\RejectReasons.cs" />
@@ -789,6 +781,7 @@
     <Compile Include="Market\Servers\Tinkoff\TinkoffJsonSchema\OrdersTInkoff.cs" />
     <Compile Include="Market\Servers\Tinkoff\TinkoffJsonSchema\Portfolios.cs" />
     <Compile Include="Market\Servers\Tinkoff\TinkoffJsonSchema\Securities.cs" />
+    <Compile Include="Market\Servers\Tinkoff\TinkoffJsonSchema\TinkoffTrades.cs" />
     <Compile Include="Market\Servers\Tinkoff\TinkoffServer.cs" />
     <Compile Include="Market\Servers\Tinkoff\TinkoffServerPermission.cs" />
     <Compile Include="Market\Servers\Transaq\ChangeTransaqPassword.xaml.cs">
@@ -861,6 +854,7 @@
     <Compile Include="OsTrader\AdminPanelApi\IApiServer.cs" />
     <Compile Include="OsTrader\AdminPanelApi\ServerModel.cs" />
     <Compile Include="OsTrader\AdminPanelApi\TcpServer.cs" />
+    <Compile Include="Layout\GlobalGUILayout.cs" />
     <Compile Include="OsTrader\GlobalPosition.cs" />
     <Compile Include="Journal\Journal.cs" />
     <Compile Include="Logging\MessageSender.cs" />
@@ -939,6 +933,7 @@
     <Compile Include="Robots\Screeners\SmaScreener.cs" />
     <Compile Include="Robots\TechSapmles\ElementsOnChartSampleBot.cs" />
     <Compile Include="Robots\TechSapmles\TinkoffGetRealCandlesSample.cs" />
+    <Compile Include="Robots\AutoTestBots\TradesInCandlesTestBot.cs" />
     <Compile Include="Robots\Trend\EnvelopTrend.cs" />
     <Compile Include="Robots\Trend\MomentumMacd.cs" />
     <Compile Include="Robots\MarketMaker\PairTraderSpreadSma.cs" />
@@ -1245,6 +1240,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Entity\AcceptDialogUi.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Entity\AwaitUi.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

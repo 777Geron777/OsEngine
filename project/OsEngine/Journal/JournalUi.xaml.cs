@@ -27,6 +27,7 @@ using ChartArea = System.Windows.Forms.DataVisualization.Charting.ChartArea;
 using ContextMenu = System.Windows.Forms.ContextMenu;
 using MenuItem = System.Windows.Forms.MenuItem;
 using Series = System.Windows.Forms.DataVisualization.Charting.Series;
+using OsEngine.Layout;
 
 namespace OsEngine.Journal
 {
@@ -57,6 +58,7 @@ namespace OsEngine.Journal
             _startProgram = startProgram;
             _botsJournals = botsJournals;
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
             _currentCulture = CultureInfo.CurrentCulture;
 
             TabBots.SizeChanged += TabBotsSizeChanged;
@@ -82,12 +84,32 @@ namespace OsEngine.Journal
 
             Closing += JournalUi_Closing;
 
+            this.Activate();
+            this.Focus();
+
+            string botNames = "";
+            for (int i = 0; i < botsJournals.Count; i++)
+            {
+                botNames += botsJournals[i].BotName;
+            }
+            GlobalGUILayout.Listen(this, "JournalUi_" + startProgram.ToString() + botNames);
         }
 
         private CultureInfo _currentCulture;
 
         private void CreatePositionsLists(List<BotPanelJournal> _botsJournals)
         {
+            if (TabControlLeft == null)
+            {
+                return;
+            }
+
+            if (TabControlLeft.Dispatcher.CheckAccess() == false)
+            {
+                TabControlLeft.Dispatcher.Invoke(new Action<List<BotPanelJournal>>(CreatePositionsLists),_botsJournals);
+                return;
+            }
+
             if (TabControlLeft.SelectedItem == null)
             {
                 return;
@@ -310,7 +332,7 @@ namespace OsEngine.Journal
 
             if (_gridStatistics != null)
             {
-                DataGridFactory.ClearLink(_gridStatistics);
+                DataGridFactory.ClearLinks(_gridStatistics);
                 _gridStatistics.Rows.Clear();
                 _gridStatistics = null;
                 HostStatistics.Child.Hide();
@@ -320,7 +342,7 @@ namespace OsEngine.Journal
 
             if (_openPositionGrid != null)
             {
-                DataGridFactory.ClearLink(_openPositionGrid);
+                DataGridFactory.ClearLinks(_openPositionGrid);
                 _openPositionGrid.Rows.Clear();
                 _openPositionGrid.Click -= _openPositionGrid_Click;
                 _openPositionGrid.DoubleClick -= _openPositionGrid_DoubleClick;
@@ -332,7 +354,7 @@ namespace OsEngine.Journal
 
             if (_closePositionGrid != null)
             {
-                DataGridFactory.ClearLink(_closePositionGrid);
+                DataGridFactory.ClearLinks(_closePositionGrid);
                 _closePositionGrid.Rows.Clear();
                 _closePositionGrid.Click -= _closePositionGrid_Click;
                 _closePositionGrid.DoubleClick -= _closePositionGrid_DoubleClick;
@@ -369,46 +391,61 @@ namespace OsEngine.Journal
         /// </summary>
         public void RePaint()
         {
+ 
             if (!TabControlLeft.CheckAccess())
             {
                 TabControlLeft.Dispatcher.Invoke(RePaint);
                 return;
             }
 
-            if(IsErase == true)
+            try
             {
-                return;
+                CreatePositionsLists(_botsJournals);
+
+                if (IsErase == true)
+                {
+                    return;
+                }
+
+                if (_allPositions == null)
+                {
+                    return;
+                }
+
+                lock (_paintLocker)
+                {
+
+                    if (TabControlPrime.SelectedIndex == 0)
+                    {
+                        PaintProfitOnChart(_allPositions);
+                    }
+                    else if (TabControlPrime.SelectedIndex == 1)
+                    {
+                        bool neadShowTickState = !(_botsJournals.Count > 1);
+
+                        PaintStatTable(_allPositions, _longPositions, _shortPositions, neadShowTickState);
+                    }
+                    else if (TabControlPrime.SelectedIndex == 2)
+                    {
+                        PaintDrowDown(_allPositions);
+                    }
+                    else if (TabControlPrime.SelectedIndex == 3)
+                    {
+                        PaintVolumeOnChart(_allPositions);
+                    }
+                    else if (TabControlPrime.SelectedIndex == 4)
+                    {
+                        PaintOpenPositionGrid(_allPositions);
+                    }
+                    else if (TabControlPrime.SelectedIndex == 5)
+                    {
+                        PaintClosePositionGrid(_allPositions);
+                    }
+                }
             }
-
-            lock (_paintLocker)
+            catch (Exception error)
             {
-
-                if (TabControlPrime.SelectedIndex == 0)
-                {
-                    PaintProfitOnChart(_allPositions);
-                }
-                else if (TabControlPrime.SelectedIndex == 1)
-                {
-                    bool neadShowTickState = !(_botsJournals.Count > 1);
-
-                    PaintStatTable(_allPositions, _longPositions, _shortPositions, neadShowTickState);
-                }
-                else if (TabControlPrime.SelectedIndex == 2)
-                {
-                    PaintDrowDown(_allPositions);
-                }
-                else if (TabControlPrime.SelectedIndex == 3)
-                {
-                    PaintVolumeOnChart(_allPositions);
-                }
-                else if (TabControlPrime.SelectedIndex == 4)
-                {
-                    PaintOpenPositionGrid(_allPositions);
-                }
-                else if (TabControlPrime.SelectedIndex == 5)
-                {
-                    PaintClosePositionGrid(_allPositions);
-                }
+                System.Windows.MessageBox.Show(error.ToString());
             }
         }
 
@@ -527,7 +564,6 @@ namespace OsEngine.Journal
         private void TabBotsSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             ReloadTabs();
-            CreatePositionsLists(_botsJournals);
             RePaint();
         }
 

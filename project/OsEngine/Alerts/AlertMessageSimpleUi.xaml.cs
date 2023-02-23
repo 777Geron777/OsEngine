@@ -23,9 +23,13 @@ namespace OsEngine.Alerts
         public AlertMessageSimpleUi(string message)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
             TextBoxMessage.Text = message;
 
             Title = OsLocalization.Alerts.TitleAlertMessageSimpleUi;
+
+            this.Activate();
+            this.Focus();
         }
     }
 }

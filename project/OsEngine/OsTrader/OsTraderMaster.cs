@@ -118,6 +118,7 @@ namespace OsEngine.OsTrader
             _riskManager.LogMessageEvent += SendNewLogMessage;
             _globalController = new GlobalPosition(_hostAllDeals, _startProgram);
             _globalController.LogMessageEvent += SendNewLogMessage;
+            _globalController.UserSelectActionEvent += _globalController_UserSelectActionEvent;
 
             _log = new Log("Prime", _startProgram);
             _log.StartPaint(hostLogPrime);
@@ -170,6 +171,7 @@ namespace OsEngine.OsTrader
             _riskManager.LogMessageEvent += SendNewLogMessage;
             _globalController = new GlobalPosition(_hostAllDeals, _startProgram);
             _globalController.LogMessageEvent += SendNewLogMessage;
+            _globalController.UserSelectActionEvent += _globalController_UserSelectActionEvent;
 
             _log = new Log("Prime", _startProgram);
             _log.StartPaint(hostLogPrime);
@@ -211,7 +213,7 @@ namespace OsEngine.OsTrader
         /// type of program that requested class creation
         /// какая программа запустила класс
         /// </summary>
-        private StartProgram _startProgram;
+        public StartProgram _startProgram;
 
         /// <summary>
         /// bots array
@@ -414,9 +416,7 @@ namespace OsEngine.OsTrader
         {
             try
             {
-
-
-                if (_activPanel != null)
+                if (_activPanel != null && _gridChart != null)
                 {
                     _activPanel.StopPaint();
                 }
@@ -475,7 +475,6 @@ namespace OsEngine.OsTrader
             }
         }
 
-        // Global Risk Manager
         // Глобальный Риск Менеджер
 
         /// <summary>
@@ -521,7 +520,6 @@ namespace OsEngine.OsTrader
             try
             {
                 _riskManager.ClearJournals();
-                _globalController.ClearJournals();
 
                 if (PanelsArray != null)
                 {
@@ -615,7 +613,6 @@ namespace OsEngine.OsTrader
         /// </summary>
         private GlobalPosition _globalController;
 
-
         private JournalUi2 _journalUi2;
 
         private JournalUi _journalUi1;
@@ -624,7 +621,7 @@ namespace OsEngine.OsTrader
         /// show journal for all robots
         /// показать журнал по всем роботам
         /// </summary>
-        public void ShowCommunityJournal(int journalVersion)
+        public void ShowCommunityJournal(int journalVersion, double top, double left)
         {
             try
             {
@@ -678,6 +675,17 @@ namespace OsEngine.OsTrader
                     _journalUi2 = new JournalUi2(panelsJournal, _startProgram);
                     _journalUi2.LogMessageEvent += SendNewLogMessage;
                     _journalUi2.Closed += _journalUi_Closed;
+
+                    if (top != 0 && left != 0)
+                    {
+                        _journalUi2.Top = top;
+                        _journalUi2.Left = left;
+                    }
+                    else
+                    {
+                        _journalUi2.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+                    }
+
                     _journalUi2.Show();
                 }
                 if (journalVersion == 1)
@@ -685,6 +693,17 @@ namespace OsEngine.OsTrader
                     _journalUi1 = new JournalUi(panelsJournal, _startProgram);
                     _journalUi1.LogMessageEvent += SendNewLogMessage;
                     _journalUi1.Closed += _journalUi_Closed;
+
+                    if (top != 0 && left != 0)
+                    {
+                        _journalUi1.Top = top;
+                        _journalUi1.Left = left;
+                    }
+                    else
+                    {
+                        _journalUi1.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+                    }
+                                
                     _journalUi1.Show();
                 }
             }
@@ -714,6 +733,14 @@ namespace OsEngine.OsTrader
 
             GC.Collect();
             GC.WaitForPendingFinalizers();
+        }
+
+        private void _globalController_UserSelectActionEvent(Position pos, SignalType signal)
+        {
+            for(int i = 0;i < PanelsArray.Count;i++)
+            {
+                PanelsArray[i].UserSetPositionAction(pos, signal);
+            }
         }
 
         // log / логироавние
@@ -895,6 +922,20 @@ namespace OsEngine.OsTrader
             }
         }
 
+        /// <summary>
+        /// Screenr Is Activ
+        /// Активен ли скриннер
+        /// </summary>
+        private bool TabsScreenrIsActiv()
+        {
+            if (_activPanel.TabsScreener == null ||
+                _activPanel.TabsScreener.Count == 0)
+            {
+                return false;
+            }
+            return true;
+        }
+
         // Storage Management / Управление хранилищем
 
         /// <summary>
@@ -909,6 +950,18 @@ namespace OsEngine.OsTrader
                _activPanel == null)
                 {
                     return;
+                }
+
+                if (TabsScreenrIsActiv())
+                {
+                    for (int i = 0; i < _activPanel.TabsScreener.Count; i++)
+                    {
+                        if (_activPanel.TabsScreener[i].IsLoadTabs == true)
+                        {
+                            SendNewLogMessage(OsLocalization.Trader.Label183, LogMessageType.Error);
+                            return;
+                        }
+                    }
                 }
 
                 AcceptDialogUi ui = new AcceptDialogUi(OsLocalization.Trader.Label4);

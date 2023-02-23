@@ -36,6 +36,8 @@ namespace OsEngine.Charts.CandleChart.Indicators
         public StochRsiUi(StochRsi rsi)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _rsi = rsi;
 
             TextBoxLenght.Text = _rsi.RsiLenght.ToString();
@@ -51,6 +53,9 @@ namespace OsEngine.Charts.CandleChart.Indicators
             TextBoxStochasticLength.Text = _rsi.StochasticLength.ToString();
             TextBoxK.Text = _rsi.K.ToString();
             TextBoxD.Text = _rsi.D.ToString();
+
+            this.Activate();
+            this.Focus();
         }
 
         /// <summary>

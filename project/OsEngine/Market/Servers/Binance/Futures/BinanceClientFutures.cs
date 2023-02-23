@@ -77,60 +77,44 @@ namespace OsEngine.Market.Servers.Binance.Futures
 
         private string _listenKey = "";
 
-        private WebSocket _spotSocketClient;
+        private WebSocket _socketClient;
 
         private void CreateDataStreams()
-        {
-            _spotSocketClient = CreateUserDataStream();
-            _wsStreams.Add("userDataStream", _spotSocketClient);
-            _spotSocketClient.MessageReceived += delegate (object sender, MessageReceivedEventArgs args)
-            {
-                UserDataMessageHandler(sender, args);
-            };
-
-            Thread keepalive = new Thread(KeepaliveUserDataStream);
-            keepalive.CurrentCulture = new CultureInfo("ru-RU");
-            keepalive.IsBackground = true;
-            keepalive.Start();
-
-            Thread converter = new Thread(Converter);
-            converter.CurrentCulture = new CultureInfo("ru-RU");
-            converter.IsBackground = true;
-            converter.Start();
-
-            Thread converterUserData = new Thread(ConverterUserData);
-            converterUserData.CurrentCulture = new CultureInfo("ru-RU");
-            converterUserData.IsBackground = true;
-            converterUserData.Start();
-        }
-
-        /// <summary>
-        /// create user data thread
-        /// создать поток пользовательских данных
-        /// </summary>
-        /// <returns></returns>
-        private WebSocket CreateUserDataStream()
         {
             try
             {
                 _listenKey = CreateListenKey();
-
                 string urlStr = wss_point + "/ws/" + _listenKey;
 
-                WebSocket client = new WebSocket(urlStr); //create a web socket / создаем вебсокет
+                _socketClient = new WebSocket(urlStr);
+                _socketClient.Opened += Connect;
+                _socketClient.Closed += Disconnect;
+                _socketClient.Error += WsError;
+                _socketClient.MessageReceived += UserDataMessageHandler;
+                _socketClient.Open();
 
-                client.Opened += Connect;
-                client.Closed += Disconnect;
-                client.Error += WsError;
-                client.Open();
+                _wsStreams.Add("userDataStream", _socketClient);
 
-                return client;
+                Thread keepalive = new Thread(KeepaliveUserDataStream);
+                keepalive.CurrentCulture = new CultureInfo("ru-RU");
+                keepalive.IsBackground = true;
+                keepalive.Start();
+
+                Thread converter = new Thread(Converter);
+                converter.CurrentCulture = new CultureInfo("ru-RU");
+                converter.IsBackground = true;
+                converter.Start();
+
+                Thread converterUserData = new Thread(ConverterUserData);
+                converterUserData.CurrentCulture = new CultureInfo("ru-RU");
+                converterUserData.IsBackground = true;
+                converterUserData.Start();
             }
             catch (Exception exception)
             {
                 SendLogMessage(exception.Message, LogMessageType.Connect);
-                return null;
             }
+
         }
 
         /// <summary>
@@ -177,6 +161,24 @@ namespace OsEngine.Market.Servers.Binance.Futures
 
                     ws.Value.Close();
                     ws.Value.Dispose();
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+
+            try
+            {
+                if(_socketClient != null)
+                {
+                    _socketClient.Opened -= Connect;
+                    _socketClient.Closed -= Disconnect;
+                    _socketClient.Error -= WsError;
+                    _socketClient.MessageReceived -= UserDataMessageHandler;
+                    _socketClient.Close();
+                    //_socketClient.Dispose();
+                    _socketClient = null;
                 }
             }
             catch
@@ -268,6 +270,73 @@ namespace OsEngine.Market.Servers.Binance.Futures
                 }
             }
         }
+
+        #region проверка ордеров на исполнение
+
+        private string GetMyTradesToBinance()
+        {
+            var res = CreateQuery(
+                       Method.GET,
+                       "/" + type_str_selector + "/v1/userTrades",
+                       new Dictionary<string, string>(),
+                       true);
+            return res;
+        }
+
+        private MyTrade ConvertTradesToSystem(TradesResponseReserches responcetrade)
+        {
+            try
+            {
+                MyTrade trade = new MyTrade();
+                trade.Time = new DateTime(1970, 1, 1).AddMilliseconds(Convert.ToDouble(responcetrade.time));
+                trade.NumberOrderParent = responcetrade.orderid.ToString();
+                trade.NumberTrade = responcetrade.id.ToString();
+                trade.Volume = responcetrade.qty.ToDecimal();
+                trade.Price = responcetrade.price.ToDecimal();
+                trade.SecurityNameCode = responcetrade.symbol;
+                trade.Side = responcetrade.side == "BUY" ? Side.Buy : Side.Sell;
+
+                return trade;
+            }
+            catch (Exception error)
+            {
+                SendLogMessage(error.Message, LogMessageType.Error);
+                return null;
+            }
+        }
+
+        public void ResearchTradesToOrders_Binance(List<Order> orders)
+        {
+            try
+            {
+
+                var res = GetMyTradesToBinance();
+                List<TradesResponseReserches> responceTrades = JsonConvert.DeserializeAnonymousType(res, new List<TradesResponseReserches>());
+
+                for (int i = 0; i < orders.Count; i++)
+                {
+                    for (int j = 0; j < responceTrades.Count; j++)
+                    {
+                        if (orders[i].NumberMarket == Convert.ToString(responceTrades[j].orderid))
+                        {
+                            var trade = ConvertTradesToSystem(responceTrades[j]);
+
+                            if (MyTradeEvent != null && trade != null)
+                            {
+                                MyTradeEvent(trade);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                //ignore
+            }
+        }
+
+        #endregion
+
 
         /// <summary>
         /// get realtime Mark Price and Funding Rate
@@ -1304,21 +1373,25 @@ namespace OsEngine.Market.Servers.Binance.Futures
                         continue;
                     }
 
+                    Order newOrder = new Order();
+                    newOrder.NumberMarket = myOrder.orderId;
+                    newOrder.NumberUser = oldOpenOrders[i].NumberUser;
+                    newOrder.SecurityNameCode = oldOpenOrders[i].SecurityNameCode;
+                    newOrder.State = OrderStateType.Done;
 
-                    MyTrade trade = new MyTrade();
-                    trade.NumberOrderParent = myOrder.orderId;
-                    trade.NumberTrade = NumberGen.GetNumberOrder(StartProgram.IsOsTrader).ToString();
-                    trade.SecurityNameCode = oldOpenOrders[i].SecurityNameCode;
-                    trade.Time = new DateTime(1970, 1, 1).AddMilliseconds(Convert.ToDouble(myOrder.updateTime));
-                    trade.Side = oldOpenOrders[i].Side;
-                    trade.Price = myOrder.price.ToDecimal();
-                    trade.Volume = myOrder.executedQty.ToDecimal() - oldOpenOrders[i].VolumeExecute;
+                    newOrder.Volume = oldOpenOrders[i].Volume;
+                    newOrder.VolumeExecute = oldOpenOrders[i].VolumeExecute;
+                    newOrder.Price = oldOpenOrders[i].Price;
+                    newOrder.TypeOrder = oldOpenOrders[i].TypeOrder;
+                    newOrder.TimeCallBack = new DateTime(1970, 1, 1).AddMilliseconds(Convert.ToDouble(myOrder.updateTime));
+                    newOrder.TimeCancel = newOrder.TimeCallBack;
+                    newOrder.ServerType = ServerType.Binance;
+                    newOrder.PortfolioNumber = oldOpenOrders[i].PortfolioNumber;
 
-                    oldOpenOrders[i].SetTrade(trade);
 
-                    if (MyTradeEvent != null)
+                    if (MyOrderEvent != null)
                     {
-                        MyTradeEvent(trade);
+                        MyOrderEvent(newOrder);
                     }
                 }
                 else
@@ -1469,6 +1542,17 @@ namespace OsEngine.Market.Servers.Binance.Futures
             {
                 IsConnected = false;
 
+                foreach (var ws in _wsStreams)
+                {
+                    ws.Value.Opened -= new EventHandler(Connect);
+                    ws.Value.Closed -= new EventHandler(Disconnect);
+                    ws.Value.Error -= new EventHandler<SuperSocket.ClientEngine.ErrorEventArgs>(WsError);
+                    ws.Value.MessageReceived -= new EventHandler<MessageReceivedEventArgs>(GetRes);
+
+                    ws.Value.Close();
+                    ws.Value.Dispose();
+                }
+
                 _wsStreams.Clear();
 
                 if (Disconnected != null)
@@ -1519,17 +1603,16 @@ namespace OsEngine.Market.Servers.Binance.Futures
                 _wsClient = new WebSocket(urlStr); // create web-socket / создаем вебсоке
 
                 _wsClient.Opened += new EventHandler(Connect);
-
                 _wsClient.Closed += new EventHandler(Disconnect);
-
                 _wsClient.Error += new EventHandler<SuperSocket.ClientEngine.ErrorEventArgs>(WsError);
-
                 _wsClient.MessageReceived += new EventHandler<MessageReceivedEventArgs>(GetRes);
-
-                
 
                 if (_wsStreams.ContainsKey(security.Name))
                 {
+                    _wsStreams[security.Name].Opened -= new EventHandler(Connect);
+                    _wsStreams[security.Name].Closed -= new EventHandler(Disconnect);
+                    _wsStreams[security.Name].Error -= new EventHandler<SuperSocket.ClientEngine.ErrorEventArgs>(WsError);
+                    _wsStreams[security.Name].MessageReceived -= new EventHandler<MessageReceivedEventArgs>(GetRes);
                     _wsStreams[security.Name].Close();
                     _wsStreams.Remove(security.Name);
                 }

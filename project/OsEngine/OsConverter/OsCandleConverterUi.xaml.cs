@@ -16,7 +16,8 @@ namespace OsEngine.OsConverter
         public OsCandleConverterUi()
         {
             InitializeComponent();
-
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             LabelOsa.Content = "V " + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
 
             _candleConverter = new CandleConverter(TextBoxSource, TextBoxExit, ComboBoxTimeFrame, HostLog);
@@ -31,6 +32,9 @@ namespace OsEngine.OsConverter
             ComboBoxTimeFrameInitial.Items.Add(TimeFrame.Min1.ToString());
             ComboBoxTimeFrameInitial.Items.Add(TimeFrame.Min5.ToString());
             ComboBoxTimeFrameInitial.SelectedItem = TimeFrame.Min1.ToString();
+
+            this.Activate();
+            this.Focus();
         }
 
         private void ButtonStart_Click(object sender, RoutedEventArgs e)

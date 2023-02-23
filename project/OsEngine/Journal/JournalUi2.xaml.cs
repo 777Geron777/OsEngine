@@ -25,6 +25,7 @@ using ContextMenu = System.Windows.Forms.ContextMenu;
 using MenuItem = System.Windows.Forms.MenuItem;
 using Series = System.Windows.Forms.DataVisualization.Charting.Series;
 using System.Threading;
+using OsEngine.Layout;
 
 namespace OsEngine.Journal
 {
@@ -50,7 +51,8 @@ namespace OsEngine.Journal
         /// </summary>
         public JournalUi2(List<BotPanelJournal> botsJournals, StartProgram startProgram)
         {
-            InitializeComponent(); 
+            InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
             _startProgram = startProgram;
             _botsJournals = botsJournals;
             LoadGroups();
@@ -60,7 +62,7 @@ namespace OsEngine.Journal
             ComboBoxChartType.SelectedItem = "Absolute";
             ComboBoxChartType.SelectionChanged += ComboBoxChartType_SelectionChanged;
 
-           _currentCulture = CultureInfo.CurrentCulture;
+            _currentCulture = CultureInfo.CurrentCulture;
 
             TabControlPrime.SelectionChanged += TabControlPrime_SelectionChanged;
 
@@ -81,7 +83,12 @@ namespace OsEngine.Journal
             LabelFrom.Content = OsLocalization.Journal.Label5;
             LabelTo.Content = OsLocalization.Journal.Label6;
             ButtonReload.Content = OsLocalization.Journal.Label7;
+            ButtonAutoReload.Content = OsLocalization.Journal.Label15;
+            ButtonAutoReload.Click += ButtonAutoReload_Click;
+            ButtonAutoReload.IsChecked = false;
+
             LabelEqutyCharteType.Content = OsLocalization.Journal.Label8;
+            
 
             CreatePositionsLists();
 
@@ -92,10 +99,25 @@ namespace OsEngine.Journal
             CreateBotsGrid();
             PaintBotsGrid();
 
-            Task task2 = new Task(LeftBotsPanelPainter);
+            Thread task2 = new Thread(LeftBotsPanelPainter);
             task2.Start();
 
             CreateSlidersShowPositions();
+
+            this.Activate();
+            this.Focus();
+
+            string botNames = "";
+            for (int i = 0; i < botsJournals.Count; i++)
+            {
+                botNames += botsJournals[i].BotName;
+            }
+
+            _journalName = botNames + startProgram.ToString();
+
+            CheckLeftPanel();
+
+            GlobalGUILayout.Listen(this, "Journal2Ui_" + startProgram.ToString() + botNames);
         }
 
         private CultureInfo _currentCulture;
@@ -162,7 +184,7 @@ namespace OsEngine.Journal
 
             if (_gridStatistics != null)
             {
-                DataGridFactory.ClearLink(_gridStatistics);
+                DataGridFactory.ClearLinks(_gridStatistics);
                 _gridStatistics.Rows.Clear();
                 _gridStatistics = null;
                 HostStatistics.Child.Hide();
@@ -172,7 +194,7 @@ namespace OsEngine.Journal
 
             if (_openPositionGrid != null)
             {
-                DataGridFactory.ClearLink(_openPositionGrid);
+                DataGridFactory.ClearLinks(_openPositionGrid);
                 _openPositionGrid.Rows.Clear();
                 _openPositionGrid.Click -= _openPositionGrid_Click;
                 _openPositionGrid.DoubleClick -= _openPositionGrid_DoubleClick;
@@ -184,7 +206,7 @@ namespace OsEngine.Journal
 
             if (_closePositionGrid != null)
             {
-                DataGridFactory.ClearLink(_closePositionGrid);
+                DataGridFactory.ClearLinks(_closePositionGrid);
                 _closePositionGrid.Rows.Clear();
                 _closePositionGrid.Click -= _closePositionGrid_Click;
                 _closePositionGrid.DoubleClick -= _closePositionGrid_DoubleClick;
@@ -192,6 +214,15 @@ namespace OsEngine.Journal
                 HostClosePosition.Child.Hide();
                 HostClosePosition.Child = null;
                 HostClosePosition = null;
+            }
+
+            if(_gridLeftBotsPanel != null)
+            {
+                HostBotsSelected.Child = null;
+                _gridLeftBotsPanel.CellEndEdit -= _gridLeftBotsPanel_CellEndEdit;
+                _gridLeftBotsPanel.CellBeginEdit -= _gridLeftBotsPanel_CellBeginEdit;
+                DataGridFactory.ClearLinks(_gridLeftBotsPanel);
+                _gridLeftBotsPanel = null;
             }
         }
 
@@ -210,6 +241,8 @@ namespace OsEngine.Journal
         /// </summary>
         public void RePaint()
         {
+            CreatePositionsLists();
+
             if (!TabControlPrime.CheckAccess())
             {
                 TabControlPrime.Dispatcher.Invoke(RePaint);
@@ -217,6 +250,11 @@ namespace OsEngine.Journal
             }
 
             if (IsErase == true)
+            {
+                return;
+            }
+
+            if(_allPositions == null)
             {
                 return;
             }
@@ -365,6 +403,15 @@ namespace OsEngine.Journal
             }
         }
 
+        // авто обновление
+
+        private bool _autoReloadIsOn;
+
+        private void ButtonAutoReload_Click(object sender, RoutedEventArgs e)
+        {
+            _autoReloadIsOn = ButtonAutoReload.IsChecked.Value;
+        }
+
         /// <summary>
         /// the location of stream updating statistics
         /// место работы потока обновляющего статистку
@@ -384,7 +431,19 @@ namespace OsEngine.Journal
                     return;
                 }
 
-                RePaint();
+                if(_autoReloadIsOn == false)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    RePaint();
+                }
+                catch (Exception error)
+                {
+                    SendNewLogMessage(error.ToString(), LogMessageType.Error);
+                }
             }
         }
         // tab management
@@ -1651,7 +1710,6 @@ namespace OsEngine.Journal
             }
         }
 
-        // positions
         // позиции
 
         /// <summary>
@@ -1867,6 +1925,11 @@ namespace OsEngine.Journal
             int number;
             try
             {
+                if(_openPositionGrid.CurrentCell == null)
+                {
+                    return;
+                }
+
                 number = Convert.ToInt32(_openPositionGrid.Rows[_openPositionGrid.CurrentCell.RowIndex].Cells[0].Value);
             }
             catch (Exception)
@@ -1967,6 +2030,7 @@ namespace OsEngine.Journal
             newPos.NameBot = botName;
             _botsJournals[number]._Tabs[0].Journal.SetNewDeal(newPos);
 
+
             RePaint();
         }
 
@@ -2005,7 +2069,7 @@ namespace OsEngine.Journal
                 }
             }
         }
-        // closed positions
+
         // позиции закрытые
 
         /// <summary>
@@ -2161,6 +2225,10 @@ namespace OsEngine.Journal
             int number;
             try
             {
+                if(_closePositionGrid.CurrentCell == null)
+                {
+                    return;
+                }
                 number = Convert.ToInt32(_closePositionGrid.Rows[_closePositionGrid.CurrentCell.RowIndex].Cells[0].Value);
             }
             catch (Exception)
@@ -2180,6 +2248,10 @@ namespace OsEngine.Journal
             int number;
             try
             {
+                if(_closePositionGrid.CurrentCell == null)
+                {
+                    return;
+                }
                 number = Convert.ToInt32(_closePositionGrid.Rows[_closePositionGrid.CurrentCell.RowIndex].Cells[0].Value);
             }
             catch (Exception)
@@ -2313,7 +2385,6 @@ namespace OsEngine.Journal
             }
         }
 
-        // messages to the log
         // сообщения в лог
 
         /// <summary>
@@ -2336,17 +2407,88 @@ namespace OsEngine.Journal
 
         private void ButtonHideLeftPanel_Click(object sender, RoutedEventArgs e)
         {
-            // GridTabPrime
-            GridActivBots.Visibility = Visibility.Hidden;
-            ButtonShowLeftPanel.Visibility = Visibility.Visible;
-            GridTabPrime.Margin = new Thickness(0, 0, -0.333, -0.333); 
+            HideLeftPanel();
+            SaveLeftPanelPosition();
         }
 
         private void ButtonShowLeftPanel_Click(object sender, RoutedEventArgs e)
         {
+            ShowLeftPanel();
+            SaveLeftPanelPosition();
+        }
+
+        private void HideLeftPanel()
+        {
+            // GridTabPrime
+            GridActivBots.Visibility = Visibility.Hidden;
+            ButtonShowLeftPanel.Visibility = Visibility.Visible;
+            GridTabPrime.Margin = new Thickness(0, 0, -0.333, -0.333);
+
+            this.MinWidth = 950;
+            this.MinHeight = 300;
+            _leftPanelIsHide = true;
+        }
+
+        private void ShowLeftPanel()
+        {
             GridActivBots.Visibility = Visibility.Visible;
             ButtonShowLeftPanel.Visibility = Visibility.Hidden;
             GridTabPrime.Margin = new Thickness(510, 0, -0.333, -0.333);
+
+            this.MinWidth = 1450;
+            this.MinHeight = 500;
+            _leftPanelIsHide = false;
+        }
+
+        private string _journalName;
+
+        private bool _leftPanelIsHide;
+
+        private void CheckLeftPanel()
+        {
+            if (!File.Exists(@"Engine\LayoutJournal" + _journalName + ".txt"))
+            {
+                return;
+            }
+
+            try
+            {
+                using (StreamReader reader = new StreamReader(@"Engine\LayoutJournal" + _journalName + ".txt"))
+                {
+                    _leftPanelIsHide = Convert.ToBoolean(reader.ReadLine());
+                    reader.Close();
+                }
+            }
+            catch (Exception)
+            {
+                // ignore
+            }
+
+            if (_leftPanelIsHide)
+            {
+                HideLeftPanel();
+            }
+            else
+            {
+                ShowLeftPanel();
+            }
+        }
+
+        private void SaveLeftPanelPosition()
+        {
+            try
+            {
+                using (StreamWriter writer = new StreamWriter(@"Engine\LayoutJournal" + _journalName + ".txt", false))
+                {
+                    writer.WriteLine(_leftPanelIsHide);
+
+                    writer.Close();
+                }
+            }
+            catch (Exception)
+            {
+                // ignore
+            }
         }
 
         // Left Bots Panel
@@ -2421,7 +2563,7 @@ namespace OsEngine.Journal
             column22.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
             _gridLeftBotsPanel.Columns.Add(column22);
 
-            DataGridViewComboBoxColumn column4 = new DataGridViewComboBoxColumn();
+            DataGridViewCheckBoxColumn column4 = new DataGridViewCheckBoxColumn();
             column4.HeaderText = OsLocalization.Journal.Label12;
             column4.ReadOnly = false;
             column4.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
@@ -2438,6 +2580,7 @@ namespace OsEngine.Journal
             HostBotsSelected.Child.Show();
 
             _gridLeftBotsPanel.CellEndEdit += _gridLeftBotsPanel_CellEndEdit;
+            _gridLeftBotsPanel.CellBeginEdit += _gridLeftBotsPanel_CellBeginEdit;
         }
 
         private void PaintBotsGrid()
@@ -2497,11 +2640,8 @@ namespace OsEngine.Journal
             row.Cells.Add(new DataGridViewTextBoxCell()); // имя
             row.Cells.Add(new DataGridViewTextBoxCell()); // класс 
 
-            DataGridViewComboBoxCell cell = new DataGridViewComboBoxCell();
-            cell.Items.Add("True");
-            cell.Items.Add("False");
-            cell.Items.Add("massive");
-            cell.Value = "massive";
+            DataGridViewCheckBoxCell cell = new DataGridViewCheckBoxCell();
+            cell.Value = group.Panels[0].IsOn;
 
             row.Cells.Add(cell); // вкл / выкл
 
@@ -2542,10 +2682,9 @@ namespace OsEngine.Journal
             row.Cells.Add(new DataGridViewTextBoxCell()); // класс 
             row.Cells[row.Cells.Count - 1].Value = panel.BotClass;
 
-            DataGridViewComboBoxCell cell = new DataGridViewComboBoxCell();
-            cell.Items.Add("True");
-            cell.Items.Add("False");
+            DataGridViewCheckBoxCell cell = new DataGridViewCheckBoxCell();
             cell.Value = panel.IsOn.ToString();
+
             row.Cells.Add(cell); // вкл / выкл
 
             row.Cells.Add(new DataGridViewTextBoxCell()); // мультипликатор
@@ -2672,10 +2811,13 @@ namespace OsEngine.Journal
                 return;
             }
 
-            startTime = _allPositions[0].TimeOpen;
-            endTime = _allPositions[_allPositions.Count - 1].TimeOpen;
-            minTime = startTime;
-            maxTime = endTime;
+            if (IsSlide == false)
+            {
+                startTime = _allPositions[0].TimeOpen;
+                endTime = _allPositions[_allPositions.Count - 1].TimeOpen;
+                minTime = startTime;
+                maxTime = endTime;
+            }
         }
 
         private void LoadGroups()
@@ -2758,46 +2900,73 @@ namespace OsEngine.Journal
             }
         }
 
+        private void _gridLeftBotsPanel_CellBeginEdit(object sender, DataGridViewCellCancelEventArgs e)
+        {
+            if (e.ColumnIndex == 4)
+            {
+                _lastChangeRow = e.RowIndex;
+               Task.Run(ChangeOnOffAwait);
+            }
+        }
+
         private void _gridLeftBotsPanel_CellEndEdit(object sender, DataGridViewCellEventArgs e)
         {
             if(e.ColumnIndex == 0)
             {
                 ChangeGroup(e);
             }
-            else if(e.ColumnIndex == 4)
-            {
-                ChangeOnOff(e);
-            }
             else if (e.ColumnIndex == 5)
             {
                 ChangeMult(e);
             }
+
         }
 
-        private void ChangeOnOff(DataGridViewCellEventArgs e)
+        int _lastChangeRow;
+
+        private void ChangeOnOffAwait()
         {
-            string textInCell = _gridLeftBotsPanel.Rows[e.RowIndex].Cells[4].Value.ToString();
+            Thread.Sleep(200);
+            ChangeOnOff(_lastChangeRow);
+        }
 
-            BotPanelJournal bot = GetBotByNum(e.RowIndex);
-
-            if (bot == null)
+        private void ChangeOnOff(int rowIndx)
+        {
+            if(TextBoxFrom.Dispatcher.CheckAccess() == false)
             {
-                ChangeOnOffByGroup(e);
+                TextBoxFrom.Dispatcher.Invoke(new Action<int>(ChangeOnOff), rowIndx);
                 return;
             }
 
-            bot.IsOn = Convert.ToBoolean(textInCell);
+            string textInCell = _gridLeftBotsPanel.Rows[rowIndx].Cells[4].Value.ToString();
+
+            BotPanelJournal bot = GetBotByNum(rowIndx);
+
+            if (bot == null)
+            {
+                ChangeOnOffByGroup(rowIndx);
+                return;
+            }
+
+            if(Convert.ToBoolean(textInCell) == false)
+            {
+                bot.IsOn = true;
+            }
+            else
+            {
+                bot.IsOn = false;
+            }
 
             SaveGroups();
-            _neadToRapaintBotsGrid = true;
             CreatePositionsLists();
+            _neadToRapaintBotsGrid = true;
         }
 
-        private void ChangeOnOffByGroup(DataGridViewCellEventArgs e)
+        private void ChangeOnOffByGroup(int rowIndx)
         {
-            string textInCell = _gridLeftBotsPanel.Rows[e.RowIndex].Cells[4].Value.ToString();
+            string textInCell = _gridLeftBotsPanel.Rows[rowIndx].Cells[4].Value.ToString();
 
-            PanelGroups group = GetGroupByNum(e.RowIndex);
+            PanelGroups group = GetGroupByNum(rowIndx);
 
             if (group == null)
             {
@@ -2808,11 +2977,11 @@ namespace OsEngine.Journal
             {
                 if(textInCell =="True")
                 {
-                    group.Panels[i].IsOn = true;
+                    group.Panels[i].IsOn = false;
                 }
                 else if(textInCell == "False")
                 {
-                    group.Panels[i].IsOn = false;
+                    group.Panels[i].IsOn = true;
                 }
             }
 
@@ -2842,8 +3011,7 @@ namespace OsEngine.Journal
             }
 
             SaveGroups();
-            _neadToRapaintBotsGrid = true;
-            CreatePositionsLists();
+            RePaint();
         }
 
         private void ChangeGroup(DataGridViewCellEventArgs e)
@@ -2934,6 +3102,8 @@ namespace OsEngine.Journal
         DateTime endTime;
         DateTime maxTime;
 
+        private bool IsSlide;      // двигались ли слайдеры установки периода
+
         private void CreateSlidersShowPositions()
         {
             SliderFrom.ValueChanged -= SliderFrom_ValueChanged;
@@ -2970,7 +3140,6 @@ namespace OsEngine.Journal
 
         }
 
-
         private void SliderTo_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             TextBoxTo.TextChanged -= TextBoxTo_TextChanged;
@@ -2984,6 +3153,7 @@ namespace OsEngine.Journal
                 SliderFrom.Value = SliderFrom.Minimum + SliderFrom.Maximum - SliderTo.Value;
             }
             TextBoxTo.TextChanged += TextBoxTo_TextChanged;
+            IsSlide = true;  			
         }
 
         void SliderFrom_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -3000,6 +3170,7 @@ namespace OsEngine.Journal
             }
 
             TextBoxFrom.TextChanged += TextBoxFrom_TextChanged;
+            IsSlide = true;  			
         }
 
         void TextBoxTo_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
@@ -3054,6 +3225,7 @@ namespace OsEngine.Journal
         {
             RePaint();
         }
+
     }
 
     /// <summary>

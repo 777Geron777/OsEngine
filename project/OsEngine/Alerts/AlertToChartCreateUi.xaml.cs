@@ -31,7 +31,8 @@ namespace OsEngine.Alerts
         public AlertToChartCreateUi(AlertToChart alert, AlertMaster keeper) 
         {
             InitializeComponent();
-
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _waitOne = false;
             _waitTwo = false;
             NeadToSave = false;
@@ -117,6 +118,9 @@ namespace OsEngine.Alerts
 
 
             LabelOsa.MouseDown += LabelOsa_MouseDown;
+
+            this.Activate();
+            this.Focus();
         }
 
         private void ChangeText()

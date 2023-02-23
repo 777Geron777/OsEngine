@@ -38,6 +38,8 @@ namespace OsEngine.Charts.CandleChart.Indicators
         public StandardDeviationUi(StandardDeviation mA)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _mA = mA;
 
             TextBoxLenght.Text = _mA.Lenght.ToString();
@@ -59,6 +61,9 @@ namespace OsEngine.Charts.CandleChart.Indicators
             ButtonAccept.Content = OsLocalization.Charts.LabelButtonIndicatorAccept;
             LabelIndicatorPeriod.Content = OsLocalization.Charts.LabelIndicatorPeriod;
             LabelIndicatorCandlePriceType.Content = OsLocalization.Charts.LabelIndicatorCandlePriceType;
+
+            this.Activate();
+            this.Focus();
         }
 
 

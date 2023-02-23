@@ -17,6 +17,8 @@ namespace OsEngine.Entity
         public DateTimeSelectionDialog(DateTime initTime)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             Time = initTime;
 
             DateTimePicker.SelectedDate = Time;
@@ -30,7 +32,9 @@ namespace OsEngine.Entity
             LabelMinute.Content = OsLocalization.Entity.TimeChangeDialogLabel4;
             LabelSecond.Content = OsLocalization.Entity.TimeChangeDialogLabel5;
 
-         }
+            this.Activate();
+            this.Focus();
+        }
 
         public DateTime Time;
 

@@ -33,6 +33,8 @@ namespace OsEngine.Charts.CandleChart.Indicators
         public AccumulationDistributionUi(AccumulationDistribution ad)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _ad = ad;
 
 
@@ -43,6 +45,9 @@ namespace OsEngine.Charts.CandleChart.Indicators
             ButtonColorAdx.Content = OsLocalization.Charts.LabelButtonIndicatorColor;
             CheckBoxPaintOnOff.Content = OsLocalization.Charts.LabelPaintIntdicatorIsVisible;
             ButtonAccept.Content = OsLocalization.Charts.LabelButtonIndicatorAccept;
+
+            this.Activate();
+            this.Focus();
         }
 
         /// <summary>

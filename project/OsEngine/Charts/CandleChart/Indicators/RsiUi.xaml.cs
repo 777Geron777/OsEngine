@@ -37,6 +37,8 @@ namespace OsEngine.Charts.CandleChart.Indicators
         public RsiUi(Rsi rsi)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _rsi = rsi;
 
             TextBoxLenght.Text = _rsi.Lenght.ToString();
@@ -46,6 +48,9 @@ namespace OsEngine.Charts.CandleChart.Indicators
             ButtonColor.Content = OsLocalization.Charts.LabelButtonIndicatorColor;
             ButtonAccept.Content = OsLocalization.Charts.LabelButtonIndicatorAccept;
             LabelIndicatorPeriod.Content = OsLocalization.Charts.LabelIndicatorPeriod;
+
+            this.Activate();
+            this.Focus();
         }
 
         /// <summary>

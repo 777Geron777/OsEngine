@@ -18,12 +18,17 @@ namespace OsEngine.OsMiner.Patterns
         public AutoTestResultsUi(List<TestResult> testResults)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _testResults = testResults;
             _grid = new DataGridView();
             CreateGridPatternsGrid(_grid, Host);
             PaintTable();
 
             Title = OsLocalization.Miner.Title2;
+
+            this.Activate();
+            this.Focus();
         }
 
         public event Action<TestResult> UserClickOnNewPattern; 

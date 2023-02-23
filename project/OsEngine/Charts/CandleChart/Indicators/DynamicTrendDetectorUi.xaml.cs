@@ -38,6 +38,8 @@ namespace OsEngine.Charts.CandleChart.Indicators
         public DynamicTrendDetectorUi(DynamicTrendDetector dtd)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _dtd = dtd;
 
             TextBoxLenght.Text = _dtd.Lenght.ToString();
@@ -52,6 +54,9 @@ namespace OsEngine.Charts.CandleChart.Indicators
             ButtonAccept.Content = OsLocalization.Charts.LabelButtonIndicatorAccept;
             LabelIndicatorPeriod.Content = OsLocalization.Charts.LabelIndicatorPeriod;
             LabelIndicatorCorrectionCoeff.Content = OsLocalization.Charts.LabelIndicatorCorrectionCoeff;
+
+            this.Activate();
+            this.Focus();
         }
 
         /// <summary>

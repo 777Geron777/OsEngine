@@ -22,11 +22,37 @@ namespace OsEngine.Entity
                 .Replace("/", "")
                 .Replace("*", "")
                 .Replace(":", "")
+                .Replace("@", "")
                 .Replace(";", "")
                 .Replace(x.ToString(), "");// это для того чтобы из названия бумаги удалять кавычки (правка @cibermax).;
 
             return value;
 
+        }
+
+        public static bool HaveExcessInString(this string value)
+        {
+            if (value == null)
+            {
+                return false;
+            }
+
+            int len = value.Length;
+
+            char x = '"';
+
+            value = value
+                .Replace("*", "")
+                .Replace("@", "")
+                .Replace(x.ToString(), "");
+
+
+            if(len != value.Length)
+            {
+                return true;
+            }
+
+            return false;
         }
 
         public static decimal ToDecimal(this string value)
@@ -184,20 +210,35 @@ namespace OsEngine.Entity
                 }
             }
 
-            // вставляем новые свечи в середину объединённого массива
+            // вставляем новые свечи в середину объединённого массива. Смотрим последние 500 свечек, не более
+
+            int indxStart = newCandles.Count - 500;
+
+            if(indxStart < 0)
+            {
+                indxStart = 0;
+            }
 
             for (int i = indexLastInsertCandle; i < candlesToMerge.Count; i++)
             {
                 Candle candle = candlesToMerge[i];
 
-                for (int i2 = 1; i2 < newCandles.Count - 1; i2++)
+                bool candleInsertInOldArray = false;
+
+                for (int i2 = indxStart; i2 < newCandles.Count - 2; i2++)
                 {
                     if (candle.TimeStart > newCandles[i2].TimeStart &&
-                        candle.TimeStart < newCandles[i2 - 1].TimeStart)
+                        candle.TimeStart < newCandles[i2 + 1].TimeStart)
                     {
                         newCandles.Insert(i2 + 1, candle);
+                        candleInsertInOldArray = true;
                         break;
                     }
+                }
+
+                if(candleInsertInOldArray == false)
+                {
+                    i += 10;
                 }
             }
 

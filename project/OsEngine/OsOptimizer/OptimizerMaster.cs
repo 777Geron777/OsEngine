@@ -14,6 +14,8 @@ using OsEngine.Market.Servers.Tester;
 using OsEngine.OsTrader.Panels;
 using OsEngine.Robots;
 using OsEngine.OsTrader.Panels.Tab.Internal;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace OsEngine.OsOptimizer
 {
@@ -1215,7 +1217,47 @@ namespace OsEngine.OsOptimizer
 
         public BotPanel TestBot(OptimazerFazeReport faze, OptimizerReport report)
         {
-            return _optimizerExecutor.TestBot(faze, report, StartProgram.IsTester);
+            if(_aloneTestIsOver == false)
+            {
+                return null;
+            }
+
+            _resultBotAloneTest = null;
+
+            _aloneTestIsOver = false;
+
+            _fazeToTestAloneTest = faze;
+            _reportToTestAloneTest = report;
+            _awaitUiMasterAloneTest = new AwaitObject(OsLocalization.Optimizer.Label52, 100, 0, true);
+
+            Task.Run(RunAloneBotTest);
+
+            AwaitUi ui = new AwaitUi(_awaitUiMasterAloneTest);
+            ui.ShowDialog();
+
+            Thread.Sleep(500);
+           
+            return _resultBotAloneTest;
+        }
+
+        OptimazerFazeReport _fazeToTestAloneTest;
+
+        OptimizerReport _reportToTestAloneTest;
+
+        AwaitObject _awaitUiMasterAloneTest;
+
+        BotPanel _resultBotAloneTest;
+
+        bool _aloneTestIsOver = true;
+
+        private async void RunAloneBotTest()
+        {
+            await Task.Delay(2000);
+            _resultBotAloneTest = 
+                _optimizerExecutor.TestBot(_fazeToTestAloneTest, _reportToTestAloneTest, 
+                StartProgram.IsTester, _awaitUiMasterAloneTest);
+
+            _aloneTestIsOver = true;
         }
 
         // logging/логирование
@@ -1454,6 +1496,25 @@ namespace OsEngine.OsOptimizer
         /// таймфрейм
         /// </summary>
         public TimeFrame TimeFrame;
+
+        public string GetSaveString()
+        {
+            string result = "";
+            result += NumberOfTab + "%";
+            result += NameSecurity + "%";
+            result += TimeFrame;
+
+            return result;
+        }
+
+        public void SetFromString(string saveStr)
+        {
+            string[] str = saveStr.Split('%');
+
+            NumberOfTab = Convert.ToInt32(str[0]);
+            NameSecurity = str[1];
+            Enum.TryParse(str[2], out TimeFrame);
+        }
     }
 
     /// <summary>
@@ -1472,7 +1533,7 @@ namespace OsEngine.OsOptimizer
         /// list of papers at the tab
         /// список бумаг у вкладки
         /// </summary>
-        public List<string> NamesSecurity;
+        public List<string> NamesSecurity = new List<string>();
 
         /// <summary>
         /// tab timeframe
@@ -1485,6 +1546,47 @@ namespace OsEngine.OsOptimizer
         /// формула для рассчёта индекса
         /// </summary>
         public string Formula;
+
+        public string GetSaveString()
+        {
+            string result = "";
+            result += NumberOfTab + "%";
+            result += TimeFrame + "%";
+            result += Formula + "%";
+
+            for (int i = 0;i < NamesSecurity.Count;i++)
+            {
+                result += NamesSecurity[i];
+
+                if (i + 1 != NamesSecurity.Count)
+                {
+                    result += "^";
+                }
+            }
+
+            return result;
+        }
+
+        public void SetFromString(string saveStr)
+        {
+            string[] str = saveStr.Split('%');
+
+            NumberOfTab = Convert.ToInt32(str[0]);
+            Enum.TryParse(str[1], out TimeFrame);
+            Formula = str[2];
+
+            if (str.Length > 2)
+            {
+                string[] secs = str[3].Split('^');
+
+                for (int i = 0; i < secs.Length; i++)
+                {
+                    string sec = secs[i];
+                    NamesSecurity.Add(sec);
+                }
+            }
+        }
+
     }
 
 

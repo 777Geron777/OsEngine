@@ -16,6 +16,8 @@ namespace OsEngine.OsTrader.Panels.Tab.Internal
         public PositionModificateUi(decimal lastPrice, string nameSecurity)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
 
             ComboBoxSide.Items.Add(Side.Buy);
             ComboBoxSide.Items.Add(Side.Sell);
@@ -25,7 +27,7 @@ namespace OsEngine.OsTrader.Panels.Tab.Internal
 
             TextBoxSecurity.Text = nameSecurity;
             TextBoxVolume.Text = "1";
-            TextBoxPrice.Text = lastPrice.ToString(new CultureInfo("ru-RU"));
+            TextBoxPrice.Text = lastPrice.ToStringWithNoEndZero();
 
             ComboBoxOrderType.Items.Add(PositionOpenType.Limit);
             ComboBoxOrderType.Items.Add(PositionOpenType.Market);
@@ -44,6 +46,8 @@ namespace OsEngine.OsTrader.Panels.Tab.Internal
             ButtonAccept.Content = OsLocalization.Trader.Label17;
             LabelSide.Content = OsLocalization.Trader.Label106;
 
+            this.Activate();
+            this.Focus();
         }
 
         void ComboBoxOrderType_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
@@ -93,8 +97,8 @@ namespace OsEngine.OsTrader.Panels.Tab.Internal
         {
             try
             {
-                Price = Convert.ToDecimal(TextBoxPrice.Text);
-                Volume = Convert.ToDecimal(TextBoxVolume.Text);
+                Price = TextBoxPrice.Text.ToDecimal();
+                Volume = TextBoxVolume.Text.ToDecimal();
 
                 if (Volume <= 0)
                 {

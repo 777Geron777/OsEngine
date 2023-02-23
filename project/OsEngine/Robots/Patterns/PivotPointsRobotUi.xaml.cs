@@ -18,6 +18,8 @@ namespace OsEngine.Robots.Patterns
         public PivotPointsRobotUi(PivotPointsRobot strategy)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _strategy = strategy;
 
             TextBoxVolumeOne.Text = _strategy.VolumeFix.ToString();
@@ -39,6 +41,9 @@ namespace OsEngine.Robots.Patterns
             LabelSlippage.Content = OsLocalization.Trader.Label92;
             ButtonAccept.Content = OsLocalization.Trader.Label17;
             LabelStopOrder.Content = OsLocalization.Trader.Label123;
+
+            this.Activate();
+            this.Focus();
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)

@@ -10,6 +10,7 @@ using OsEngine.Charts.CandleChart;
 using OsEngine.Entity;
 using OsEngine.Language;
 using OsEngine.Market;
+using OsEngine.Layout;
 
 namespace OsEngine.OsTrader.Gui
 {
@@ -18,6 +19,7 @@ namespace OsEngine.OsTrader.Gui
         public TesterUi()
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
             ServerMaster.SetHostTable(HostPositionOnBoard, HostOrdersOnBoard);
             ServerMaster.CreateServer(ServerType.Tester,false);
             ServerMaster.GetServers();
@@ -35,6 +37,11 @@ namespace OsEngine.OsTrader.Gui
 
             Local();
             TabControlMd.SelectedIndex = 2;
+
+            this.Activate();
+            this.Focus();
+
+            GlobalGUILayout.Listen(this, "testerUi");
         }
 
         private void Local()
@@ -246,7 +253,7 @@ namespace OsEngine.OsTrader.Gui
 
         private void ButtonJournalCommunity_Click(object sender, RoutedEventArgs e)
         {
-            _strategyKeeper.ShowCommunityJournal(1);
+            _strategyKeeper.ShowCommunityJournal(1, Top + ButtonJournalCommunity.ActualHeight, Left + ButtonJournalCommunity.ActualHeight);
         }
 
         private void ButtonRedactTab_Click(object sender, RoutedEventArgs e)

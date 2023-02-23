@@ -25,6 +25,8 @@ namespace OsEngine.Market.Servers.Optimizer
         public OptimizerDataStorageUi(OptimizerDataStorage server, Log log)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _server = server;
 
             log.StartPaint(Host);
@@ -78,6 +80,9 @@ namespace OsEngine.Market.Servers.Optimizer
             LabelTo.Content = OsLocalization.Market.Label27;
             Label28.Content = OsLocalization.Market.Label28;
             ButtonSetDataFromPath.Content = OsLocalization.Market.ButtonSetFolder;
+
+            this.Activate();
+            this.Focus();
         }
 
         /// <summary>

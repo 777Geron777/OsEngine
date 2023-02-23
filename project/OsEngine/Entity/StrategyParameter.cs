@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Windows.Forms;
 
 namespace OsEngine.Entity
 {
@@ -55,6 +56,11 @@ namespace OsEngine.Entity
     {
         public StrategyParameterLabel(string name, string label, string value, int rowHeight, int textHeight, System.Drawing.Color color, string tabName = null)
         {
+            if(name.HaveExcessInString())
+            {
+                throw new Exception("название параметра у робота содержит спец-символ. Это вызовет ошибки. Уберите его");
+            }
+
             _name = name;
             Label = label;
             Value = value;
@@ -127,6 +133,11 @@ namespace OsEngine.Entity
         /// <param name="step">Step change in optimization/Шаг изменения при оптимизации</param>
         public StrategyParameterInt(string name, int value, int start, int stop, int step, string tabName = null)
         {
+            if (name.HaveExcessInString())
+            {
+                throw new Exception("название параметра у робота содержит спец-символ. Это вызовет ошибки. Уберите его");
+            }
+
             if (start > stop)
             {
                 throw new Exception("Начальное значение параметра не может быть больше последнему");
@@ -315,6 +326,10 @@ namespace OsEngine.Entity
         /// <param name="step">Step change in optimization/Шаг изменения при оптимизации</param>
         public StrategyParameterDecimal(string name, decimal value, decimal start, decimal stop, decimal step, string tabName = null)
         {
+            if (name.HaveExcessInString())
+            {
+                throw new Exception("название параметра у робота содержит спец-символ. Это вызовет ошибки. Уберите его");
+            }
             if (start > stop)
             {
                 throw new Exception("Начальное значение параметра не может быть больше последнему");
@@ -494,6 +509,10 @@ namespace OsEngine.Entity
     {
         public StrategyParameterBool(string name, bool value, string tabName = null)
         {
+            if (name.HaveExcessInString())
+            {
+                throw new Exception("название параметра у робота содержит спец-символ. Это вызовет ошибки. Уберите его");
+            }
             _name = name;
             _valueBoolDefolt = value;
             _valueBool = value;
@@ -628,6 +647,10 @@ namespace OsEngine.Entity
         /// <param name="collection">Possible value options/Возможные варианты значений</param>
         public StrategyParameterString(string name, string value, List<string> collection, string tabName = null)
         {
+            if (name.HaveExcessInString())
+            {
+                throw new Exception("название параметра у робота содержит спец-символ. Это вызовет ошибки. Уберите его");
+            }
             bool isInArray = false;
 
             if (collection == null)
@@ -664,6 +687,10 @@ namespace OsEngine.Entity
         /// <param name="value">Default value/Значение по умолчанию</param>
         public StrategyParameterString(string name, string value, string tabName = null)
         {
+            if (name.HaveExcessInString())
+            {
+                throw new Exception("название параметра у робота содержит спец-символ. Это вызовет ошибки. Уберите его");
+            }
             if (value == null)
             {
                 value = "";
@@ -711,7 +738,7 @@ namespace OsEngine.Entity
         {
             _valueString = save[1];
 
-            _setStringValues = new List<string>();
+            _setStringValues = new List<string>() { };
 
             for (int i = 2; i < save.Length; i++)
             {
@@ -799,6 +826,10 @@ namespace OsEngine.Entity
     {
         public StrategyParameterTimeOfDay(string name, int hour, int minute, int second, int millisecond, string tabName = null)
         {
+            if (name.HaveExcessInString())
+            {
+                throw new Exception("название параметра у робота содержит спец-символ. Это вызовет ошибки. Уберите его");
+            }
             _name = name;
             Value = new TimeOfDay();
             Value.Hour = hour;
@@ -984,6 +1015,11 @@ namespace OsEngine.Entity
     {
         public StrategyParameterButton(string buttonLabel, string tabName = null)
         {
+
+            if (buttonLabel.HaveExcessInString())
+            {
+                throw new Exception("название параметра у робота содержит спец-символ. Это вызовет ошибки. Уберите его");
+            }
             _name = buttonLabel;
             _type = StrategyParameterType.Button;
             TabName = tabName;
@@ -1051,6 +1087,139 @@ namespace OsEngine.Entity
     }
 
     /// <summary>
+    /// A strategy parameter to button click
+    /// параметр стратегии типа CheckBox
+    /// </summary>
+    public class StrategyParameterCheckBox : IIStrategyParameter
+    {
+        public StrategyParameterCheckBox(string checkBoxLabel, bool isChecked, string tabName = null)
+        {
+
+            if (checkBoxLabel.HaveExcessInString())
+            {
+                throw new Exception("название параметра у робота содержит спец-символ. Это вызовет ошибки. Уберите его");
+            }
+            _name = checkBoxLabel;
+            _type = StrategyParameterType.CheckBox;
+
+            if (isChecked == true)
+            {
+                _checkState = CheckState.Checked;
+            }
+            else
+            {
+                _checkState = CheckState.Unchecked;
+            }
+            
+            TabName = tabName;
+        }
+
+        public string TabName { get; set; }
+
+        /// <summary>
+        /// blank. it is impossible to create a variable of StrategyParameter type with an empty constructor
+        /// заглушка. нельзя создать переменную типа StrategyParameter с пустым конструктором
+        /// </summary>
+        private StrategyParameterCheckBox()
+        {
+
+        }
+
+        /// <summary>
+        /// to take a line to save
+        /// взять строку для сохранения
+        /// </summary>
+        public string GetStringToSave()
+        {
+            string save = _name + "#";
+
+            if (_checkState == CheckState.Checked)
+            {
+                save += "true" + "#";
+            }
+            else
+            {
+                save += "false" + "#"; 
+            }
+
+            return save;
+        }
+
+        /// <summary>
+        ///  download settings from the save file
+        /// загрузить настройки из файла сохранения
+        /// </summary>
+        /// <param name="save"></param>
+        public void LoadParamFromString(string[] save)
+        {
+            _name = save[0];
+
+            try
+            {
+                if (save[1] == "true")
+                {
+                    _checkState = CheckState.Checked;
+                }
+                else
+                {
+                    _checkState = CheckState.Unchecked;
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+        /// <summary>
+        /// Parameter name. Used to identify a parameter in the settings windows
+        /// Название параметра. Используется для идентификации параметра в окнах настроек
+        /// </summary>
+        public string Name
+        {
+            get { return _name; }
+        }
+        private string _name;
+
+        /// <summary>
+        /// parameter state
+        /// состояние параметра
+        /// </summary>
+        public CheckState CheckState
+        {
+            get
+            {
+                return _checkState;
+            }
+            set
+            {
+                if (_checkState == value)
+                {
+                    return;
+                }
+                _checkState = value;
+                if (ValueChange != null)
+                {
+                    ValueChange();
+                }
+            }
+        }
+
+        private CheckState _checkState;
+
+        /// <summary>
+        /// parameter type
+        /// тип параметра
+        /// </summary>
+        public StrategyParameterType Type
+        {
+            get { return _type; }
+        }
+        private StrategyParameterType _type;
+
+        public event Action ValueChange;
+    }
+    /// <summary>
     /// parameter type
     /// тип параметра
     /// </summary>
@@ -1093,7 +1262,12 @@ namespace OsEngine.Entity
         /// <summary>
         /// надпись в окне параметров 
         /// </summary>
-        Label
+        Label,
+
+        /// <summary>
+        /// чекбокс в окне параметров 
+        /// </summary>
+        CheckBox
     }
 
 }

@@ -20,12 +20,17 @@ namespace OsEngine.Charts.CandleChart.Indicators
         public TickVolumeUi(TickVolume volume) // constructor//конструктор
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _volume = volume;
             ShowSettingsOnForm();
 
             ButtonColorUp.Content = OsLocalization.Charts.LabelButtonIndicatorColorUp;
             ButtonColorDown.Content = OsLocalization.Charts.LabelButtonIndicatorColorDown;
             ButtonAccept.Content = OsLocalization.Charts.LabelButtonIndicatorAccept;
+
+            this.Activate();
+            this.Focus();
         }
 
         private void ShowSettingsOnForm() //upload the settings to form// выгрузить настройки на форму

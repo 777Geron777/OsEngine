@@ -24,6 +24,8 @@ namespace OsEngine.Entity
         public ParemetrsUi(List<IIStrategyParameter> parameters, ParamGuiSettings settings)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
 
             Height = (double)settings.Height;
             Width = (double)settings.Width;
@@ -62,6 +64,9 @@ namespace OsEngine.Entity
             }
 
             this.Closed += ParemetrsUi_Closed;
+
+            this.Activate();
+            this.Focus();
         }
 
         private void ParemetrsUi_Closed(object sender, EventArgs e)
@@ -184,7 +189,7 @@ namespace OsEngine.Entity
                 _grid.CellValueChanged -= _grid_CellValueChanged;
                 _grid.CellClick -= _grid_Click;
                 _grid.Rows.Clear();
-                DataGridFactory.ClearLink(_grid);
+                DataGridFactory.ClearLinks(_grid);
                 _grid = null;
             }
 
@@ -265,7 +270,8 @@ namespace OsEngine.Entity
                         cell.Value = param.ValueString;
                         row.Cells.Add(cell);
                     }
-                    else if (param.ValuesString.Count == 1)
+                    else if (param.ValuesString.Count == 1
+                        || (param.ValuesString.Count == 0 && param.ValueString != null))
                     {
                         DataGridViewTextBoxCell cell = new DataGridViewTextBoxCell();
                         cell.Value = param.ValueString;
@@ -331,6 +337,16 @@ namespace OsEngine.Entity
                     row.Cells[1].Style.ForeColor = param.Color;
 
                     
+                }
+                else if (_parameters[i].Type == StrategyParameterType.CheckBox)
+                {
+                    DataGridViewCheckBoxCell cell = new DataGridViewCheckBoxCell();
+                    StrategyParameterCheckBox param = (StrategyParameterCheckBox)_parameters[i];
+
+                    row.Cells[0].Value = _parameters[i].Name; 
+                    cell.Value = param.CheckState;
+
+                    row.Cells.Add(cell);
                 }
 
                 _grid.Rows.Add(row);
@@ -414,6 +430,19 @@ namespace OsEngine.Entity
                     {
                         string[] array = new[] { "", _grid.Rows[i].Cells[1].EditedFormattedValue.ToString() };
                         ((StrategyParameterTimeOfDay)_parameters[i]).LoadParamFromString(array);
+                    }
+                    else if (_parameters[i].Type == StrategyParameterType.CheckBox)
+                    {
+                        bool value = Convert.ToBoolean(_grid.Rows[i].Cells[1].Value);
+
+                        if (value == true)
+                        {
+                            ((StrategyParameterCheckBox) _parameters[i]).CheckState = CheckState.Checked;
+                        }
+                        else
+                        {
+                            ((StrategyParameterCheckBox)_parameters[i]).CheckState = CheckState.Unchecked;
+                        }
                     }
                 }
                 catch

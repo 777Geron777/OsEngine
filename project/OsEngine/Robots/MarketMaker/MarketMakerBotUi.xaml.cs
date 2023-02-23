@@ -18,6 +18,8 @@ namespace OsEngine.Robots.MarketMaker
         public MarketMakerBotUi(MarketMakerBot strategy)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _strategy = strategy;
 
             ComboBoxRegime.Items.Add(BotTradeRegime.Off);
@@ -36,7 +38,8 @@ namespace OsEngine.Robots.MarketMaker
             CheckBoxNeadToPaint.Content = OsLocalization.Trader.Label131;
             ButtonAccept.Content = OsLocalization.Trader.Label117;
 
-
+            this.Activate();
+            this.Focus();
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)

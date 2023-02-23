@@ -29,6 +29,7 @@ namespace OsEngine.OsMiner.Patterns
         public PatternControllerUi(PatternController pattern)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
             _pattern = pattern;
 
             InitializeTabDataSeries();
@@ -55,6 +56,9 @@ namespace OsEngine.OsMiner.Patterns
             InitializeMiningTab();
 
             Local();
+
+            this.Activate();
+            this.Focus();
         }
 
         private void Local()

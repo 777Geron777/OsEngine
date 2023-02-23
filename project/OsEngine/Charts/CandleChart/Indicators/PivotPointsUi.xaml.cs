@@ -27,6 +27,8 @@ namespace OsEngine.Charts.CandleChart.Indicators
         public PivotPointsUi(PivotPoints pivotPoints)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _pivotPoints = pivotPoints;
 
             CheckBoxPaintOnOff.IsChecked = _pivotPoints.PaintOn;
@@ -53,6 +55,8 @@ namespace OsEngine.Charts.CandleChart.Indicators
             CheckBoxPaintOnOff.Content = OsLocalization.Charts.LabelPaintIntdicatorIsVisible;
             ButtonAccept.Content = OsLocalization.Charts.LabelButtonIndicatorAccept;
 
+            this.Activate();
+            this.Focus();
         }
 
         private void ButtonAccept_Click(object sender, RoutedEventArgs e)

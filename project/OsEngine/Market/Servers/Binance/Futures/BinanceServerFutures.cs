@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using OsEngine.Entity;
@@ -263,6 +262,8 @@ namespace OsEngine.Market.Servers.Binance.Futures
         /// </summary>
         public List<Trade> GetTickDataToSecurity(Security security, DateTime startTime, DateTime endTime, DateTime lastDate)
         {
+            endTime = endTime.AddDays(1);
+
             string markerDateTime = "";
 
             List<Trade> trades = new List<Trade>();
@@ -284,8 +285,11 @@ namespace OsEngine.Market.Servers.Binance.Futures
                 if (newTrades != null && newTrades.Count != 0)
                     trades.AddRange(newTrades);
                 else
+                {
+                    startOver.AddDays(1);
                     break;
-
+                }    
+                   
                 startOver = trades[trades.Count - 1].Time.AddMilliseconds(1);
 
 
@@ -777,14 +781,14 @@ namespace OsEngine.Market.Servers.Binance.Futures
                 }
 
                 if (sec.filters.Count > 1 &&
-                    sec.filters[2] != null &&
-                    sec.filters[2].minQty != null)
+                    sec.filters[1] != null &&
+                    sec.filters[1].minQty != null)
                 {
-                    decimal minQty = sec.filters[2].minQty.ToDecimal();
+                    decimal minQty = sec.filters[1].minQty.ToDecimal();
                     string qtyInStr = minQty.ToStringWithNoEndZero().Replace(",", ".");
-                    if (qtyInStr.Split('.').Length > 1)
+                    if (qtyInStr.Replace(",", ".").Split('.').Length > 1)
                     {
-                        security.DecimalsVolume = qtyInStr.Split('.')[1].Length;
+                        security.DecimalsVolume = qtyInStr.Replace(",",".").Split('.')[1].Length;
                     }
                 }
 
@@ -873,7 +877,15 @@ namespace OsEngine.Market.Servers.Binance.Futures
             return security;
         }
 
-
+        // проверка ордеров на трейды
+        public void ResearchTradesToOrders(List<Order> orders)
+        {
+            if (_client == null)
+            {
+                return;
+            }
+            _client.ResearchTradesToOrders_Binance(orders);
+        }
 
         void _client_Connected()
         {

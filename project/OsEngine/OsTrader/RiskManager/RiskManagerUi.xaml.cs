@@ -27,6 +27,8 @@ namespace OsEngine.OsTrader.RiskManager
             {
                 _riskManager = riskManager;
                 InitializeComponent();
+                OsEngine.Layout.StickyBorders.Listen(this);
+                OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
                 LoadDateOnForm();
             }
             catch (Exception error)
@@ -40,6 +42,8 @@ namespace OsEngine.OsTrader.RiskManager
             CheckBoxIsOn.Content = OsLocalization.Trader.Label16;
             ButtonAccept.Content = OsLocalization.Trader.Label17;
 
+            this.Activate();
+            this.Focus();
         }
 
         /// <summary>

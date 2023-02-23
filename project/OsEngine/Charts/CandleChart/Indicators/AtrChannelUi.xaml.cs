@@ -38,6 +38,8 @@ namespace OsEngine.Charts.CandleChart.Indicators
         public AtrChannelUi(AtrChannel atr)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
             _atr = atr;
 
             TextBoxLenght.Text = _atr.Lenght.ToString();
@@ -52,6 +54,9 @@ namespace OsEngine.Charts.CandleChart.Indicators
             ButtonAccept.Content = OsLocalization.Charts.LabelButtonIndicatorAccept;
             LabelIndicatorPeriod.Content = OsLocalization.Charts.LabelIndicatorPeriod;
             LabelIndicatorMultiplier.Content = OsLocalization.Charts.LabelIndicatorMultiplier;
+
+            this.Activate();
+            this.Focus();
         }
 
         /// <summary>

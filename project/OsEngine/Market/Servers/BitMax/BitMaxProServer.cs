@@ -46,7 +46,7 @@ namespace OsEngine.Market.Servers.BitMax
         /// </summary>
         public ServerType ServerType
         {
-            get { return ServerType.BitMax; }
+            get { return ServerType.AscendEx_BitMax; }
         }
 
         /// <summary>
@@ -777,6 +777,10 @@ namespace OsEngine.Market.Servers.BitMax
             {
                 LogMessageEvent(message, type);
             }
+        }
+
+        public void ResearchTradesToOrders(List<Order> orders)
+        {
         }
 
         /// <summary>

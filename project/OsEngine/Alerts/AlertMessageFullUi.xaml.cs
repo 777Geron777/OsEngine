@@ -18,11 +18,15 @@ namespace OsEngine.Alerts
         public AlertMessageFullUi(DataGridView grid)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
             HostAlerts.Child = grid;
             HostAlerts.Child.Show();
             Title = OsLocalization.Alerts.TitleAlertMessageFullUi;
 
             OsLocalization.LocalizationTypeChangeEvent += delegate { Title = OsLocalization.Alerts.TitleAlertMessageFullUi; };
+
+            this.Activate();
+            this.Focus();
         }
     }
 }

@@ -28,6 +28,8 @@ namespace OsEngine.OsTrader.Panels.Tab.Internal
         public BotManualControlUi(BotManualControl strategySettings)
         {
             InitializeComponent();
+            OsEngine.Layout.StickyBorders.Listen(this);
+            OsEngine.Layout.StartupLocation.Start_MouseInCentre(this);
 
             try
             {
@@ -42,15 +44,15 @@ namespace OsEngine.OsTrader.Panels.Tab.Internal
                 // стоп
 
                 CheckBoxStopIsOn.IsChecked = _strategySettings.StopIsOn;
-                TextBoxStopPercentLenght.Text = _strategySettings.StopDistance.ToString(new CultureInfo("ru-RU"));
-                TextBoxSlipageStop.Text = _strategySettings.StopSlipage.ToString(new CultureInfo("ru-RU"));
+                TextBoxStopPercentLenght.Text = _strategySettings.StopDistance.ToStringWithNoEndZero();
+                TextBoxSlipageStop.Text = _strategySettings.StopSlipage.ToStringWithNoEndZero();
 
                 // profit
                 // профит
 
                 CheckBoxProfitIsOn.IsChecked = _strategySettings.ProfitIsOn;
-                TextBoxProfitPercentLenght.Text = _strategySettings.ProfitDistance.ToString(new CultureInfo("ru-RU"));
-                TextBoxSlipageProfit.Text = _strategySettings.ProfitSlipage.ToString(new CultureInfo("ru-RU"));
+                TextBoxProfitPercentLenght.Text = _strategySettings.ProfitDistance.ToStringWithNoEndZero();
+                TextBoxSlipageProfit.Text = _strategySettings.ProfitSlipage.ToStringWithNoEndZero();
 
                 // closing position
                 // закрытие позиции
@@ -101,6 +103,9 @@ namespace OsEngine.OsTrader.Panels.Tab.Internal
             {
                 MessageBox.Show(error.ToString());
             }
+
+            this.Activate();
+            this.Focus();
         }
 
         /// <summary>

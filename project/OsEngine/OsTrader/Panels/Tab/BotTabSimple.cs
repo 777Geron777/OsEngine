@@ -56,8 +56,9 @@ namespace OsEngine.OsTrader.Panels.Tab
                 _connector.TickChangeEvent += _connector_TickChangeEvent;
                 _connector.LogMessageEvent += SetNewLogMessage;
                 _connector.ConnectorStartedReconnectEvent += _connector_ConnectorStartedReconnectEvent;
+                _connector.SecuritySubscribeEvent += _connector_SecuritySubscribeEvent;
 
-                if(startProgram != StartProgram.IsOsOptimizer)
+                if (startProgram != StartProgram.IsOsOptimizer)
                 {
                     _marketDepthPainter = new MarketDepthPainter(TabName);
                     _marketDepthPainter.LogMessageEvent += SetNewLogMessage;
@@ -241,6 +242,8 @@ namespace OsEngine.OsTrader.Panels.Tab
                     _connector.ConnectorStartedReconnectEvent -= _connector_ConnectorStartedReconnectEvent;
                     _connector.Delete();
                     _connector.LogMessageEvent -= SetNewLogMessage;
+                    _connector.SecuritySubscribeEvent -= _connector_SecuritySubscribeEvent;
+
                     _connector = null;
                 }
 
@@ -316,7 +319,16 @@ namespace OsEngine.OsTrader.Panels.Tab
         /// </summary>
         public bool IsConnected
         {
-            get { return _connector.IsConnected; }
+            get
+            {
+
+                if (_connector == null)
+                {
+                    return false;
+                }
+
+                return _connector.IsConnected;
+            }
         }
 
         /// <summary>
@@ -325,7 +337,15 @@ namespace OsEngine.OsTrader.Panels.Tab
         /// </summary>
         public bool IsReadyToTrade
         {
-            get { return _connector.IsReadyToTrade; }
+            get
+            {
+                if (_connector == null)
+                {
+                    return false;
+                }
+
+                return _connector.IsReadyToTrade;
+            }
         }
 
         /// <summary>
@@ -372,12 +392,6 @@ namespace OsEngine.OsTrader.Panels.Tab
             if (indicator == null)
                 throw new Exception("Error! Indicator with name " + nameArea + " not found");
 
-            Type indType = indicator.GetType();
-
-            if (indType.BaseType.Name == "Aindicator")
-            {
-                ((Aindicator)indicator).StartProgram = StartProgram.IsOsOptimizer;
-            }
             return _chartMaster.CreateIndicator(indicator, nameArea);
         }
 
@@ -1227,8 +1241,7 @@ namespace OsEngine.OsTrader.Panels.Tab
         {
             if (_connector.ServerType == ServerType.InteractiveBrokers ||
                 _connector.ServerType == ServerType.Lmax ||
-                _connector.ServerType == ServerType.BitMax ||
-                _connector.ServerType == ServerType.FTX ||
+                _connector.ServerType == ServerType.AscendEx_BitMax ||
                 _connector.ServerType == ServerType.BinanceFutures ||
                 _connector.ServerType == ServerType.Transaq ||
                 _connector.ServerType == ServerType.Tester ||
@@ -1241,6 +1254,7 @@ namespace OsEngine.OsTrader.Panels.Tab
 
             return false;
         }
+
         private bool IsMarketStopOrderSupport()
         {
             if (_connector.ServerType == ServerType.BinanceFutures)
@@ -1268,7 +1282,7 @@ namespace OsEngine.OsTrader.Panels.Tab
                     return null;
                 }
 
-                price = price + Securiti.PriceStep * 20;
+                price = price + Securiti.PriceStep * 40;
 
                 OrderPriceType type = OrderPriceType.Market;
 
@@ -1473,6 +1487,24 @@ namespace OsEngine.OsTrader.Panels.Tab
                 PositionOpenerToStop positionOpener = 
                     new PositionOpenerToStop(CandlesFinishedOnly.Count, expiresBars,TimeServerCurrent);
                 positionOpener.Volume = volume;
+
+               /* if(StartProgram == StartProgram.IsTester ||
+                    StartProgram == StartProgram.IsOsOptimizer)
+                {
+                    if (activateType == StopActivateType.HigherOrEqual && 
+                        priceRedLine > PriceBestAsk)
+                    {
+                        priceRedLine = PriceBestAsk;
+                    }
+                    else if(activateType == StopActivateType.LowerOrEqyal &&
+                        priceRedLine < PriceBestBid)
+                    {
+                        priceRedLine = PriceBestBid;
+                    }
+
+                    priceLimit = priceRedLine;
+                }*/
+
                 positionOpener.PriceOrder = priceLimit;
                 positionOpener.PriceRedLine = priceRedLine;
                 positionOpener.ActivateType = activateType;
@@ -1751,7 +1783,7 @@ namespace OsEngine.OsTrader.Panels.Tab
                     return null;
                 }
 
-                price = price - Securiti.PriceStep * 20;
+                price = price - Securiti.PriceStep * 40;
 
                 OrderPriceType type = OrderPriceType.Market;
 
@@ -1955,6 +1987,24 @@ namespace OsEngine.OsTrader.Panels.Tab
                     new PositionOpenerToStop(CandlesFinishedOnly.Count, expiresBars, TimeServerCurrent);
 
                 positionOpener.Volume = volume;
+
+                /*if (StartProgram == StartProgram.IsTester ||
+                    StartProgram == StartProgram.IsOsOptimizer)
+                {
+                    if (activateType == StopActivateType.HigherOrEqual &&
+                        priceRedLine > PriceBestAsk)
+                    {
+                        priceRedLine = PriceBestAsk;
+                    }
+                    else if (activateType == StopActivateType.LowerOrEqyal &&
+                        priceRedLine < PriceBestBid)
+                    {
+                        priceRedLine = PriceBestBid;
+                    }
+
+                    priceLimit = priceRedLine;
+                }*/
+
                 positionOpener.PriceOrder = priceLimit;
                 positionOpener.PriceRedLine = priceRedLine;
                 positionOpener.ActivateType = activateType;
@@ -2269,11 +2319,11 @@ namespace OsEngine.OsTrader.Panels.Tab
 
                 if (position.Direction == Side.Buy)
                 {
-                    price = _connector.BestBid - Securiti.PriceStep * 20;
+                    price = _connector.BestBid - Securiti.PriceStep * 40;
                 }
                 else
                 {
-                    price = price + Securiti.PriceStep * 20;
+                    price = price + Securiti.PriceStep * 40;
                 }
 
                 if (price == 0)
@@ -3069,6 +3119,37 @@ namespace OsEngine.OsTrader.Panels.Tab
                     return;
                 }
 
+                if (StartProgram == StartProgram.IsOsOptimizer ||
+                    StartProgram == StartProgram.IsTester)
+                {
+                    // проверяем чтобы стоп был не дальше цены активации глубоко в рынке
+
+                    decimal lastBid = PriceBestBid;
+                    decimal lastAsk = PriceBestAsk;
+
+                    if(lastAsk != 0 && lastBid != 0)
+                    {
+                        if(position.Direction == Side.Buy &&
+                            priceActivate > lastAsk)
+                        {
+                            //priceActivate = lastAsk;
+                            //SetNewLogMessage(
+                            //    OsLocalization.Trader.Label180
+                            //    , LogMessageType.Error);
+                        }
+                        if (position.Direction == Side.Sell &&
+                            priceActivate < lastBid)
+                        {
+                           // priceActivate = lastBid;
+                            //SetNewLogMessage(
+                            //    OsLocalization.Trader.Label180
+                            //    , LogMessageType.Error);
+                        }
+                    }
+
+                    priceOrder = priceActivate;
+                }
+
                 position.StopOrderIsActiv = false;
 
                 if (StartProgram == StartProgram.IsOsOptimizer ||
@@ -3127,6 +3208,37 @@ namespace OsEngine.OsTrader.Panels.Tab
                 if (volume == 0)
                 {
                     return;
+                }
+
+                if (StartProgram == StartProgram.IsOsOptimizer ||
+                    StartProgram == StartProgram.IsTester)
+                {
+                    // проверяем чтобы профит был не дальше цены активации глубоко в рынке
+
+                    decimal lastBid = PriceBestBid;
+                    decimal lastAsk = PriceBestAsk;
+
+                    if (lastAsk != 0 && lastBid != 0)
+                    {
+                        if (position.Direction == Side.Buy &&
+                            priceActivate < lastBid)
+                        {
+                            // priceActivate = lastBid;
+                            // SetNewLogMessage(
+                            //    OsLocalization.Trader.Label181
+                            //    , LogMessageType.Error);
+                        }
+                        if (position.Direction == Side.Sell &&
+                            priceActivate > lastAsk)
+                        {
+                            // priceActivate = lastAsk;
+                            //SetNewLogMessage(
+                            //   OsLocalization.Trader.Label181
+                            //   , LogMessageType.Error);
+                        }
+                    }
+
+                    priceOrder = priceActivate;
                 }
 
 
@@ -4261,6 +4373,18 @@ namespace OsEngine.OsTrader.Panels.Tab
         }
 
         /// <summary>
+        /// security for connector defined
+        /// бумага для коннектора определена
+        /// </summary>
+        private void _connector_SecuritySubscribeEvent(Security security)
+        {
+            if (SecuritySubscribeEvent != null)
+            {
+                SecuritySubscribeEvent(security);
+            }
+        }
+
+        /// <summary>
         /// server time has changed / 
         /// изменилось время сервера
         /// </summary>
@@ -4441,6 +4565,12 @@ namespace OsEngine.OsTrader.Panels.Tab
         /// изменились параметры индикатора
         /// </summary>
         public event Action IndicatorUpdateEvent;
+
+        /// <summary>
+        /// security for connector defined
+        /// бумага для коннектора определена
+        /// </summary>
+        public event Action<Security> SecuritySubscribeEvent;
     }
 
 
