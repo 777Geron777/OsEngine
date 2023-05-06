@@ -379,8 +379,21 @@ namespace OsEngine.Entity
                             {
                                 continue;
                             }
-
-                            
+                            if (trades[i].Time == _lastTradeTime)
+                            {
+                                if(string.IsNullOrEmpty(trades[i].Id))
+                                {
+                                    // если IDшников нет - просто игнорируем трейды с идентичным временем
+                                    continue;
+                                }
+                                else
+                                {
+                                    if(IsInArrayTradeIds(trades[i].Id))
+                                    {// если IDшник в последних 100 трейдах
+                                        continue;
+                                    }
+                                }
+                            }
 
                             newTrades.Add(trades[i]);
                         }
@@ -394,6 +407,13 @@ namespace OsEngine.Entity
 
             _lastTradeIndex = trades.Count;
 
+            if (newTrades.Count == 0)
+            {
+                return null;
+            }
+            
+            _lastTradeTime = newTrades[newTrades.Count - 1].Time;
+
             for (int i2 = 0; i2 < newTrades.Count; i2++)
             {
                 if (newTrades[i2] == null)
@@ -401,16 +421,44 @@ namespace OsEngine.Entity
                     newTrades.RemoveAt(i2);
                     i2--;
                 }
+                if (string.IsNullOrEmpty(newTrades[i2].Id) == false
+                    && newTrades[i2].Time.Second == _lastTradeTime.Second)
+                {
+                    AddInListTradeIds(newTrades[i2].Id, _lastTradeTime);
+                } 
             }
 
-            if (newTrades.Count == 0)
-            {
-                return null;
-            }
-
-            _lastTradeTime = newTrades[newTrades.Count - 1].Time;
-            
             return newTrades;
+        }
+
+        List<string> _lastTradeIds = new List<string>();
+
+        DateTime _idsTime = DateTime.MinValue;
+
+        private void AddInListTradeIds(string id, DateTime _timeNow)
+        {
+            if(_idsTime.Second != _timeNow.Second)
+            {
+                _lastTradeIds.Clear();
+                _idsTime = _timeNow;
+            }
+
+            _lastTradeIds.Add(id);
+        }
+
+        private bool IsInArrayTradeIds(string id)
+        {
+            bool isInArray = false;
+
+            for(int i = 0;i < _lastTradeIds.Count;i++)
+            {
+                if(_lastTradeIds[i].Equals(id))
+                {
+                    return true;
+                }
+            }
+
+            return isInArray;
         }
 
         /// <summary>

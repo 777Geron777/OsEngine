@@ -63,6 +63,9 @@ namespace OsEngine.Market.Servers
 
                 CreateParameterBoolean(OsLocalization.Market.ServerParam9, false);
                 _needToRemoveCandlesFromMemory = (ServerParameterBool)ServerParameters[ServerParameters.Count - 1];
+               
+                CreateParameterBoolean(OsLocalization.Market.ServerParam10, true);
+                _needToUseFullMarketDepth = (ServerParameterBool)ServerParameters[ServerParameters.Count - 1];
 
                 _serverRealization.ServerParameters = ServerParameters;
 
@@ -244,6 +247,8 @@ namespace OsEngine.Market.Servers
 
         public ServerParameterBool _needToRemoveCandlesFromMemory;
 
+        public ServerParameterBool _needToUseFullMarketDepth;
+
         public bool NeedToHideParams = false;
 
         /// <summary>
@@ -265,7 +270,7 @@ namespace OsEngine.Market.Servers
             newParam = (ServerParameterString)LoadParam(newParam);
             if (_serverIsStart)
             {
-                ServerParameters.Insert(ServerParameters.Count - 7, newParam);
+                ServerParameters.Insert(ServerParameters.Count - 8, newParam);
             }
             else
             {
@@ -288,7 +293,7 @@ namespace OsEngine.Market.Servers
             newParam = (ServerParameterInt)LoadParam(newParam);
             if (_serverIsStart)
             {
-                ServerParameters.Insert(ServerParameters.Count - 7, newParam);
+                ServerParameters.Insert(ServerParameters.Count - 8, newParam);
             }
             else
             {
@@ -308,7 +313,7 @@ namespace OsEngine.Market.Servers
 
             if (_serverIsStart)
             {
-                ServerParameters.Insert(ServerParameters.Count - 7, newParam);
+                ServerParameters.Insert(ServerParameters.Count - 8, newParam);
             }
             else
             {
@@ -331,7 +336,7 @@ namespace OsEngine.Market.Servers
             newParam = (ServerParameterDecimal)LoadParam(newParam);
             if (_serverIsStart)
             {
-                ServerParameters.Insert(ServerParameters.Count - 7, newParam);
+                ServerParameters.Insert(ServerParameters.Count - 8, newParam);
             }
             else
             {
@@ -354,7 +359,7 @@ namespace OsEngine.Market.Servers
             newParam = (ServerParameterBool)LoadParam(newParam);
             if (_serverIsStart)
             {
-                ServerParameters.Insert(ServerParameters.Count - 7, newParam);
+                ServerParameters.Insert(ServerParameters.Count - 8, newParam);
             }
             else
             {
@@ -378,7 +383,7 @@ namespace OsEngine.Market.Servers
             newParam = (ServerParameterPassword)LoadParam(newParam);
             if (_serverIsStart)
             {
-                ServerParameters.Insert(ServerParameters.Count - 7, newParam);
+                ServerParameters.Insert(ServerParameters.Count - 8, newParam);
             }
             else
             {
@@ -400,7 +405,7 @@ namespace OsEngine.Market.Servers
             newParam = (ServerParameterPath)LoadParam(newParam);
             if (_serverIsStart)
             {
-                ServerParameters.Insert(ServerParameters.Count - 7, newParam);
+                ServerParameters.Insert(ServerParameters.Count - 8, newParam);
             }
             else
             {
@@ -422,7 +427,7 @@ namespace OsEngine.Market.Servers
             newParam = (ServerParameterButton)LoadParam(newParam);
             if (_serverIsStart)
             {
-                ServerParameters.Insert(ServerParameters.Count - 7, newParam);
+                ServerParameters.Insert(ServerParameters.Count - 8, newParam);
             }
             else
             {
@@ -1052,15 +1057,14 @@ namespace OsEngine.Market.Servers
 
             private set
             {
-                if (value < _serverTime)
+                if (value <= _serverTime)
                 {
                     return;
                 }
 
-                DateTime lastTime = _serverTime;
                 _serverTime = value;
 
-                if (_serverTime != lastTime)
+                if (_newServerTime.IsEmpty == true)
                 {
                     _newServerTime.Enqueue(_serverTime);
                 }
@@ -1468,7 +1472,7 @@ namespace OsEngine.Market.Servers
         /// take the candle history for a period
         /// взять историю свечей за период
         /// </summary>
-        public CandleSeries GetCandleDataToSecurity(string securityName, string securityClass, TimeFrameBuilder timeFrameBuilder,
+        public List<Candle> GetCandleDataToSecurity(string securityName, string securityClass, TimeFrameBuilder timeFrameBuilder,
             DateTime startTime, DateTime endTime, DateTime actualTime, bool neadToUpdate)
         {
             if (Portfolios == null || Securities == null)
@@ -1524,7 +1528,7 @@ namespace OsEngine.Market.Servers
 
             CandleSeries series = new CandleSeries(timeFrameBuilder, security, StartProgram.IsOsTrader);
 
-            ServerRealization.Subscrible(security);
+            //ServerRealization.Subscrible(security);
 
             if (timeFrameBuilder.CandleCreateMethodType == CandleCreateMethodType.Simple)
             {
@@ -1533,7 +1537,7 @@ namespace OsEngine.Market.Servers
                         actualTime);
             }
 
-            if (series.CandlesAll == null)
+           /* if (series.CandlesAll == null)
             {
                 List<Trade> trades = ServerRealization.GetTickDataToSecurity(security, startTime, endTime, actualTime);
                 if (trades != null &&
@@ -1541,7 +1545,7 @@ namespace OsEngine.Market.Servers
                 {
                     series.PreLoad(trades);
                 }
-            }
+            }*/
 
             if (series.CandlesAll != null &&
                 series.CandlesAll.Count != 0)
@@ -1549,26 +1553,26 @@ namespace OsEngine.Market.Servers
                 series.IsStarted = true;
             }
 
-            _candleManager.StartSeries(series);
+            // _candleManager.StartSeries(series);
 
-            return series;
+            return series.CandlesAll;
         }
 
         /// <summary>
         /// take ticks data for a period
         /// взять тиковые данные за период
         /// </summary>
-        public bool GetTickDataToSecurity(string securityName, string securityClass, DateTime startTime, DateTime endTime, DateTime actualTime, bool neadToUpdete)
+        public List<Trade> GetTickDataToSecurity(string securityName, string securityClass, DateTime startTime, DateTime endTime, DateTime actualTime, bool neadToUpdete)
         {
             if (Portfolios == null || Securities == null)
             {
-                return false;
+                return null;
             }
 
             if (LastStartServerTime != DateTime.MinValue &&
                 LastStartServerTime.AddSeconds(15) > DateTime.Now)
             {
-                return false;
+                return null;
             }
 
             if (actualTime == DateTime.MinValue)
@@ -1578,12 +1582,12 @@ namespace OsEngine.Market.Servers
 
             if (ServerStatus != ServerConnectStatus.Connect)
             {
-                return false;
+                return null;
             }
 
             if (_candleManager == null)
             {
-                return false;
+                return null;
             }
 
             Security security = null;
@@ -1611,48 +1615,13 @@ namespace OsEngine.Market.Servers
                 }
                 if (security == null)
                 {
-                    return false;
+                    return null;
                 }
             }
 
             List<Trade> trades = ServerRealization.GetTickDataToSecurity(security, startTime, endTime, actualTime);
 
-            if (trades == null ||
-                trades.Count == 0)
-            {
-                return false;
-            }
-
-            if (_allTrades == null)
-            {
-                _allTrades = new List<Trade>[1];
-                _allTrades[0] = trades;
-                return true;
-            }
-
-            for (int i = 0; i < _allTrades.Length; i++)
-            {
-                if (_allTrades[i] != null && _allTrades[i].Count != 0 &&
-                    _allTrades[i][0].SecurityNameCode == security.Name)
-                {
-                    _allTrades[i] = trades;
-                    return true;
-                }
-            }
-
-            // there is no instruments storage / хранилища для инструмента нет
-            List<Trade>[] allTradesNew = new List<Trade>[_allTrades.Length + 1];
-
-            for (int i = 0; i < _allTrades.Length; i++)
-            {
-                allTradesNew[i] = _allTrades[i];
-            }
-            allTradesNew[allTradesNew.Length - 1] = trades;
-
-            _allTrades = allTradesNew;
-
-
-            return true;
+            return trades;
         }
 
         /// <summary>
@@ -1692,7 +1661,10 @@ namespace OsEngine.Market.Servers
 
                 if (NewMarketDepthEvent != null)
                 {
-                    _marketDepthsToSend.Enqueue(myDepth);
+                    if (_needToUseFullMarketDepth.Value == true)
+                    {
+                        _marketDepthsToSend.Enqueue(myDepth);
+                    }
 
                     if (myDepth.Asks.Count != 0 && myDepth.Bids.Count != 0)
                     {
@@ -1701,12 +1673,12 @@ namespace OsEngine.Market.Servers
 
                         if (_currentBestBid != besBid || _currentBestAsk != bestAsk)
                         {
-                            Security sec = GetSecurityForName(myDepth.SecurityNameCode,"");
+                            Security sec = GetSecurityForName(myDepth.SecurityNameCode, "");
                             if (sec != null)
                             {
                                 _currentBestBid = besBid;
                                 _currentBestAsk = bestAsk;
-                            
+
                                 _bidAskToSend.Enqueue(new BidAskSender
                                 {
                                     Bid = besBid,
@@ -1717,7 +1689,6 @@ namespace OsEngine.Market.Servers
                         }
                     }
                 }
-
             }
             catch (Exception error)
             {

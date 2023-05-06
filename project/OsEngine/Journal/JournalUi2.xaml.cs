@@ -59,7 +59,7 @@ namespace OsEngine.Journal
 
             ComboBoxChartType.Items.Add("Absolute");
             ComboBoxChartType.Items.Add("Persent");
-            ComboBoxChartType.SelectedItem = "Absolute";
+            ComboBoxChartType.SelectedItem = "Persent";
             ComboBoxChartType.SelectionChanged += ComboBoxChartType_SelectionChanged;
 
             _currentCulture = CultureInfo.CurrentCulture;
@@ -506,7 +506,7 @@ namespace OsEngine.Journal
                 column0.CellTemplate = cell0;
                 column0.HeaderText = @"";
                 column0.ReadOnly = true;
-                column0.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                column0.Width = 200;
 
                 _gridStatistics.Columns.Add(column0);
 
@@ -532,7 +532,7 @@ namespace OsEngine.Journal
                 column3.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
                 _gridStatistics.Columns.Add(column3);
 
-                for (int i = 0; i < 30; i++)
+                for (int i = 0; i < 31; i++)
                 {
                     _gridStatistics.Rows.Add(); //string addition/ добавление строки
                 }
@@ -541,34 +541,35 @@ namespace OsEngine.Journal
                 _gridStatistics.Rows[1].Cells[0].Value = OsLocalization.Journal.GridRow2;
                 _gridStatistics.Rows[2].Cells[0].Value = OsLocalization.Journal.GridRow3;
                 _gridStatistics.Rows[3].Cells[0].Value = OsLocalization.Journal.GridRow17;
+                _gridStatistics.Rows[4].Cells[0].Value = OsLocalization.Journal.GridRow18;
 
-                _gridStatistics.Rows[4].Cells[0].Value = OsLocalization.Journal.GridRow4;
-                _gridStatistics.Rows[5].Cells[0].Value = OsLocalization.Journal.GridRow5;
+                _gridStatistics.Rows[5].Cells[0].Value = OsLocalization.Journal.GridRow4;
+                _gridStatistics.Rows[6].Cells[0].Value = OsLocalization.Journal.GridRow5;
 
-                _gridStatistics.Rows[7].Cells[0].Value = OsLocalization.Journal.GridRow6;
-                _gridStatistics.Rows[8].Cells[0].Value = OsLocalization.Journal.GridRow7;
-                _gridStatistics.Rows[9].Cells[0].Value = OsLocalization.Journal.GridRow8;
-                _gridStatistics.Rows[10].Cells[0].Value = OsLocalization.Journal.GridRow9;
+                _gridStatistics.Rows[8].Cells[0].Value = OsLocalization.Journal.GridRow6;
+                _gridStatistics.Rows[9].Cells[0].Value = OsLocalization.Journal.GridRow7;
+                _gridStatistics.Rows[10].Cells[0].Value = OsLocalization.Journal.GridRow8;
+                _gridStatistics.Rows[11].Cells[0].Value = OsLocalization.Journal.GridRow9;
 
 
-                _gridStatistics.Rows[12].Cells[0].Value = OsLocalization.Journal.GridRow10;
-                _gridStatistics.Rows[13].Cells[0].Value = OsLocalization.Journal.GridRow11;
-                _gridStatistics.Rows[14].Cells[0].Value = OsLocalization.Journal.GridRow6;
-                _gridStatistics.Rows[15].Cells[0].Value = OsLocalization.Journal.GridRow7;
-                _gridStatistics.Rows[16].Cells[0].Value = OsLocalization.Journal.GridRow8;
-                _gridStatistics.Rows[17].Cells[0].Value = OsLocalization.Journal.GridRow9;
-                _gridStatistics.Rows[18].Cells[0].Value = OsLocalization.Journal.GridRow12;
+                _gridStatistics.Rows[13].Cells[0].Value = OsLocalization.Journal.GridRow10;
+                _gridStatistics.Rows[14].Cells[0].Value = OsLocalization.Journal.GridRow11;
+                _gridStatistics.Rows[15].Cells[0].Value = OsLocalization.Journal.GridRow6;
+                _gridStatistics.Rows[16].Cells[0].Value = OsLocalization.Journal.GridRow7;
+                _gridStatistics.Rows[17].Cells[0].Value = OsLocalization.Journal.GridRow8;
+                _gridStatistics.Rows[18].Cells[0].Value = OsLocalization.Journal.GridRow9;
+                _gridStatistics.Rows[19].Cells[0].Value = OsLocalization.Journal.GridRow12;
 
-                _gridStatistics.Rows[20].Cells[0].Value = OsLocalization.Journal.GridRow13;
-                _gridStatistics.Rows[21].Cells[0].Value = OsLocalization.Journal.GridRow14;
-                _gridStatistics.Rows[22].Cells[0].Value = OsLocalization.Journal.GridRow6;
-                _gridStatistics.Rows[23].Cells[0].Value = OsLocalization.Journal.GridRow7;
-                _gridStatistics.Rows[24].Cells[0].Value = OsLocalization.Journal.GridRow8;
-                _gridStatistics.Rows[25].Cells[0].Value = OsLocalization.Journal.GridRow9;
-                _gridStatistics.Rows[26].Cells[0].Value = OsLocalization.Journal.GridRow12;
-                _gridStatistics.Rows[27].Cells[0].Value = "";
-                _gridStatistics.Rows[28].Cells[0].Value = OsLocalization.Journal.GridRow15;
-                _gridStatistics.Rows[29].Cells[0].Value = OsLocalization.Journal.GridRow16;
+                _gridStatistics.Rows[21].Cells[0].Value = OsLocalization.Journal.GridRow13;
+                _gridStatistics.Rows[22].Cells[0].Value = OsLocalization.Journal.GridRow14;
+                _gridStatistics.Rows[23].Cells[0].Value = OsLocalization.Journal.GridRow6;
+                _gridStatistics.Rows[24].Cells[0].Value = OsLocalization.Journal.GridRow7;
+                _gridStatistics.Rows[25].Cells[0].Value = OsLocalization.Journal.GridRow8;
+                _gridStatistics.Rows[26].Cells[0].Value = OsLocalization.Journal.GridRow9;
+                _gridStatistics.Rows[27].Cells[0].Value = OsLocalization.Journal.GridRow12;
+                _gridStatistics.Rows[28].Cells[0].Value = "";
+                _gridStatistics.Rows[29].Cells[0].Value = OsLocalization.Journal.GridRow15;
+                _gridStatistics.Rows[30].Cells[0].Value = OsLocalization.Journal.GridRow16;
             }
             catch (Exception error)
             {
@@ -593,42 +594,42 @@ namespace OsEngine.Journal
 
             if (positionsAllState == null)
             {
-                for (int i = 0; i < 30; i++)
+                for (int i = 0; i < 31; i++)
                 {
                     _gridStatistics.Rows[i].Cells[1].Value = "";
                 }
             }
             if (positionsLongState == null)
             {
-                for (int i = 0; i < 30; i++)
+                for (int i = 0; i < 31; i++)
                 {
                     _gridStatistics.Rows[i].Cells[2].Value = "";
                 }
             }
             if (positionsShortState == null)
             {
-                for (int i = 0; i < 30; i++)
+                for (int i = 0; i < 31; i++)
                 {
                     _gridStatistics.Rows[i].Cells[3].Value = "";
                 }
             }
             if (positionsLongState != null)
             {
-                for (int i = 0; i < 30; i++)
+                for (int i = 0; i < 31; i++)
                 {
                     _gridStatistics.Rows[i].Cells[2].Value = positionsLongState[i].ToString();
                 }
             }
             if (positionsShortState != null)
             {
-                for (int i = 0; i < 30; i++)
+                for (int i = 0; i < 31; i++)
                 {
                     _gridStatistics.Rows[i].Cells[3].Value = positionsShortState[i].ToString();
                 }
             }
             if (positionsAllState != null)
             {
-                for (int i = 0; i < 30; i++)
+                for (int i = 0; i < 31; i++)
                 {
                     _gridStatistics.Rows[i].Cells[1].Value = positionsAllState[i].ToString();
                 }
@@ -868,14 +869,8 @@ namespace OsEngine.Journal
             nullLine.ChartArea = "ChartAreaProfit";
             nullLine.ShadowOffset = 0;
 
-
-
             try
             {
-                /*
-
-                */
-
                 decimal profitSum = 0;
                 decimal profitSumLong = 0;
                 decimal profitSumShort = 0;
@@ -2775,16 +2770,23 @@ namespace OsEngine.Journal
 
             for (int i = 0; i < positionsAll.Count; i++)
             {
-                DateTime timeCreate = positionsAll[i].TimeCreate;
+                Position pose = positionsAll[i];
+
+                if (pose.State == PositionStateType.OpeningFail)
+                {
+                    continue;
+                }
+
+                DateTime timeCreate = pose.TimeCreate;
 
                 if (newPositionsAll.Count == 0 ||
                     newPositionsAll[newPositionsAll.Count - 1].TimeCreate <= timeCreate)
                 {
-                    newPositionsAll.Add(positionsAll[i]);
+                    newPositionsAll.Add(pose);
                 }
                 else if (newPositionsAll[0].TimeCreate >= timeCreate)
                 {
-                    newPositionsAll.Insert(0, positionsAll[i]);
+                    newPositionsAll.Insert(0, pose);
                 }
                 else
                 {
@@ -2793,7 +2795,7 @@ namespace OsEngine.Journal
                         if (newPositionsAll[i2].TimeCreate <= timeCreate &&
                             newPositionsAll[i2 + 1].TimeCreate >= timeCreate)
                         {
-                            newPositionsAll.Insert(i2 + 1, positionsAll[i]);
+                            newPositionsAll.Insert(i2 + 1, pose);
                             break;
                         }
                     }

@@ -24,6 +24,8 @@ using OsEngine.Market;
 using Color = System.Drawing.Color;
 using Grid = System.Windows.Controls.Grid;
 using Rectangle = System.Windows.Shapes.Rectangle;
+using System.Data.SqlTypes;
+using System.Windows.Shapes;
 
 namespace OsEngine.Charts.CandleChart
 {
@@ -353,7 +355,7 @@ namespace OsEngine.Charts.CandleChart
 
             if (_chart.InvokeRequired)
             {
-                _chart.Invoke(new Action(Delete));
+                _chart.Invoke(new Action(ClearDelete));
                 return;
             }
 
@@ -377,6 +379,7 @@ namespace OsEngine.Charts.CandleChart
 
                 _chart.Series.Clear();
                 _chart.ChartAreas.Clear();
+                _chart.Dispose();
                 _chart = null;
             }
 
@@ -388,17 +391,26 @@ namespace OsEngine.Charts.CandleChart
                 _colorKeeper = null;
             }
 
+            if(_areaPositions != null)
+            {
+                _areaPositions.Clear();
+                _areaPositions = null;
+            }
+
+            if (_areaSizes != null)
+            {
+                _areaSizes.Clear();
+                _areaSizes = null;
+            }
 
             _myCandles = null;
-            _areaPositions = null;
-            _areaSizes = null;
             _chartElements = null;
-
             _labelSeries = null;
             _timePoints = null;
             _candlesToPaint = null;
             _indicatorsToPaint = null;
             _positions = null;
+            _alertsToPaint = null;
         }
 
         /// <summary>
@@ -823,7 +835,27 @@ namespace OsEngine.Charts.CandleChart
         public int GetCursorSelectCandleNumber()
         {
             ChartArea candleArea = GetChartArea("Prime");
-            return Convert.ToInt32(candleArea.CursorX.Position);
+
+            if(candleArea.CursorX == null)
+            {
+                return 0;
+            }
+
+            if(double.IsNaN(candleArea.CursorX.Position) ||
+               double.IsInfinity(candleArea.CursorX.Position) ||
+               double.IsPositiveInfinity(candleArea.CursorX.Position))
+            {
+                return 0;
+            }
+
+            try
+            {
+                return Convert.ToInt32(candleArea.CursorX.Position);
+            }
+            catch
+            {
+                return 0;
+            }
         }
 
         public decimal GetCursorSelectPrice()
@@ -1007,6 +1039,11 @@ namespace OsEngine.Charts.CandleChart
                 if (_isDeleted)
                 {
                     ClearDelete();
+
+                    await Task.Delay(1000);
+
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
                     return;
                 }
 
@@ -1163,6 +1200,39 @@ namespace OsEngine.Charts.CandleChart
                     }
                 }
 
+
+                if (!_alertsToPaint.IsEmpty)
+                {
+                    List<AlertToChart> elements = new List<AlertToChart>();
+
+                    while (!_alertsToPaint.IsEmpty)
+                    {
+                        AlertToChart newElement;
+                        _alertsToPaint.TryDequeue(out newElement);
+
+                        if (newElement != null)
+                        {
+                            elements.Add(newElement);
+                        }
+                    }
+
+                    List<AlertToChart> elementsWithoutRepiat = new List<AlertToChart>();
+
+                    for (int i = elements.Count - 1; i > -1; i--)
+                    {
+                        if (elementsWithoutRepiat.Find(element => element.Name == elements[i].Name) == null)
+                        {
+                            elementsWithoutRepiat.Add(elements[i]);
+                        }
+                    }
+
+                    for (int i = 0; i < elementsWithoutRepiat.Count; i++)
+                    {
+                        PaintAlert(elementsWithoutRepiat[i]);
+                    }
+                }
+                
+
                 if (_startProgram == StartProgram.IsTester ||
                     _startProgram == StartProgram.IsOsOptimizer)
                 {
@@ -1206,7 +1276,9 @@ namespace OsEngine.Charts.CandleChart
         /// очередь с индикаторами, которые нужно прорисовать
         /// </summary>
         private ConcurrentQueue<IIndicator> _indicatorsToPaint = new ConcurrentQueue<IIndicator>();
-        
+
+        private ConcurrentQueue<AlertToChart> _alertsToPaint = new ConcurrentQueue<AlertToChart>();
+
         // candles / свечи
 
         /// <summary>
@@ -2373,7 +2445,9 @@ namespace OsEngine.Charts.CandleChart
             if (!string.IsNullOrWhiteSpace(lineElement.Label))
             {
                 newSeries.Label = lineElement.Label;
-                newSeries.LabelForeColor = _colorKeeper.ColorText;
+                newSeries.LabelForeColor = lineElement.LabelTextColor.Name == "0" ? Color.White : lineElement.LabelTextColor;
+                newSeries.Font = lineElement.Font ?? new Font("Arial", 7);
+                newSeries.LabelBackColor = lineElement.LabelBackColor.Name == "0" ? Color.Transparent : lineElement.LabelBackColor;
             }
 
             int firstIndex = 0;
@@ -2482,7 +2556,9 @@ namespace OsEngine.Charts.CandleChart
             if (!string.IsNullOrWhiteSpace(lineElement.Label))
             {
                 newSeries.Label = lineElement.Label;
-                newSeries.LabelForeColor = _colorKeeper.ColorText;
+                newSeries.LabelForeColor = lineElement.LabelTextColor.Name == "0" ? Color.White : lineElement.LabelTextColor;
+                newSeries.Font = lineElement.Font ?? new Font("Arial", 7);
+                newSeries.LabelBackColor = lineElement.LabelBackColor.Name == "0" ? Color.Transparent : lineElement.LabelBackColor;
             }
 
             int firstIndex = 0;
@@ -2602,7 +2678,9 @@ namespace OsEngine.Charts.CandleChart
             newSeries.MarkerStyle = point.Style;
             newSeries.MarkerSize = point.Size;
             newSeries.Label = point.Label;
-            newSeries.LabelForeColor = point.Color;
+            newSeries.LabelForeColor = point.LabelTextColor.Name == "0" ? Color.White : point.LabelTextColor;
+            newSeries.Font = point.Font ?? new Font("Arial", 7);
+            newSeries.LabelBackColor = point.LabelBackColor.Name == "0" ? Color.Transparent : point.LabelBackColor;
 
             newSeries.Points.AddXY(index, point.Y);
 
@@ -2887,7 +2965,7 @@ namespace OsEngine.Charts.CandleChart
 
         // Alerts АЛЕРТЫ
 
-        public void ClearAlerts(List<IIAlert> alertArray)
+        public void RemoveAlert(AlertToChart alertToChart)
         {
             if (_chart == null)
             {
@@ -2895,21 +2973,30 @@ namespace OsEngine.Charts.CandleChart
             }
             if (_chart.InvokeRequired)
             {
-                _chart.Invoke(new Action<List<IIAlert>>(ClearAlerts), alertArray);
+                _chart.Invoke(new Action<AlertToChart>(RemoveAlert), alertToChart);
                 return;
             }
 
             try
             {
-                for (int i = 0; i < _chart.Series.Count; i++)
+                for(int i = 0; alertToChart.Lines != null && i < alertToChart.Lines.Length;i++)
                 {
-                    if (_chart.Series[i].Name.Split('_').Length == 2 && _chart.Series[i].Name.Split('_')[0] == "Alert")
+                    string curLineSeries = "Alert_" + alertToChart.Name + i;
+
+                    for (int i2 = 0; i2 < _chart.Series.Count; i2++)
                     {
-                        _chart.Series.Remove(_chart.Series[i]);
-                        i--;
+                        if (_chart.Series[i2].Name == curLineSeries)
+                        {
+                            ClearLabelOnY2(
+                                _chart.Series[i2].Name + "Label",
+                                _chart.Series[i2].ChartArea,
+                                _chart.Series[i2].Color);
+
+                            ReMoveSeriesSafe(_chart.Series[i2]);
+                            break;
+                        }
                     }
                 }
-
             }
             catch (Exception error)
             {
@@ -2920,7 +3007,111 @@ namespace OsEngine.Charts.CandleChart
             }
         }
 
-        public void PaintAlert(AlertToChart alert)
+        public bool HaveAlertOnChart(AlertToChart alertToChart)
+        {
+
+            try
+            {
+                // 1 проверяем время начала и конца серии
+
+                if(_myCandles == null)
+                {
+                    return false;
+                }
+
+                if(alertToChart.Lines == null)
+                {
+                    return false;
+                }
+
+                DateTime timeLastPoitn = alertToChart.Lines[0].TimeSecondPoint;
+
+                // 2 проверямем последнее значение серии. Чтобы совпадало с тем что на чарте
+
+                for (int i = 0; i < alertToChart.Lines.Length; i++)
+                {
+                    string curLineSeries = "Alert_" + alertToChart.Name + i;
+
+                    ChartAlertLine curLine = alertToChart.Lines[i];
+
+                    for (int i2 = 0; i2 < _chart.Series.Count; i2++)
+                    {
+                        if (_chart.Series[i2].Name == curLineSeries)
+                        { // проверяем значение серии. Чтобы совпадала с серией в алерте
+
+                            DataPoint firstPoint = _chart.Series[i2].Points[0];
+                            DataPoint secondPoint = _chart.Series[i2].Points[1];
+
+                            int x1 = 0;
+                            int x2 = _myCandles.Count - 1;
+                            decimal valueFirst = GetFirstLineAlertPointY(_myCandles, curLine);
+                            decimal valieSecond = GetSecondLineAlertPointY(_myCandles, curLine);
+
+                            if (Convert.ToDecimal(firstPoint.YValues[0]) != valueFirst
+                                || Convert.ToDecimal(secondPoint.YValues[0]) != valieSecond
+                                || Convert.ToInt32(firstPoint.XValue) != x1 
+                                || Convert.ToInt32(secondPoint.XValue) != x2)
+                            {
+                                return false;
+                            }
+
+                            break;
+                        }
+                        if(i2 + 1 == _chart.Series.Count)
+                        {
+                            // не нашли такой линии вообще на чарте
+                            return false;
+                        }
+                    }
+                }
+            }
+            catch (Exception error)
+            {
+                if (LogMessageEvent != null)
+                {
+                    LogMessageEvent(error.ToString(), LogMessageType.Error);
+                }
+            }
+
+            return true;
+        }
+
+        public void ProcessAlert(AlertToChart alert, bool needToWait)
+        {
+            if(_host == null)
+            {
+                return;
+            }
+
+            if ((_startProgram == StartProgram.IsTester
+                || _startProgram == StartProgram.IsOsMiner)
+                || needToWait == false)
+            {
+                PaintAlert(alert);
+            }
+            else
+            {
+                if (_alertsToPaint != null &&
+                   _alertsToPaint.IsEmpty == false
+                    &&
+                    _alertsToPaint.Count > 25)
+                {
+                    AlertToChart res;
+
+                    while (_alertsToPaint.IsEmpty == false &&
+                           _alertsToPaint.Count > 25)
+
+                        _alertsToPaint.TryDequeue(out res);
+                }
+
+                if (_alertsToPaint != null)
+                {
+                    _alertsToPaint.Enqueue(alert);
+                }
+            }
+        }
+
+        private void PaintAlert(AlertToChart alert)
         {
             if (_chart == null)
             {
@@ -3013,6 +3204,8 @@ namespace OsEngine.Charts.CandleChart
 
                 PaintOneLine(alertSeries, _myCandles, lines[i],colorLine, borderWidth, colorLabel, label);
             }
+
+            RePaintRightLebels();
         }
 
         /// <summary>
@@ -3035,6 +3228,17 @@ namespace OsEngine.Charts.CandleChart
             // 2 looking for an index of our points
             // 2 ищем индекс наших точек
 
+            int x1 = 0;
+            int x2 = candles.Count - 1;
+            decimal valueFirst = GetFirstLineAlertPointY(candles, line);
+            decimal valieSecond = GetSecondLineAlertPointY(candles, line);
+
+            mySeries.Points.AddXY(x1, valueFirst);
+            mySeries.Points.AddXY(x2, valieSecond);
+        }
+
+        private decimal GetFirstLineAlertPointY(List<Candle> candles, ChartAlertLine line)
+        {
             int firstPointIndex = -1;
             int secondPointIndex = -1;
             for (int i = 0; i < candles.Count; i++)
@@ -3051,7 +3255,39 @@ namespace OsEngine.Charts.CandleChart
             if (firstPointIndex == -1 ||
                 secondPointIndex == -1)
             {
-                return;
+                return 0;
+            }
+            // 3 find out what kind of movement our candle line goes through.
+            // 3 находим, какое движение проходит наша линия за свечку
+
+            decimal stepCorner; //how long our line goes by candle// сколько наша линия проходит за свечку
+            stepCorner = (line.ValueSecondPoint - line.ValueFirstPoint) / (secondPointIndex - firstPointIndex);
+
+
+            decimal valueFirst = (firstPointIndex * -stepCorner) + line.ValueFirstPoint;
+
+            return Math.Round(valueFirst,13);
+        }
+
+        private decimal GetSecondLineAlertPointY(List<Candle> candles, ChartAlertLine line)
+        {
+            int firstPointIndex = -1;
+            int secondPointIndex = -1;
+            for (int i = 0; i < candles.Count; i++)
+            {
+                if (candles[i].TimeStart == line.TimeFirstPoint)
+                {
+                    firstPointIndex = i;
+                }
+                if (candles[i].TimeStart == line.TimeSecondPoint)
+                {
+                    secondPointIndex = i;
+                }
+            }
+            if (firstPointIndex == -1 ||
+                secondPointIndex == -1)
+            {
+                return 0;
             }
             // 3 find out what kind of movement our candle line goes through.
             // 3 находим, какое движение проходит наша линия за свечку
@@ -3061,16 +3297,11 @@ namespace OsEngine.Charts.CandleChart
 
             stepCorner = (line.ValueSecondPoint - line.ValueFirstPoint) / (secondPointIndex - firstPointIndex);
 
-            int x1 = 0;
-            int x2 = candles.Count - 1;
-
-            decimal valueFirst = (firstPointIndex * -stepCorner) + line.ValueFirstPoint;
-
             decimal valieSecond = ((candles.Count - firstPointIndex) * stepCorner) + line.ValueFirstPoint;
 
-            mySeries.Points.AddXY(x1, valueFirst);
-            mySeries.Points.AddXY(x2, valieSecond);
+            return Math.Round(valieSecond, 13);
         }
+
         // Indicators  ИНДИКАТОРЫ
 
         /// <summary>

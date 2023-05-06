@@ -62,8 +62,6 @@ namespace OsEngine.Layout
             SubscribeEvents(ui, name);           
         }
 
-
-
         private static string _lockerArrayWithWindows = "openUiLocker";
 
         private static void SubscribeEvents(System.Windows.Window ui, string name)
@@ -162,7 +160,21 @@ namespace OsEngine.Layout
             {
                 return;
             }
-           
+
+            if (layout.Left == -32000 ||
+               layout.Top == -32000)
+            {
+                return;
+            }
+
+            if (layout.Left < -50 ||
+              layout.Top < -50 ||
+              layout.Height < 0 ||
+              layout.Widht < 0)
+            {
+                return;
+            }
+
             if (layout.Height < 0 || layout.Widht < 0)
             {
                 return;
@@ -222,7 +234,14 @@ namespace OsEngine.Layout
                         {
                             continue;
                         }
-                                             
+
+                        if (UiOpenWindows[i].Layout.Left == -32000 ||
+                            UiOpenWindows[i].Layout.Top == -32000)
+                        {//свернутое значение окна пропускаем при сохранение
+                            continue;
+                        }
+
+
                         if (UiOpenWindows[i].Layout.Height < 0 || UiOpenWindows[i].Layout.Widht < 0)
                         {
                             continue;

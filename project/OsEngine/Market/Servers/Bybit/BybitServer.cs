@@ -16,7 +16,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.IO;
 using System.Net;
-
+using System.Net.Http;
+using Newtonsoft.Json;
 
 namespace OsEngine.Market.Servers.Bybit
 {
@@ -31,6 +32,7 @@ namespace OsEngine.Market.Servers.Bybit
             CreateParameterPassword(OsLocalization.Market.ServerParamSecretKey, "");
             CreateParameterEnum("Futures Type", "USDT Perpetual", new List<string> { "USDT Perpetual", "Inverse Perpetual" });
             CreateParameterEnum("Net Type", "MainNet", new List<string> { "MainNet", "TestNet" });
+            CreateParameterEnum("Position Mode", "Merged Single", new List<string> { "Merged Single", "Both Side" });
         }
 
         /// <summary>
@@ -43,10 +45,14 @@ namespace OsEngine.Market.Servers.Bybit
         }
     }
 
-    public class BybitServerRealization : AServerRealization
+    public class BybitServerRealization : IServerRealization
     {
         #region Properties
-        public override ServerType ServerType => ServerType.Bybit;
+        public ServerType ServerType => ServerType.Bybit;
+
+        public ServerConnectStatus ServerStatus { get; set; }
+        public List<IServerParameter> ServerParameters { get; set; }
+        public DateTime ServerTime { get; set; }
         #endregion
 
         #region Fields
@@ -62,13 +68,13 @@ namespace OsEngine.Market.Servers.Bybit
 
         private string futures_type = "USDT Perpetual";
         private string net_type = "MainNet";
+        private string hedge_mode = "Merged Single";
 
         private readonly Dictionary<int, string> supported_intervals;
         public List<Portfolio> Portfolios;
         private CancellationTokenSource cancel_token_source;
         private readonly ConcurrentQueue<string> queue_messages_received_from_fxchange;
         private readonly Dictionary<string, Action<JToken>> response_handlers;
-        private object locker = new object();
         private object locker_candles = new object();
         private BybitMarketDepthCreator market_mepth_creator;
         #endregion
@@ -113,13 +119,14 @@ namespace OsEngine.Market.Servers.Bybit
         }
         #endregion
 
-        public override void Connect()
+        public void Connect()
         {
             public_key = ((ServerParameterString)ServerParameters[0]).Value;
             secret_key = ((ServerParameterPassword)ServerParameters[1]).Value;
 
             futures_type = ((ServerParameterEnum)ServerParameters[2]).Value;
             net_type = ((ServerParameterEnum)ServerParameters[3]).Value;
+            hedge_mode = ((ServerParameterEnum)ServerParameters[4]).Value;
 
             if (futures_type != "Inverse Perpetual" && net_type != "TestNet")
             {
@@ -141,6 +148,7 @@ namespace OsEngine.Market.Servers.Bybit
                 client = new Client(public_key, secret_key, true, false);
             }
 
+            last_time_update_socket = DateTime.UtcNow;
             cancel_token_source = new CancellationTokenSource();
             market_mepth_creator = new BybitMarketDepthCreator();
 
@@ -157,10 +165,10 @@ namespace OsEngine.Market.Servers.Bybit
             ws_source_public = new WsSource(client.WsPublicUrl);
             ws_source_public.MessageEvent += WsSourceOnMessageEvent;
             ws_source_public.Start();
-
+            ServerStatus = ServerConnectStatus.Connect;
         }
 
-        public override void Dispose()
+        public void Dispose()
         {
             try
             {
@@ -178,7 +186,7 @@ namespace OsEngine.Market.Servers.Bybit
                     ws_source_public = null;
                 }
 
-                if (cancel_token_source != null && 
+                if (cancel_token_source != null &&
                     !cancel_token_source.IsCancellationRequested)
                 {
                     cancel_token_source.Cancel();
@@ -195,12 +203,13 @@ namespace OsEngine.Market.Servers.Bybit
                 _alreadySubscribleOrders = false;
                 _alreadySubscribleTrades = false;
 
-                OnDisconnectEvent();
+                DisconnectEvent();
             }
             catch (Exception e)
             {
-                SendLogMessage("Bybit dispose error: " + e, LogMessageType.Error);
+                SendLogMessage("Bybit dispose error: " + e.Message + " " + e.StackTrace, LogMessageType.Error);
             }
+            ServerStatus = ServerConnectStatus.Disconnect;
         }
 
         private void WsSourceOnMessageEvent(WsMessageType message_type, string message)
@@ -208,12 +217,12 @@ namespace OsEngine.Market.Servers.Bybit
             if (message_type == WsMessageType.Opened)
             {
                 SendLoginMessage();
-                OnConnectEvent();
+                ConnectEvent();
                 StartPortfolioRequester();
             }
             else if (message_type == WsMessageType.Closed)
             {
-                OnDisconnectEvent();
+                DisconnectEvent();
                 Dispose();
             }
             else if (message_type == WsMessageType.StringData)
@@ -222,9 +231,9 @@ namespace OsEngine.Market.Servers.Bybit
             }
             else if (message_type == WsMessageType.Error)
             {
-                if(message.Contains("no address was supplied"))
+                if (message.Contains("no address was supplied"))
                 {
-                    OnDisconnectEvent();
+                    DisconnectEvent();
                     Dispose();
                 }
 
@@ -280,7 +289,11 @@ namespace OsEngine.Market.Servers.Bybit
                                     continue;
 
 
-                                SendLogMessage("Broken response success marker " + type,  LogMessageType.Error);
+                                SendLogMessage("Broken response success marker " + mes, LogMessageType.Error);
+                                if (mes.Contains("\"auth\"") && mes.Contains("error"))
+                                {
+                                    Dispose();
+                                }
                             }
                         }
 
@@ -300,7 +313,7 @@ namespace OsEngine.Market.Servers.Bybit
 
                         else
                         {
-                            SendLogMessage("Broken response topic marker " + response.First.Path,  LogMessageType.Error);
+                            SendLogMessage("Broken response topic marker " + mes, LogMessageType.Error);
                         }
                     }
                     else
@@ -333,10 +346,10 @@ namespace OsEngine.Market.Servers.Bybit
                 {
                     continue;
                 }
-                if (last_time_update_socket.AddSeconds(60) < DateTime.Now)
+                if (last_time_update_socket.AddSeconds(60) < DateTime.UtcNow)
                 {
                     SendLogMessage("The websocket is disabled. Restart", LogMessageType.Error);
-                    OnDisconnectEvent();
+                    ConnectEvent();
                     return;
                 }
             }
@@ -344,6 +357,41 @@ namespace OsEngine.Market.Servers.Bybit
 
 
         #region Запросы Rest
+
+        private void SetPositionMode(Security security)
+        {
+            try
+            {
+                int mode = hedge_mode.Equals("Merged Single") ? 0 : 3;
+                Dictionary<string, string> parameters = new Dictionary<string, string>();
+                parameters.Add("mode", $"{mode}");
+                parameters.Add("symbol", security.Name);
+                parameters.Add("coin", null);
+                parameters.Add("api_key", client.ApiKey);
+                parameters.Add("recv_window", "90000000");
+                DateTime time = GetServerTime();
+
+                var res = CreatePrivatePostQuery(client, "/contract/v3/private/position/switch-mode", parameters, time);
+
+                string json = res.ToString();
+
+                PositionModeResponse posMode = JsonConvert.DeserializeObject<PositionModeResponse>(json);
+
+
+                if (posMode.retCode.Equals("140025") || posMode.retCode.Equals("0"))
+                {
+                    return;
+                }
+                else
+                {
+                    throw new Exception(posMode.retMsg);
+                }
+            }
+            catch (Exception error)
+            {
+                SendLogMessage(error.Message, LogMessageType.Error);
+            }
+        }
 
         private async void PortfolioRequester(CancellationToken token)
         {
@@ -369,98 +417,117 @@ namespace OsEngine.Market.Servers.Bybit
 
         private void GetPositions()
         {
-            // https://api-testnet.bybit.com/private/linear/position/list?api_key={api_key}&symbol=BTCUSDT&timestamp={timestamp}&sign={sign}"
-
-            // /private/linear/position/list
-
-            Dictionary<string, string> parameters = new Dictionary<string, string>();
-            parameters.Add("api_key", client.ApiKey);
-            parameters.Add("recv_window", "90000000");
-
-            JToken account_response = CreatePrivateGetQuery(client, "/private/linear/position/list", parameters);
-
-            if (account_response == null)
+            try
             {
-                return;
-            }
+                // https://api-testnet.bybit.com/private/linear/position/list?api_key={api_key}&symbol=BTCUSDT&timestamp={timestamp}&sign={sign}"
 
-            if (_portfolios == null ||
-                 _portfolios.Count == 0)
-            {
-                return;
-            }
+                // /private/linear/position/list
 
-            Portfolio myPortf = null;
+                Dictionary<string, string> parameters = new Dictionary<string, string>();
+                parameters.Add("api_key", client.ApiKey);
+                parameters.Add("recv_window", "90000000");
 
-            for(int i = 0;i < _portfolios.Count;i++)
-            {
-                if(_portfolios[i].Number == "BybitPortfolio")
+                JToken account_response = CreatePrivateGetQuery(client, "/private/linear/position/list", parameters);
+
+                if (account_response == null)
                 {
-                    myPortf = _portfolios[i];
+                    return;
                 }
-            }
 
-            if(myPortf == null)
+                if (_portfolios == null ||
+                     _portfolios.Count == 0)
+                {
+                    return;
+                }
+
+                Portfolio myPortf = null;
+
+                for (int i = 0; i < _portfolios.Count; i++)
+                {
+                    if (_portfolios[i].Number == null)
+                    {
+                        return;
+                    }
+                    if (_portfolios[i].Number == "BybitPortfolio")
+                    {
+                        myPortf = _portfolios[i];
+                    }
+                }
+
+                if (myPortf == null)
+                {
+                    return;
+                }
+
+                List<PositionOnBoard> poses = BybitPortfolioCreator.CreatePosOnBoard(account_response.SelectToken("result"));
+
+                if (poses == null)
+                {
+                    return;
+                }
+
+                for (int i = 0; i < poses.Count; i++)
+                {
+                    myPortf.SetNewPosition(poses[i]);
+                }
+
+                PortfolioEvent(_portfolios);
+            }
+            catch (Exception)
             {
-                return;
+                //ignore
             }
-
-            List<PositionOnBoard> poses = BybitPortfolioCreator.CreatePosOnBoard(account_response.SelectToken("result"));
-
-            if(poses == null)
-            {
-                return;
-            }
-
-            for(int i = 0;i < poses.Count;i++)
-            {
-                myPortf.SetNewPosition(poses[i]);
-            }
-
-            OnPortfolioEvent(_portfolios);
         }
 
-        public override void GetPortfolios()
+        public void GetPortfolios()
         {
-            List<Portfolio> portfolios = new List<Portfolio>();
-
-            Dictionary<string, string> parameters = new Dictionary<string, string>();
-
-            parameters.Add("api_key", client.ApiKey);
-            parameters.Add("recv_window", "90000000");
-
-            JToken account_response = CreatePrivateGetQuery(client, "/v2/private/wallet/balance", parameters );
-
-            if (account_response == null)
+            try
             {
-                return;
+                List<Portfolio> portfolios = new List<Portfolio>();
+
+                Dictionary<string, string> parameters = new Dictionary<string, string>();
+
+                parameters.Add("api_key", client.ApiKey);
+                parameters.Add("recv_window", "90000000");
+
+                JToken account_response = CreatePrivateGetQuery(client, "/v2/private/wallet/balance", parameters);
+
+                if (account_response == null)
+                {
+                    return;
+                }
+
+                string isSuccessfull = account_response.SelectToken("ret_msg").Value<string>();
+
+                if (isSuccessfull == "OK")
+                {
+                    portfolios.Add(BybitPortfolioCreator.Create(account_response.SelectToken("result"), "BybitPortfolio"));
+                }
+                else
+                {
+                    SendLogMessage($"Can not get portfolios info.", LogMessageType.Error);
+                    SendLogMessage(isSuccessfull, LogMessageType.Error);
+
+                    portfolios.Add(BybitPortfolioCreator.Create("undefined"));
+                }
+
+                PortfolioEvent(portfolios);
+                _portfolios = portfolios;
             }
-
-            string isSuccessfull = account_response.SelectToken("ret_msg").Value<string>();
-
-            if (isSuccessfull == "OK")
+            catch (Exception)
             {
-                portfolios.Add(BybitPortfolioCreator.Create(account_response.SelectToken("result"), "BybitPortfolio"));
+                //ignore
             }
-            else
-            {
-                SendLogMessage($"Can not get portfolios info.", LogMessageType.Error);
-                SendLogMessage($"You should set the time on the PC as UTC time.", LogMessageType.Error);
-
-                portfolios.Add(BybitPortfolioCreator.Create("undefined"));
-            }
-
-            OnPortfolioEvent(portfolios);
-            _portfolios = portfolios;
+            
         } // both futures
 
         List<Portfolio> _portfolios;
 
-        public override void GetSecurities() // both futures
+        public void GetSecurities() // both futures
         {
             JToken account_response = CreatePublicGetQuery(client, "/v2/public/symbols");
 
-            if(account_response == null)
+            if (account_response == null)
             {
                 return;
             }
@@ -469,7 +536,7 @@ namespace OsEngine.Market.Servers.Bybit
 
             if (isSuccessfull == "OK")
             {
-                OnSecurityEvent(BybitSecurityCreator.Create(account_response.SelectToken("result"), futures_type));
+                SecurityEvent(BybitSecurityCreator.Create(account_response.SelectToken("result"), futures_type));
             }
             else
             {
@@ -477,7 +544,7 @@ namespace OsEngine.Market.Servers.Bybit
             }
         }
 
-        public override void SendOrder(Order order)
+        public void SendOrder(Order order)
         {
             if (order.TypeOrder == OrderPriceType.Iceberg)
             {
@@ -504,7 +571,7 @@ namespace OsEngine.Market.Servers.Bybit
             parameters.Add("api_key", client.ApiKey);
             parameters.Add("side", side);
             parameters.Add("order_type", type);
-            parameters.Add("referer", "api.OsEngine");
+            //parameters.Add("referer", "OsEngine");
             parameters.Add("qty", order.Volume.ToString().Replace(",", "."));
             parameters.Add("time_in_force", "GoodTillCancel");
             parameters.Add("order_link_id", order.NumberUser.ToString());
@@ -529,7 +596,7 @@ namespace OsEngine.Market.Servers.Bybit
             {
                 SendLogMessage($"Internet Error. Order exchange error num {order.NumberUser}", LogMessageType.Error);
                 order.State = OrderStateType.Fail;
-                OnOrderEvent(order);
+                MyOrderEvent(order);
                 return;
             }
 
@@ -540,22 +607,22 @@ namespace OsEngine.Market.Servers.Bybit
                 SendLogMessage($"Order num {order.NumberUser} on exchange.", LogMessageType.Trade);
                 order.State = OrderStateType.Activ;
 
-                var ordChild = place_order_response.SelectToken("result"); 
+                var ordChild = place_order_response.SelectToken("result");
 
                 order.NumberMarket = ordChild.SelectToken("order_id").ToString();
 
-                OnOrderEvent(order);
+                MyOrderEvent(order);
             }
             else
             {
                 SendLogMessage($"Order exchange error num {order.NumberUser}" + isSuccessful, LogMessageType.Error);
                 order.State = OrderStateType.Fail;
 
-                OnOrderEvent(order);
+                MyOrderEvent(order);
             }
         } // both futures
 
-        public override void CancelOrder(Order order)
+        public void CancelOrder(Order order)
         {
             Dictionary<string, string> parameters = new Dictionary<string, string>();
 
@@ -570,14 +637,14 @@ namespace OsEngine.Market.Servers.Bybit
             if (futures_type == "Inverse Perpetual")
                 cancel_order_response = CreatePrivatePostQuery(client, "/v2/private/order/cancel", parameters, time); ///private/linear/order/cancel
             else
-                cancel_order_response = CreatePrivatePostQuery(client, "/private/linear/order/cancel", parameters, time); 
-            
+                cancel_order_response = CreatePrivatePostQuery(client, "/private/linear/order/cancel", parameters, time);
+
             var isSuccessful = cancel_order_response.SelectToken("ret_msg").Value<string>();
 
             if (isSuccessful == "OK")
             {
                 order.State = OrderStateType.Cancel;
-                OnOrderEvent(order);
+                MyOrderEvent(order);
             }
             else
             {
@@ -585,7 +652,7 @@ namespace OsEngine.Market.Servers.Bybit
             }
         } // both
 
-        public override void GetOrdersState(List<Order> orders)
+        public void GetOrdersState(List<Order> orders)
         {
             foreach (Order order in orders)
             {
@@ -597,7 +664,7 @@ namespace OsEngine.Market.Servers.Bybit
                 parameters.Add("recv_window", "90000000");
 
                 JToken account_response;
-                if(futures_type == "Inverse Perpetual")
+                if (futures_type == "Inverse Perpetual")
                     account_response = CreatePrivateGetQuery(client, "/v2/private/order", parameters); ///private/linear/order/search
                 else
                     account_response = CreatePrivateGetQuery(client, "/private/linear/order/search", parameters);
@@ -611,7 +678,7 @@ namespace OsEngine.Market.Servers.Bybit
 
                 if (isSuccessfull == "OK")
                 {
-                    if(account_response.SelectToken("result") == null)
+                    if (account_response.SelectToken("result") == null)
                     {
                         continue;
                     }
@@ -661,7 +728,7 @@ namespace OsEngine.Market.Servers.Bybit
 
             if (t == null)
             {
-                return DateTime.Now;
+                return DateTime.UtcNow;
             }
 
             JToken tt = t.Root.SelectToken("time_now");
@@ -683,11 +750,13 @@ namespace OsEngine.Market.Servers.Bybit
 
         List<string> _alreadySubSec = new List<string>();
 
-        public override void Subscrible(Security security)
+        public void Subscrible(Security security)
         {
-            for(int i = 0;i < _alreadySubSec.Count;i++)
+            SetPositionMode(security);
+
+            for (int i = 0; i < _alreadySubSec.Count; i++)
             {
-                if(_alreadySubSec[i] == security.Name)
+                if (_alreadySubSec[i] == security.Name)
                 {
                     return;
                 }
@@ -724,7 +793,7 @@ namespace OsEngine.Market.Servers.Bybit
 
         private void SubscribeOrders()
         {
-            if(_alreadySubscribleOrders)
+            if (_alreadySubscribleOrders)
             {
                 return;
             }
@@ -756,7 +825,7 @@ namespace OsEngine.Market.Servers.Bybit
 
         private void HandlePingMessage(JToken response)
         {
-            last_time_update_socket = DateTime.Now;
+            last_time_update_socket = DateTime.UtcNow;
         }
 
         private void HandleSubscribeMessage(JToken response)
@@ -782,7 +851,24 @@ namespace OsEngine.Market.Servers.Bybit
 
             foreach (var depth in new_md_list)
             {
-                OnMarketDepthEvent(depth);
+                SortAsksMarketDepth(depth);
+                MarketDepthEvent(depth);
+            }
+        }
+
+        private void SortAsksMarketDepth(MarketDepth depths)
+        {
+            for (int i = depths.Asks.Count - 1; i >= 0; i--)
+            {
+                for (int j = 0; j < i; j++)
+                {
+                    if (depths.Asks[j].Price > depths.Asks[j + 1].Price)
+                    {
+                        var tmp = depths.Asks[j + 1];
+                        depths.Asks[j + 1] = depths.Asks[j];
+                        depths.Asks[j] = tmp;
+                    }
+                }
             }
         }
 
@@ -792,7 +878,7 @@ namespace OsEngine.Market.Servers.Bybit
 
             foreach (var trade in new_trades)
             {
-                OnTradeEvent(trade);
+                NewTradesEvent(trade);
             }
         }
 
@@ -802,7 +888,7 @@ namespace OsEngine.Market.Servers.Bybit
 
             foreach (var order in new_my_orders)
             {
-                OnOrderEvent(order);
+                MyOrderEvent(order);
             }
         }
 
@@ -812,7 +898,7 @@ namespace OsEngine.Market.Servers.Bybit
 
             foreach (var trade in new_my_trades)
             {
-                OnMyTradeEvent(trade);
+                MyTradeEvent(trade);
             }
         }
 
@@ -827,7 +913,7 @@ namespace OsEngine.Market.Servers.Bybit
             return GetCandles((int)tf.TotalMinutes, nameSec, DateTime.UtcNow - diff, DateTime.UtcNow);
         }
 
-        public override List<Candle> GetCandleDataToSecurity(Security security, TimeFrameBuilder time_frame_builder, DateTime start_time, DateTime end_time, DateTime actual_time)
+        public List<Candle> GetCandleDataToSecurity(Security security, TimeFrameBuilder time_frame_builder, DateTime start_time, DateTime end_time, DateTime actual_time)
         {
             List<Candle> candles = new List<Candle>();
 
@@ -855,14 +941,14 @@ namespace OsEngine.Market.Servers.Bybit
                 while (true)
                 {
                     var from = TimeManager.GetTimeStampSecondsToDateTime(start_time);
-                
+
                     if (end_over <= start_time)
                     {
                         break;
                     }
 
-                    List<Candle> new_candles = 
-                        BybitCandlesCreator.GetCandleCollection(client, security, need_interval_for_query, from,this);
+                    List<Candle> new_candles =
+                        BybitCandlesCreator.GetCandleCollection(client, security, need_interval_for_query, from, this);
 
                     if (new_candles != null && new_candles.Count != 0)
                         tmp_candles.AddRange(new_candles);
@@ -893,7 +979,7 @@ namespace OsEngine.Market.Servers.Bybit
         #endregion
 
         #region Работа с тиками
-        public override List<Trade> GetTickDataToSecurity(Security security, DateTime start_time, DateTime end_time, DateTime actual_time)
+        public List<Trade> GetTickDataToSecurity(Security security, DateTime start_time, DateTime end_time, DateTime actual_time)
         {
             List<Trade> trades = new List<Trade>();
 
@@ -914,12 +1000,12 @@ namespace OsEngine.Market.Servers.Bybit
                 List<Trade> result_trades = new List<Trade>();
                 DateTime end_over = end_time;
 
-                List<Trade> point_trades = BybitTradesCreator.GetTradesCollection(client, security, 1, -1,this);
+                List<Trade> point_trades = BybitTradesCreator.GetTradesCollection(client, security, 1, -1, this);
                 int last_trade_id = Convert.ToInt32(point_trades.Last().Id);
 
                 while (true)
                 {
-                    List<Trade> new_trades = BybitTradesCreator.GetTradesCollection(client, security, 1000, last_trade_id - 1000,this);
+                    List<Trade> new_trades = BybitTradesCreator.GetTradesCollection(client, security, 1000, last_trade_id - 1000, this);
 
                     if (new_trades != null && new_trades.Count != 0)
                     {
@@ -960,7 +1046,6 @@ namespace OsEngine.Market.Servers.Bybit
         #endregion
 
         RateGate _rateGate = new RateGate(1, TimeSpan.FromMilliseconds(100));
-
         public JToken CreatePrivateGetQuery(Client client, string end_point, Dictionary<string, string> parameters)
         {
             //int time_factor = 1;
@@ -989,28 +1074,13 @@ namespace OsEngine.Market.Servers.Bybit
 
                 Uri uri = new Uri(url + $"&sign=" + BybitSigner.CreateSignature(client, str_params));
 
-                var http_web_request = (HttpWebRequest)WebRequest.Create(uri);
 
-                http_web_request.Method = "Get";
+                HttpClient httpClient = new HttpClient();
+                httpClient.DefaultRequestHeaders.Add("referer", "OsEngine");
+                var res = httpClient.GetAsync(uri).Result;
+                string response_msg = res.Content.ReadAsStringAsync().Result;
 
-                http_web_request.Host = client.RestUrl.Replace($"https://", "");
-
-
-                HttpWebResponse http_web_response = (HttpWebResponse)http_web_request.GetResponse();
-
-                string response_msg;
-
-                using (var stream = http_web_response.GetResponseStream())
-                {
-                    using (StreamReader reader = new StreamReader(stream ?? throw new InvalidOperationException()))
-                    {
-                        response_msg = reader.ReadToEnd();
-                    }
-                }
-
-                http_web_response.Close();
-
-                if (http_web_response.StatusCode != HttpStatusCode.OK)
+                if (res.StatusCode != HttpStatusCode.OK)
                 {
                     throw new Exception("Failed request " + response_msg);
                 }
@@ -1102,39 +1172,43 @@ namespace OsEngine.Market.Servers.Bybit
 
             string str_data = "{" + sb.ToString() + "}";
 
-            byte[] data = Encoding.UTF8.GetBytes(str_data);
 
-            Uri uri = new Uri(url);
+            HttpClient httpClient = new HttpClient();
 
-            var http_web_request = (HttpWebRequest)WebRequest.Create(uri);
+            StringContent content = new StringContent(str_data, Encoding.UTF8, "application/json");
+            httpClient.DefaultRequestHeaders.Add("referer", "OsEngine");
+            var res = httpClient.PostAsync(url, content).Result;
+            string response_msg = res.Content.ReadAsStringAsync().Result;
 
-            http_web_request.Method = "POST";
-
-            http_web_request.ContentType = "application/json";
-
-            http_web_request.ContentLength = data.Length;
-
-            using (Stream req_tream = http_web_request.GetRequestStream())
-            {
-                req_tream.Write(data, 0, data.Length);
-            }
-
-            HttpWebResponse httpWebResponse = (HttpWebResponse)http_web_request.GetResponse();
-
-            string response_msg;
-
-            using (var stream = httpWebResponse.GetResponseStream())
-            {
-                using (StreamReader reader = new StreamReader(stream))
-                {
-                    response_msg = reader.ReadToEnd();
-                }
-            }
-
-            httpWebResponse.Close();
 
             return JToken.Parse(response_msg);
         }
 
+
+        public void SendLogMessage(string message, LogMessageType logMessageType)
+        {
+            LogMessageEvent(message, logMessageType);
+        }
+
+
+        public event Action<Order> MyOrderEvent;
+        public event Action<MyTrade> MyTradeEvent;
+        public event Action<List<Portfolio>> PortfolioEvent;
+        public event Action<List<Security>> SecurityEvent;
+        public event Action<MarketDepth> MarketDepthEvent;
+        public event Action<Trade> NewTradesEvent;
+        public event Action ConnectEvent;
+        public event Action DisconnectEvent;
+        public event Action<string, LogMessageType> LogMessageEvent;
+
+        public void CancelAllOrders()
+        {
+            
+        }
+
+        public void ResearchTradesToOrders(List<Order> orders)
+        {
+           
+        }
     }
 }

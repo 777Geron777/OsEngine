@@ -3,10 +3,7 @@
  * Ваши права на использование кода регулируются данной лицензией http://o-s-a.net/doc/license_simple_engine.pdf
 */
 
-using System;
-using System.Globalization;
 using System.Windows;
-using OsEngine.Charts.CandleChart;
 using OsEngine.Entity;
 using OsEngine.Language;
 using OsEngine.Market;
@@ -23,20 +20,25 @@ namespace OsEngine.OsTrader.Gui
         {
             InitializeComponent();
             OsEngine.Layout.StickyBorders.Listen(this);
-            ServerMaster.SetHostTable(HostPositionOnBoard, HostOrdersOnBoard);
+
+            ServerMaster.SetHostTable(HostPositionOnBoard, HostActiveOrders, HostHistoricalOrders);
+
             ServerMaster.CreateServer(ServerType.Tester, false);
             ServerMaster.GetServers();
 
             _strategyKeeper = new OsTraderMaster(null,
-                null, null, null, null, HostAllPosition,
+                null, null, null, null,
                 null, HostBotLogPrime, null, null, null, null, null,
                 null, StartProgram.IsTester);
+
+            _strategyKeeper.CreateGlobalPositionController(HostActivePoses, HostHistoricalPoses);
+
             LabelOsa.Content = "V_" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
 
             Closing += TesterUi_Closing;
             Local();
 
-            BotTabsPainter painter = new BotTabsPainter(_strategyKeeper,BotsHost);
+            BotTabsPainter painter = new BotTabsPainter(_strategyKeeper, BotsHost);
 
             TabControlPrime.SelectionChanged += TabControlPrime_SelectionChanged;
             TabControlPrime.MouseEnter += TabControlPrime_MouseEnter;
@@ -45,15 +47,23 @@ namespace OsEngine.OsTrader.Gui
             this.Activate();
             this.Focus();
             GlobalGUILayout.Listen(this, "testerUiLight");
+
+            rectToMove.MouseEnter += GreedChartPanel_MouseEnter;
+            rectToMove.MouseLeave += GreedChartPanel_MouseLeave;
+            rectToMove.MouseDown += GreedChartPanel_MouseDown;
         }
 
         private void Local()
         {
             TabItemAllPos.Header = OsLocalization.Trader.Label20;
-            TextBoxPositionBord.Header = OsLocalization.Trader.Label21;
-            TextBoxPositionAllOrders.Header = OsLocalization.Trader.Label22;
+            TabPortfolios.Header = OsLocalization.Trader.Label21;
+            TabOrders.Header = OsLocalization.Trader.Label22;
             TabItemLogPrime.Header = OsLocalization.Trader.Label24;
             TabItemControl.Header = OsLocalization.Trader.Label37;
+            TabActivePos.Header =  OsLocalization.Trader.Label187;
+            TabHistoricalPos.Header =  OsLocalization.Trader.Label188;
+            TabActiveOrders.Header = OsLocalization.Trader.Label189;
+            TabHistoricalOrders.Header = OsLocalization.Trader.Label190;
         }
 
         void TesterUi_Closing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -100,6 +110,37 @@ namespace OsEngine.OsTrader.Gui
         private void TabControlPrime_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
         {
             _mouseOnTabControl = true;
+        }
+
+        // смещение областей
+
+        private void GreedChartPanel_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (GreedChartPanel.Cursor == System.Windows.Input.Cursors.ScrollN)
+            {
+                GridPrime.RowDefinitions[1].Height = new GridLength(500, GridUnitType.Pixel);
+            }
+            else if (GreedChartPanel.Cursor == System.Windows.Input.Cursors.ScrollS)
+            {
+                GridPrime.RowDefinitions[1].Height = new GridLength(190, GridUnitType.Pixel);
+            }
+        }
+
+        private void GreedChartPanel_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            GreedChartPanel.Cursor = System.Windows.Input.Cursors.Arrow;
+        }
+
+        private void GreedChartPanel_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            if(GridPrime.RowDefinitions[1].Height.Value == 190)
+            {
+                GreedChartPanel.Cursor = System.Windows.Input.Cursors.ScrollN;
+            }
+            if (GridPrime.RowDefinitions[1].Height.Value == 500)
+            {
+                GreedChartPanel.Cursor = System.Windows.Input.Cursors.ScrollS;
+            }
         }
     }
 }

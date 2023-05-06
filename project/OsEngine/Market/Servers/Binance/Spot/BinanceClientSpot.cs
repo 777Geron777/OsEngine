@@ -436,33 +436,32 @@ namespace OsEngine.Market.Servers.Binance.Spot
                         if (i != 0)
                         {
                             string upd = res2[i].Substring(2);
-                            var param = upd.Split(new char[] { ',' });
+                            upd = upd.Replace("\"", "");
+                            string[] param = upd.Split(',');
 
                             newCandle = new Candle();
                             newCandle.TimeStart = new DateTime(1970, 1, 1).AddMilliseconds(Convert.ToDouble(param[0]));
-                            newCandle.Low = Convert.ToDecimal(param[3].Replace(",", CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator).Trim(new char[] { '"', '"' }), CultureInfo.InvariantCulture);
-                            newCandle.High = Convert.ToDecimal(param[2].Replace(",", CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator).Trim(new char[] { '"', '"' }), CultureInfo.InvariantCulture);
-                            newCandle.Open = Convert.ToDecimal(param[1].Replace(",", CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator).Trim(new char[] { '"', '"' }), CultureInfo.InvariantCulture);
-                            newCandle.Close = Convert.ToDecimal(param[4].Replace(",", CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator).Trim(new char[] { '"', '"' }), CultureInfo.InvariantCulture);
-                            newCandle.Volume = Convert.ToDecimal(param[5].Replace(",", CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator).Trim(new char[] { '"', '"' }), CultureInfo.InvariantCulture);
-
+                            newCandle.Low = param[3].ToDecimal();
+                            newCandle.High = param[2].ToDecimal();
+                            newCandle.Open = param[1].ToDecimal();
+                            newCandle.Close = param[4].ToDecimal();
+                            newCandle.Volume = param[5].ToDecimal();
                             _candles.Add(newCandle);
                         }
                         else
                         {
-                            var param = res2[i].Split(new char[] { ',' });
+                            string[] param = res2[i].Replace("\"", "").Split(',');
 
                             newCandle = new Candle();
                             newCandle.TimeStart = new DateTime(1970, 1, 1).AddMilliseconds(Convert.ToDouble(param[0]));
-                            newCandle.Low = Convert.ToDecimal(param[3].Replace(",", CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator).Trim(new char[] { '"', '"' }), CultureInfo.InvariantCulture);
-                            newCandle.High = Convert.ToDecimal(param[2].Replace(",", CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator).Trim(new char[] { '"', '"' }), CultureInfo.InvariantCulture);
-                            newCandle.Open = Convert.ToDecimal(param[1].Replace(",", CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator).Trim(new char[] { '"', '"' }), CultureInfo.InvariantCulture);
-                            newCandle.Close = Convert.ToDecimal(param[4].Replace(",", CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator).Trim(new char[] { '"', '"' }), CultureInfo.InvariantCulture);
-                            newCandle.Volume = Convert.ToDecimal(param[5].Replace(",", CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator).Trim(new char[] { '"', '"' }), CultureInfo.InvariantCulture);
+                            newCandle.Low = param[3].ToDecimal();
+                            newCandle.High = param[2].ToDecimal();
+                            newCandle.Open = param[1].ToDecimal();
+                            newCandle.Close = param[4].ToDecimal();
+                            newCandle.Volume = param[5].ToDecimal();
 
                             _candles.Add(newCandle);
                         }
-
                     }
 
                     return _candles;
@@ -588,58 +587,6 @@ namespace OsEngine.Market.Servers.Binance.Spot
             return null;
         }
 
-        public List<Trade> GetTickHistoryToSecurity(Security security, string lastId)
-        {
-            try
-            {
-
-                List<Trade> newTrades = new List<Trade>();
-
-                Dictionary<string, string> param = new Dictionary<string, string>();
-
-                if (string.IsNullOrEmpty(lastId) == false)
-                {
-                    param.Add("symbol=" + security.Name, "&limit=1000" + "&fromId=" + lastId);
-                }
-                else
-                {
-                    param.Add("symbol=" + security.Name, "&limit=1000");
-                }
-
-
-                string endPoint = "api/v1/historicalTrades";
-
-                var res2 = CreateQuery(BinanceExchangeType.SpotExchange, Method.GET, endPoint, param, false);
-
-                List<HistoryTrade> tradeHistory = JsonConvert.DeserializeAnonymousType(res2, new List<HistoryTrade>());
-
-                //tradeHistory.Reverse();
-
-                foreach (var trades in tradeHistory)
-                {
-                    Trade trade = new Trade();
-                    trade.SecurityNameCode = security.Name;
-                    trade.Price = trades.price.ToDecimal();
-
-                    trade.Id = trades.id.ToString();
-                    trade.Time = new DateTime(1970, 1, 1).AddMilliseconds(Convert.ToDouble(trades.time));
-                    trade.Volume =
-                            trades.qty.ToDecimal();
-                    trade.Side = Convert.ToBoolean(trades.isBuyerMaker) == true ? Side.Buy : Side.Sell;
-
-                    newTrades.Add(trade);
-                }
-
-                return newTrades;
-
-            }
-            catch (Exception error)
-            {
-                SendLogMessage(error.ToString(), LogMessageType.Error);
-                return null;
-            }
-        }
-
         /// <summary>
         /// take candles
         /// взять свечи
@@ -760,6 +707,11 @@ namespace OsEngine.Market.Servers.Binance.Spot
         private List<Candle> BuildCandles(List<Candle> oldCandles, int needTf, int oldTf)
         {
             List<Candle> newCandles = new List<Candle>();
+
+            if(oldCandles == null)
+            {
+                return null;
+            }
 
             int index = oldCandles.FindIndex(can => can.TimeStart.Minute % needTf == 0);
 
@@ -974,12 +926,17 @@ namespace OsEngine.Market.Servers.Binance.Spot
                         return;
                     }
 
+                    string TypeOrder = order.TypeOrder == OrderPriceType.Market ? "MARKET" : "LIMIT";
+
                     Dictionary<string, string> param = new Dictionary<string, string>();
 
                     param.Add("symbol=", order.SecurityNameCode.ToUpper());
                     param.Add("&side=", order.Side == Side.Buy ? "BUY" : "SELL");
-                    param.Add("&type=", "LIMIT");
-                    param.Add("&timeInForce=", "GTC");
+                    param.Add("&type=", TypeOrder);
+                    if (TypeOrder.Equals("LIMIT"))
+                    {
+                        param.Add("&timeInForce=", "GTC");
+                    }
                     param.Add("&newClientOrderId=", "x-RKXTQ2AK" + order.NumberUser.ToString());
 
                     if (order.PositionConditionType == OrderPositionConditionType.Open)
@@ -994,9 +951,12 @@ namespace OsEngine.Market.Servers.Binance.Spot
                     param.Add("&quantity=",
                         order.Volume.ToString(CultureInfo.InvariantCulture)
                             .Replace(CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator, "."));
-                    param.Add("&price=",
+                    if (TypeOrder.Equals("LIMIT"))
+                    {
+                        param.Add("&price=",
                         order.Price.ToString(CultureInfo.InvariantCulture)
                             .Replace(CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator, "."));
+                    }
 
                     var res = CreateQuery(BinanceExchangeType.SpotExchange, Method.POST, "/sapi/v1/margin/order", param, true);
 
@@ -1034,17 +994,26 @@ namespace OsEngine.Market.Servers.Binance.Spot
 
                     Dictionary<string, string> param = new Dictionary<string, string>();
 
+                    string TypeOrder = order.TypeOrder == OrderPriceType.Market ? "MARKET" : "LIMIT";
+
                     param.Add("symbol=", order.SecurityNameCode.ToUpper());
                     param.Add("&side=", order.Side == Side.Buy ? "BUY" : "SELL");
-                    param.Add("&type=", "LIMIT");
-                    param.Add("&timeInForce=", "GTC");
+                    param.Add("&type=", TypeOrder);
+                    if (TypeOrder.Equals("LIMIT"))
+                    {
+                        param.Add("&timeInForce=", "GTC");
+                    }
                     param.Add("&newClientOrderId=", "x-RKXTQ2AK" + order.NumberUser.ToString());
                     param.Add("&quantity=",
                         order.Volume.ToString(CultureInfo.InvariantCulture)
                             .Replace(CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator, "."));
-                    param.Add("&price=",
-                        order.Price.ToString(CultureInfo.InvariantCulture)
-                            .Replace(CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator, "."));
+                    if (TypeOrder.Equals("LIMIT"))
+                    {
+                        param.Add("&price=",
+                      order.Price.ToString(CultureInfo.InvariantCulture)
+                          .Replace(CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator, "."));
+                    }
+                  
 
                     var res = CreateQuery(BinanceExchangeType.SpotExchange, Method.POST, "api/v3/order", param, true);
 
@@ -1631,7 +1600,7 @@ namespace OsEngine.Market.Servers.Binance.Spot
                                     newOrder.Volume = order.q.ToDecimal();
                                     newOrder.Price = order.p.ToDecimal();
                                     newOrder.ServerType = ServerType.Binance;
-                                    newOrder.PortfolioNumber = newOrder.SecurityNameCode;
+                                    newOrder.PortfolioNumber = "Binance";
 
                                     if (MyOrderEvent != null)
                                     {
@@ -1651,7 +1620,7 @@ namespace OsEngine.Market.Servers.Binance.Spot
                                     newOrder.Volume = order.q.ToDecimal();
                                     newOrder.Price = order.p.ToDecimal();
                                     newOrder.ServerType = ServerType.Binance;
-                                    newOrder.PortfolioNumber = newOrder.SecurityNameCode;
+                                    newOrder.PortfolioNumber = "Binance";
 
                                     if (MyOrderEvent != null)
                                     {
@@ -1670,7 +1639,7 @@ namespace OsEngine.Market.Servers.Binance.Spot
                                     newOrder.Volume = order.q.ToDecimal();
                                     newOrder.Price = order.p.ToDecimal();
                                     newOrder.ServerType = ServerType.Binance;
-                                    newOrder.PortfolioNumber = newOrder.SecurityNameCode;
+                                    newOrder.PortfolioNumber = "Binance";
 
                                     if (MyOrderEvent != null)
                                     {
@@ -1707,7 +1676,7 @@ namespace OsEngine.Market.Servers.Binance.Spot
                                     newOrder.Volume = order.q.ToDecimal();
                                     newOrder.Price = order.p.ToDecimal();
                                     newOrder.ServerType = ServerType.Binance;
-                                    newOrder.PortfolioNumber = newOrder.SecurityNameCode;
+                                    newOrder.PortfolioNumber = "Binance";
 
                                     if (MyOrderEvent != null)
                                     {
@@ -1895,6 +1864,8 @@ namespace OsEngine.Market.Servers.Binance.Spot
         {
             try
             {
+                Thread.Sleep(1000); // не убирать RateGate не помогает в CreateQuery
+
                 string timeStamp = TimeManager.GetUnixTimeStampMilliseconds().ToString();
                 Dictionary<string, string> param = new Dictionary<string, string>();
 

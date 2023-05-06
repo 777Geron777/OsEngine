@@ -12,6 +12,7 @@ using System.IO;
 using System.Media;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Forms.Integration;
 using OsEngine.Entity;
@@ -99,9 +100,9 @@ namespace OsEngine.Logging
                         return;
                     }
                 }
-                catch(Exception error)
+                catch (Exception error)
                 {
-                    MessageBox.Show(error.ToString());
+                    System.Windows.MessageBox.Show(error.ToString());
                 }
             }
         }
@@ -122,7 +123,7 @@ namespace OsEngine.Logging
             _uniqName = uniqName;
             _startProgram = startProgram;
 
-            lock(_starterLocker)
+            lock (_starterLocker)
             {
                 if (_watcher == null)
                 {
@@ -131,7 +132,7 @@ namespace OsEngine.Logging
                 }
             }
 
-            if(_startProgram != StartProgram.IsOsOptimizer)
+            if (_startProgram != StartProgram.IsOsOptimizer)
             {
                 CreateGrid();
                 AddToLogsToCheck(this);
@@ -140,6 +141,7 @@ namespace OsEngine.Logging
             if (_startProgram == StartProgram.IsOsTrader)
             {
                 _messageSender = new MessageSender(uniqName, _startProgram);
+                TryLoadLog();
             }
         }
 
@@ -182,10 +184,10 @@ namespace OsEngine.Logging
         /// удалить объект и очистить все файлы связанные с ним
         /// </summary>
         public void Delete()
-        {          
+        {
             _isDelete = true;
 
-            if(_startProgram != StartProgram.IsOsOptimizer)
+            if (_startProgram != StartProgram.IsOsOptimizer)
             {
                 DeleteFromLogsToCheck(this);
 
@@ -197,7 +199,7 @@ namespace OsEngine.Logging
                 }
             }
 
-            if(_grid != null)
+            if (_grid != null)
             {
                 _grid.DoubleClick -= _grid_DoubleClick;
                 _grid.Rows.Clear();
@@ -206,7 +208,7 @@ namespace OsEngine.Logging
                 _grid = null;
             }
 
-            while(_messagesesToSaveInFile.IsEmpty == false)
+            while (_messagesesToSaveInFile.IsEmpty == false)
             {
                 LogMessage s;
                 _messagesesToSaveInFile.TryDequeue(out s);
@@ -220,7 +222,7 @@ namespace OsEngine.Logging
 
             ServerMaster.LogMessageEvent -= ProcessMessage;
 
-            for(int i = 0;i < _candleConverters.Count;i++)
+            for (int i = 0; i < _candleConverters.Count; i++)
             {
                 _candleConverters[i].LogMessageEvent -= ProcessMessage;
             }
@@ -294,15 +296,15 @@ namespace OsEngine.Logging
         }
 
         private static readonly object LogLocker = new object();
-        
+
         private static void AddToLogsToCheck(Log log)
         {
             lock (LogLocker)
             {
                 LogsToCheck.Add(log);
             }
-        }       
-        
+        }
+
         private static void DeleteFromLogsToCheck(Log log)
         {
             lock (LogLocker)
@@ -352,7 +354,7 @@ namespace OsEngine.Logging
             }
             catch (Exception error)
             {
-                MessageBox.Show(error.ToString());
+                System.Windows.MessageBox.Show(error.ToString());
             }
         }
 
@@ -376,7 +378,7 @@ namespace OsEngine.Logging
         List<BotPanel> _botPanels = new List<BotPanel>();
         List<OptimizerDataStorage> _optimizerDataStoreges = new List<OptimizerDataStorage>();
         List<OsMinerMaster> _osMinerMasters = new List<OsMinerMaster>();
-        List<OsDataMaster> _osDataMasters = new List<OsDataMaster>();
+        List<OsDataMasterPainter> _osDataMasters = new List<OsDataMasterPainter>();
         List<OptimizerMaster> _optimizers = new List<OptimizerMaster>();
         List<OsMinerServer> _miners = new List<OsMinerServer>();
         List<IServer> _serversToListen = new List<IServer>();
@@ -418,7 +420,7 @@ namespace OsEngine.Logging
         /// начать прослушку OsData
         /// </summary>
         /// <param name="master"></param>
-        public void Listen(OsDataMaster master)
+        public void Listen(OsDataMasterPainter master)
         {
             master.NewLogMessageEvent += ProcessMessage;
             _osDataMasters.Add(master);
@@ -489,7 +491,7 @@ namespace OsEngine.Logging
         /// </summary>
         public void ListenServerMaster()
         {
-            if(_listenServerMasterAlreadyOn == true)
+            if (_listenServerMasterAlreadyOn == true)
             {
                 return;
             }
@@ -524,12 +526,17 @@ namespace OsEngine.Logging
                 return;
             }
 
-            if(_startProgram != StartProgram.IsOsOptimizer)
+            if (!MainWindow.ProccesIsWorked)
+            {
+                return;
+            }
+
+            if (_startProgram != StartProgram.IsOsOptimizer)
             {
                 LogMessage messageLog = new LogMessage { Message = message, Time = DateTime.Now, Type = type };
                 _incomingMessages.Enqueue(messageLog);
 
-                if(_incomingMessages.Count > 500)
+                if (_incomingMessages.Count > 500)
                 {
                     LogMessage mes;
                     _incomingMessages.TryDequeue(out mes);
@@ -540,7 +547,7 @@ namespace OsEngine.Logging
                     _messageSender.AddNewMessage(messageLog);
                 }
             }
-            if(type == LogMessageType.Error)
+            if (type == LogMessageType.Error)
             {
                 LogMessage messageLog = new LogMessage { Message = message, Time = DateTime.Now, Type = type };
                 SetNewErrorMessage(messageLog);
@@ -575,22 +582,24 @@ namespace OsEngine.Logging
         {
             try
             {
-                if(_isDelete == true)
+                if (_isDelete == true)
                 {
                     return;
                 }
 
-                if (_grid != null 
+                if (_grid != null
                     && _grid.InvokeRequired)
                 {
                     _grid.Invoke(new Action<LogMessage>(PaintMessage), messageLog);
                     return;
                 }
 
-                _messagesesToSaveInFile.Enqueue(messageLog);
+                if(messageLog.Type != LogMessageType.OldSession)
+                {
+                    _messagesesToSaveInFile.Enqueue(messageLog);
+                }
 
-
-                if(_grid != null)
+                if (_grid != null)
                 {
                     DataGridViewRow row = new DataGridViewRow();
                     row.Cells.Add(new DataGridViewTextBoxCell());
@@ -602,7 +611,7 @@ namespace OsEngine.Logging
                     row.Cells.Add(new DataGridViewTextBoxCell());
                     row.Cells[2].Value = messageLog.Message;
 
-                    if(_grid.Columns.Count != 0)
+                    if (_grid.Columns.Count != 0)
                     {
                         _grid.Rows.Insert(0, row);
                     }
@@ -610,7 +619,7 @@ namespace OsEngine.Logging
             }
             catch (Exception error)
             {
-                MessageBox.Show(error.ToString());
+                System.Windows.MessageBox.Show(error.ToString());
             }
         }
 
@@ -628,7 +637,7 @@ namespace OsEngine.Logging
         /// </summary>
         public void TrySaveLog()
         {
-            if(_startProgram == StartProgram.IsOsOptimizer)
+            if (_startProgram == StartProgram.IsOsOptimizer)
             {
                 return;
             }
@@ -649,25 +658,101 @@ namespace OsEngine.Logging
                 string path = @"Engine\Log\" + _uniqName + @"Log_" + date + ".txt";
 
                 using (StreamWriter writer = new StreamWriter(
-                        path,true))
+                        path, true))
                 {
                     while (_messagesesToSaveInFile.IsEmpty == false)
                     {
                         LogMessage message;
 
-                        if(_messagesesToSaveInFile.TryDequeue(out message))
+                        if (_messagesesToSaveInFile.TryDequeue(out message))
                         {
-                            writer.Write(message.Message);
+                            string mess = message.Time.ToLocalTime() + ";";
+                            mess += message.Type + ";";
+                            mess += message.Message + ";";
+
+                            writer.WriteLine(mess);
                         }
                     }
                 }
-
             }
             catch (Exception error)
             {
-                MessageBox.Show(error.ToString());
+                System.Windows.MessageBox.Show(error.ToString());
+            }
+        }
+
+        private void TryLoadLog()
+        {
+            if (!Directory.Exists(@"Engine\Log\"))
+            {
+                return;
             }
 
+            try
+            {
+                string date = DateTime.Now.Year + "_" + DateTime.Now.Month + "_" + DateTime.Now.Day;
+                string path = @"Engine\Log\" + _uniqName + @"Log_" + date + ".txt";
+
+                if (!File.Exists(path))
+                {
+                    return;
+                }
+
+                using (StreamReader reader = new StreamReader(
+                        path))
+                {
+                    
+                    List<string> messages = new List<string>();
+
+                    while(reader.EndOfStream == false)
+                    {
+                        messages.Add(reader.ReadLine());
+                    }
+
+                    if(messages.Count == 0)
+                    {
+                        return;
+                    }
+
+                    int startInd = messages.Count - 10;
+
+                    if(startInd< 0)
+                    {
+                        startInd = 0;
+                    }
+
+                    for (int i = startInd; i < messages.Count; i++)
+                    {
+                        string msg = messages[i];
+
+                        string[] msgArray = msg.Split(';');
+
+                        if(msgArray.Length != 4)
+                        {
+                            continue;
+                        }
+
+                        LogMessage message = new LogMessage();
+
+                        try
+                        {
+                            message.Time = Convert.ToDateTime(msgArray[0]);
+                            message.Type = LogMessageType.OldSession;
+                            message.Message = msgArray[1] + " " + msgArray[2];   
+
+                            _incomingMessages.Enqueue(message);
+                        }
+                        catch
+                        {
+                            continue;
+                        }
+                    }
+                }
+            }
+            catch (Exception error)
+            {
+                System.Windows.MessageBox.Show(error.ToString());
+            }
         }
 
         // distribution
@@ -684,7 +769,7 @@ namespace OsEngine.Logging
         /// </summary>
         void _grid_DoubleClick(object sender, EventArgs e)
         {
-            if(_messageSender != null)
+            if (_messageSender != null)
             {
                 _messageSender.ShowDialog();
             }
@@ -802,7 +887,7 @@ namespace OsEngine.Logging
                 return;
             }
 
-            if(_gridErrorLog.Rows.Count == 500)
+            if (_gridErrorLog.Rows.Count == 500)
             {
                 DataGridViewRow row1 = new DataGridViewRow();
                 row1.Cells.Add(new DataGridViewTextBoxCell());
@@ -816,7 +901,7 @@ namespace OsEngine.Logging
                 _gridErrorLog.Rows.Insert(0, row1);
                 return;
             }
-            else if(_gridErrorLog.Rows.Count > 500)
+            else if (_gridErrorLog.Rows.Count > 500)
             {
                 return;
             }
@@ -938,6 +1023,11 @@ namespace OsEngine.Logging
         /// user action recorded
         /// Зафиксировано действие пользователя
         /// </summary>
-        User
+        User,
+
+        /// <summary>
+        /// Запись в логе с прошлой сессии
+        /// </summary>
+        OldSession,
     }
 }

@@ -20,14 +20,17 @@ namespace OsEngine.OsTrader.Gui
         {
             InitializeComponent();
             OsEngine.Layout.StickyBorders.Listen(this);
-            ServerMaster.SetHostTable(HostPositionOnBoard, HostOrdersOnBoard);
+            ServerMaster.SetHostTable(HostPositionOnBoard, HostOrdersOnBoard,null);
             ServerMaster.CreateServer(ServerType.Tester,false);
             ServerMaster.GetServers();
 
             _strategyKeeper = new OsTraderMaster(GridChart,
-                ChartHostPanel, HostGlass, HostOpenPosition, HostClosePosition, HostAllPosition,
+                ChartHostPanel, HostGlass, HostOpenPosition, HostClosePosition,
                 HostBotLog, HostBotLogPrime, RectChart, HostAllert, TabControlBotsName, TabControlBotTab, TextBoxPrice,
                 GridChartControlPanel,StartProgram.IsTester);
+
+            _strategyKeeper.CreateGlobalPositionController(HostAllPosition);
+
             LocationChanged += TesterUi_LocationChanged;
             LabelOsa.Content = "V_" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
 

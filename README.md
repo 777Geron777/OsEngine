@@ -48,13 +48,13 @@
 4) Bitstamp
 5) Bitfinex
 6) Kraken
-7) BitMax
+7) AscendEx (BitMax)
 8) ExMo
 9) ZB
 10) Gate IO
 11) HitBtc
 12) ByBit
-
+13) OKX
 
 *В комплекте с OsEngine идёт более 30ти встроенных роботов*
 
@@ -117,13 +117,13 @@ The layer for creating robots is similar to the Wealth-Lab script and Ninja Scri
 4) Bitstamp
 5) Bitfinex
 6) Kraken
-7) BitMax
+7) AscendEx (BitMax)
 8) ExMo
 9) ZB
 10) Gate IO
 11) HitBtc
 12) ByBit
-
+13) OKX
 
 *Included with OsEngine is more than 30 built-in robots*
 

@@ -14,7 +14,8 @@ namespace OsEngine.OsOptimizer
     {
         public OptimizerReportCharting(WindowsFormsHost hostDataGrid, WindowsFormsHost hostColumnsResult,
             WindowsFormsHost hostPieChartResult, System.Windows.Controls.ComboBox boxTypeSort, 
-            WindowsFormsHost hostOutOfSampleEquity, System.Windows.Controls.Label outOfSampleLabel)
+            WindowsFormsHost hostOutOfSampleEquity, System.Windows.Controls.Label outOfSampleLabel, 
+            System.Windows.Controls.Label robustnessMetrica)
         {
             _sortBotsType = SortBotsType.TotalProfit;
 
@@ -24,6 +25,7 @@ namespace OsEngine.OsOptimizer
 
             _windowsFormsHostOutOfSampleEquity = hostOutOfSampleEquity;
             _outOfSampleLabel = outOfSampleLabel;
+            _robustnessMetrica = robustnessMetrica;
 
             boxTypeSort.Items.Add(SortBotsType.PositionCount.ToString());
             boxTypeSort.Items.Add(SortBotsType.TotalProfit.ToString());
@@ -33,6 +35,7 @@ namespace OsEngine.OsOptimizer
             boxTypeSort.Items.Add(SortBotsType.ProfitFactor.ToString());
             boxTypeSort.Items.Add(SortBotsType.PayOffRatio.ToString());
             boxTypeSort.Items.Add(SortBotsType.Recovery.ToString());
+            boxTypeSort.Items.Add(SortBotsType.SharpRatio.ToString());
 
             boxTypeSort.SelectedItem = SortBotsType.TotalProfit.ToString();
             boxTypeSort.SelectionChanged += _gridResults_SelectionChanged;
@@ -46,6 +49,8 @@ namespace OsEngine.OsOptimizer
         }
 
         private System.Windows.Controls.ComboBox _boxTypeSort;
+
+        System.Windows.Controls.Label _robustnessMetrica;
 
         void _gridResults_SelectionChanged(object sender, EventArgs e)
         {
@@ -88,6 +93,10 @@ namespace OsEngine.OsOptimizer
             else if (columnSelect == 7)
             {
                 _sortBotsType = SortBotsType.Recovery;
+            }
+            else if (columnSelect == 8)
+            {
+                _sortBotsType = SortBotsType.SharpRatio;
             }
             else
             {
@@ -186,6 +195,11 @@ namespace OsEngine.OsOptimizer
             {
                 return true;
             }
+             else if (sortType == SortBotsType.SharpRatio &&
+                     rep1.SharpRatio < rep2.SharpRatio)
+            {
+                return true;
+            }
 
             return false;
         } 
@@ -276,6 +290,13 @@ namespace OsEngine.OsOptimizer
             column7.ReadOnly = false;
             column7.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
             _gridDep.Columns.Add(column7);
+
+            DataGridViewColumn column8 = new DataGridViewColumn();
+            column8.CellTemplate = cell0;
+            column8.HeaderText = "Sharp ratio";
+            column8.ReadOnly = false;
+            column8.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            _gridDep.Columns.Add(column8);
 
             _gridDep.Rows.Add(null, null);
 
@@ -402,6 +423,10 @@ namespace OsEngine.OsOptimizer
                 cell9.Value = reportToPaint.PositionsCount.ToString();
                 row.Cells.Add(cell9);
 
+                DataGridViewTextBoxCell cell10 = new DataGridViewTextBoxCell();
+                cell10.Value = reportToPaint.SharpRatio.ToString();
+                row.Cells.Add(cell10);
+
                 _gridDep.Rows.Add(row);
             }
         }
@@ -449,6 +474,7 @@ namespace OsEngine.OsOptimizer
                 _gridDep.Invoke(new Action(UpdateColumns));
                 return;
             }
+            _robustnessMetrica.Content = "";
 
             int countBestTwenty = 0;
             int count20_40 = 0;
@@ -535,6 +561,28 @@ namespace OsEngine.OsOptimizer
              int count40_60 = 0;
              int count60_80 = 0;
              int countWorst20 = 0;*/
+
+
+            decimal allCount = 0;
+
+            allCount += countBestTwenty;
+            allCount += countWorst20;
+            allCount += count20_40;
+            allCount += count40_60;
+            allCount += count60_80;
+
+            if(allCount != 0)
+            {
+                decimal oneBestP = 100 / allCount;
+                decimal robustness = 0;
+
+                robustness += countBestTwenty * oneBestP;
+                robustness += count20_40 * oneBestP * 0.75m;
+                robustness += count40_60 * oneBestP * 0.5m;
+                robustness += count60_80 * oneBestP * 0.25m;
+
+                _robustnessMetrica.Content = Math.Round(robustness, 2).ToString() + " %";
+            }
 
             _chart.Series[0].Points.Clear();
 

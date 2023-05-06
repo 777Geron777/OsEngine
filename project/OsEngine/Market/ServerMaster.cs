@@ -45,6 +45,7 @@ using MessageBox = System.Windows.MessageBox;
 using OsEngine.Market.Servers.GateIo.Futures;
 using OsEngine.Market.Servers.Bybit;
 using OsEngine.Market.Servers.OKX;
+using OsEngine.Market.Servers.BitMaxFutures;
 
 namespace OsEngine.Market
 {
@@ -101,6 +102,7 @@ namespace OsEngine.Market
                 serverTypes.Add(ServerType.HuobiFuturesSwap);
                 serverTypes.Add(ServerType.Bybit);
                 serverTypes.Add(ServerType.OKX);
+                serverTypes.Add(ServerType.Bitmax_AscendexFutures);
 
                 serverTypes.Add(ServerType.InteractiveBrokers);
                 serverTypes.Add(ServerType.NinjaTrader);
@@ -129,6 +131,11 @@ namespace OsEngine.Market
                 for (int i = 0; i < popularity.Count; i++)
                 {
                     if (popularity[i].ServerType == ServerType.Tester)
+                    {
+                        continue;
+                    }
+
+                    if (popularity[i].ServerType == ServerType.Finam)
                     {
                         continue;
                     }
@@ -182,6 +189,7 @@ namespace OsEngine.Market
                 serverTypes.Add(ServerType.AscendEx_BitMax);
                 serverTypes.Add(ServerType.Binance);
                 serverTypes.Add(ServerType.BinanceFutures);
+                serverTypes.Add(ServerType.GateIoFutures);
                 serverTypes.Add(ServerType.BitMex);
                 serverTypes.Add(ServerType.BitStamp);
                 serverTypes.Add(ServerType.Bitfinex);
@@ -288,6 +296,10 @@ namespace OsEngine.Market
                 SaveMostPopularServers(type);
 
                 IServer newServer = null;
+                if (type == ServerType.Bitmax_AscendexFutures)
+                {
+                    newServer = new BitMaxFuturesServer();
+                }
                 if (type == ServerType.OKX)
                 {
                     newServer = new OkxServer();
@@ -654,6 +666,19 @@ namespace OsEngine.Market
             IServerPermission serverPermission = null;
 
 
+            if (type == ServerType.AscendEx_BitMax)
+            {
+                serverPermission = _serversPermissions.Find(s => s.ServerType == type);
+
+                if (serverPermission == null)
+                {
+                    serverPermission = new BitmaxServerPermission();
+                    _serversPermissions.Add(serverPermission);
+                }
+
+                return serverPermission;
+            }
+
             if (type == ServerType.OKX)
             {
                 serverPermission = _serversPermissions.Find(s => s.ServerType == type);
@@ -856,7 +881,9 @@ namespace OsEngine.Market
             task.Start();
         }
 
-        private static ServerMasterPortfoliosPainter _painter;
+        private static ServerMasterPortfoliosPainter _painterPortfolios;
+
+        private static ServerMasterOrdersPainter _ordersStorage;
 
         /// <summary>
         /// save settings
@@ -1035,8 +1062,7 @@ namespace OsEngine.Market
             }
         }
 
-// access to the portfolio and its drawing
-// доступ к портфелю и его прорисовка
+// доступ к портфелю, ордерам и его прорисовка
 
         /// <summary>
         /// start to draw class controls
@@ -1044,7 +1070,8 @@ namespace OsEngine.Market
         /// </summary>
         public static void StartPaint()
         {
-             _painter.StartPaint();
+             _painterPortfolios.StartPaint();
+            _ordersStorage.StartPaint();
         }
 
         /// <summary>
@@ -1053,7 +1080,8 @@ namespace OsEngine.Market
         /// </summary>
         public static void StopPaint()
         {
-            _painter.StopPaint();
+            _painterPortfolios.StopPaint();
+            _ordersStorage.StopPaint();
         }
 
         /// <summary>
@@ -1062,26 +1090,48 @@ namespace OsEngine.Market
         /// </summary>
         public static void ClearOrders()
         {
-            if (_painter == null)
+            if (_painterPortfolios == null)
             {
                 return;
             }
-            _painter.ClearOrders();
+            _ordersStorage.ClearOrders();
         }
 
         /// <summary>
         /// add items on which portfolios and orders will be drawn
         /// добавить элементы, на котором будут прорисовываться портфели и ордера
         /// </summary>
-        public static void SetHostTable(WindowsFormsHost hostPortfolio, WindowsFormsHost hostOrders)
+        public static void SetHostTable(WindowsFormsHost hostPortfolio, WindowsFormsHost hostActiveOrders, WindowsFormsHost hostHistoricalOrders)
         {
-            _painter = new ServerMasterPortfoliosPainter();
-            _painter.LogMessageEvent += SendNewLogMessage;
-            _painter.SetHostTable(hostPortfolio, hostOrders);
+            _painterPortfolios = new ServerMasterPortfoliosPainter();
+            _painterPortfolios.LogMessageEvent += SendNewLogMessage;
+            _painterPortfolios.SetHostTable(hostPortfolio);
+
+            _ordersStorage = new ServerMasterOrdersPainter();
+            _ordersStorage.LogMessageEvent += SendNewLogMessage;
+            _ordersStorage.SetHostTable(hostActiveOrders, hostHistoricalOrders);
+            _ordersStorage.RevokeOrderToEmulatorEvent += _ordersStorage_RevokeOrderToEmulatorEvent;
         }
 
-// log messages
-// сообщения в лог
+        private static void _ordersStorage_RevokeOrderToEmulatorEvent(Order order)
+        {
+            if(RevokeOrderToEmulatorEvent != null)
+            {
+                RevokeOrderToEmulatorEvent(order);
+            }
+        }
+
+        public static void InsertOrder(Order order)
+        {
+            if (_ordersStorage != null)
+            {
+                _ordersStorage.InsertOrder(order);
+            }
+        }
+
+        public static event Action<Order> RevokeOrderToEmulatorEvent;
+
+        // сообщения в лог
 
         public static void ActivateLogging()
         {
@@ -1325,7 +1375,11 @@ namespace OsEngine.Market
         /// <summary>
         /// OKX exchange
         /// </summary>
-        OKX
+        OKX,
 
+        /// <summary>
+        /// Ascendex exchange
+        /// </summary>
+        Bitmax_AscendexFutures
     }
 }

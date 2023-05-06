@@ -19,7 +19,7 @@ using OsEngine.Market.Servers.Huobi.Request;
 using OsEngine.Market.Servers.Huobi.Response;
 using OsEngine.Market.Servers.Huobi.Spot;
 using OsEngine.Market.Services;
-using RestSharp;
+
 
 namespace OsEngine.Market.Servers.Huobi.Futures
 {
@@ -27,8 +27,7 @@ namespace OsEngine.Market.Servers.Huobi.Futures
     {
         public HuobiFuturesServer()
         {
-            HuobiFuturesServerRealization realization = new HuobiFuturesServerRealization(ServerType.HuobiFutures,
-                "api.hbdm.com",
+            HuobiFuturesServerRealization realization = new HuobiFuturesServerRealization("api.hbdm.com",
                 "/notification");
 
             ServerRealization = realization;
@@ -46,7 +45,7 @@ namespace OsEngine.Market.Servers.Huobi.Futures
             return ((HuobiFuturesServerRealization)ServerRealization).GetCandleHistory(nameSec, tf);
         }
     }
-    public class HuobiFuturesServerRealization : AServerRealization
+    public class HuobiFuturesServerRealization : IServerRealization
     {
         private readonly string _host;
         private readonly string _path;
@@ -56,13 +55,10 @@ namespace OsEngine.Market.Servers.Huobi.Futures
         /// </summary>
         private readonly Dictionary<int, string> _supportedIntervals;
 
-        public HuobiFuturesServerRealization(ServerType type,
-            string host,
+        public HuobiFuturesServerRealization(string host,
             string path)
         {
             _supportedIntervals = CreateIntervalDictionary();
-
-            ServerType = type;
             ServerStatus = ServerConnectStatus.Disconnect;
 
             _host = host;
@@ -91,7 +87,10 @@ namespace OsEngine.Market.Servers.Huobi.Futures
         /// server type
         /// тип сервера
         /// </summary>
-        public override ServerType ServerType { get; }
+        public ServerType ServerType => ServerType.HuobiFutures;
+        public ServerConnectStatus ServerStatus { get; set; }
+        public List<IServerParameter> ServerParameters { get; set; }
+        public DateTime ServerTime { get; set; }
 
         private string _publicKey;
         private string _secretKey;
@@ -113,7 +112,7 @@ namespace OsEngine.Market.Servers.Huobi.Futures
         private readonly ConcurrentQueue<string> _queueMarketDataReceivedFromExchange = new ConcurrentQueue<string>();
 
 
-        public override void Connect()
+        public void Connect()
         {
             _publicKey = ((ServerParameterString)ServerParameters[0]).Value;
             _secretKey = ((ServerParameterPassword)ServerParameters[1]).Value;
@@ -137,7 +136,7 @@ namespace OsEngine.Market.Servers.Huobi.Futures
             _marketDataSource = new WsSource("wss://" + _host + "/ws");
             _marketDataSource.ByteDataEvent += MarketDataSourceOnMessageEvent;
             _marketDataSource.Start();
-
+            ServerStatus = ServerConnectStatus.Connect;
         }
 
         private void WsSourceOnMessageEvent(WsMessageType msgType, string message)
@@ -146,11 +145,11 @@ namespace OsEngine.Market.Servers.Huobi.Futures
             {
                 case WsMessageType.Opened:
                     Sign();
-                    OnConnectEvent();
+                    ConnectEvent();
                     StartPortfolioRequester();
                     break;
                 case WsMessageType.Closed:
-                    OnDisconnectEvent();
+                    DisconnectEvent();
                     break;
                 case WsMessageType.StringData:
                     _queueMessagesReceivedFromExchange.Enqueue(message);
@@ -238,7 +237,7 @@ namespace OsEngine.Market.Servers.Huobi.Futures
 
                                 if (order.NumberUser != 0)
                                 {
-                                    OnOrderEvent(order);
+                                    MyOrderEvent(order);
                                 }
 
                                 foreach (var tradeNotify in orderNotify.trade)
@@ -247,7 +246,7 @@ namespace OsEngine.Market.Servers.Huobi.Futures
                                     var myTrade = CreateMyTrade(security, orderNotify.order_id.ToString(),
                                         orderNotify.direction, tradeNotify);
 
-                                    OnMyTradeEvent(myTrade);
+                                    MyTradeEvent(myTrade);
                                 }
                             }
                             else
@@ -304,7 +303,7 @@ namespace OsEngine.Market.Servers.Huobi.Futures
                 {
                     SendLogMessage("The websocket is disabled. Restart", LogMessageType.Error);
                     Dispose();
-                    OnDisconnectEvent();
+                    DisconnectEvent();
                     return;
                 }
             }
@@ -317,7 +316,7 @@ namespace OsEngine.Market.Servers.Huobi.Futures
                 case WsMessageType.Opened:
                     break;
                 case WsMessageType.Closed:
-                    OnDisconnectEvent();
+                    DisconnectEvent();
                     break;
                 case WsMessageType.ByteData:
                     string message = GZipDecompresser.Decompress(data);
@@ -368,14 +367,14 @@ namespace OsEngine.Market.Servers.Huobi.Futures
                                         var response = JsonConvert.DeserializeObject<TradeInfo>(mes);
                                         foreach (var trade in CreateTrades(security, response))
                                         {
-                                            OnTradeEvent(trade);
+                                            NewTradesEvent(trade);
                                         }
                                     }
                                     else if (channel == "depth")
                                     {
                                         _lastTimeUpdateSocket = DateTime.Now;
                                         var response = JsonConvert.DeserializeObject<SubscribeDepthResponse>(mes);
-                                        OnMarketDepthEvent(CreateMarketDepth(security, response));
+                                        MarketDepthEvent(CreateMarketDepth(security, response));
                                     }
                                 }
                                 else if (mes.StartsWith("{\"id\":\"\",\"rep\":\"market."))
@@ -482,7 +481,7 @@ namespace OsEngine.Market.Servers.Huobi.Futures
 
         #endregion
 
-        public override void Dispose()
+        public void Dispose()
         {
             try
             {
@@ -502,6 +501,8 @@ namespace OsEngine.Market.Servers.Huobi.Futures
             {
                 SendLogMessage("Huobi dispose error: " + e, LogMessageType.Error);
             }
+
+            ServerStatus = ServerConnectStatus.Disconnect;
         }
 
         private void UnInitialize()
@@ -520,7 +521,7 @@ namespace OsEngine.Market.Servers.Huobi.Futures
 
         List<Security> _securities = new List<Security>();
 
-        public override void GetSecurities()
+        public void GetSecurities()
         {
             string url = _urlBuilder.Build("/api/v1/contract_contract_info");
             var httpClient = new HttpClient();
@@ -528,7 +529,7 @@ namespace OsEngine.Market.Servers.Huobi.Futures
 
             _securities = CreateSecurities(response);
 
-            OnSecurityEvent(_securities);
+            SecurityEvent(_securities);
         }
 
         private List<Security> CreateSecurities(string data)
@@ -543,7 +544,7 @@ namespace OsEngine.Market.Servers.Huobi.Futures
                 {
                     var security = new Security();
 
-                    security.Name = symbol.ContractCode;
+                    security.Name = JoinSecurityName(symbol.Symbol, symbol.ContractType);
                     security.NameFull = symbol.Symbol;
                     security.NameClass = symbol.ContractType;
                     security.NameId = JoinSecurityName(symbol.Symbol, symbol.ContractType);
@@ -556,7 +557,7 @@ namespace OsEngine.Market.Servers.Huobi.Futures
 
                     securities.Add(security);
                 }
-                catch(Exception error)
+                catch (Exception error)
                 {
                     throw new Exception("Security creation error \n" + error.ToString());
                 }
@@ -601,7 +602,7 @@ namespace OsEngine.Market.Servers.Huobi.Futures
 
                 Portfolios.Add(portfolio);
 
-                OnPortfolioEvent(Portfolios);
+                PortfolioEvent(Portfolios);
             }
 
             while (!token.IsCancellationRequested)
@@ -623,7 +624,7 @@ namespace OsEngine.Market.Servers.Huobi.Futures
             }
         }
 
-        public override void GetPortfolios()
+        public void GetPortfolios()
         {
             if (Portfolios == null)
             {
@@ -633,7 +634,7 @@ namespace OsEngine.Market.Servers.Huobi.Futures
             {
                 string url = _privateUriBuilder.Build("POST", "/api/v1/contract_account_info");
 
-                StringContent httpContent = new StringContent(new JsonObject().ToString(), Encoding.UTF8, "application/json");
+                StringContent httpContent = new StringContent("", Encoding.UTF8, "application/json");
 
                 var httpClient = new HttpClient();
 
@@ -643,7 +644,7 @@ namespace OsEngine.Market.Servers.Huobi.Futures
 
                 if (result.Contains("Incorrect Access key"))
                 {
-                    SendLogMessage("Huobi: Incorrect Access API key",LogMessageType.Error);
+                    SendLogMessage("Huobi: Incorrect Access API key", LogMessageType.Error);
                     return;
                 }
 
@@ -656,29 +657,29 @@ namespace OsEngine.Market.Servers.Huobi.Futures
                     var currentData = accountInfo.data[i];
 
                     PositionOnBoard pos = new PositionOnBoard();
-                    pos.SecurityNameCode = currentData.symbol;
-                    pos.ValueBegin = currentData.margin_available;
-                    pos.ValueCurrent = currentData.margin_available;
-                    pos.ValueBlocked = currentData.margin_frozen;
+                    pos.SecurityNameCode = currentData.margin_asset;
+                    pos.ValueBegin = currentData.margin_static.ToDecimal();
+                    pos.ValueCurrent = currentData.margin_static.ToDecimal();
+                    pos.ValueBlocked = currentData.margin_static.ToDecimal();
 
                     portfolio.SetNewPosition(pos);
                 }
             }
 
-            OnPortfolioEvent(Portfolios);
+            PortfolioEvent(Portfolios);
         }
 
         private string _portfolioCurrent;
 
-        public override void SendOrder(Order order)
+        public void SendOrder(Order order)
         {
             _portfolioCurrent = order.PortfolioNumber;
 
-            JsonObject jsonContent = new JsonObject();
+            Dictionary<string, dynamic> jsonContent = new Dictionary<string, dynamic>();
 
             Security mySec = null;
 
-            for(int i = 0;i < _securities.Count;i++)
+            for (int i = 0; i < _securities.Count; i++)
             {
                 if (_securities[i].Name == order.SecurityNameCode)
                 {
@@ -704,7 +705,7 @@ namespace OsEngine.Market.Servers.Huobi.Futures
             jsonContent.Add("contract_type", contractType);
             jsonContent.Add("client_order_id", order.NumberUser);
             jsonContent.Add("price", order.Price);
-            jsonContent.Add("volume", order.Volume);
+            jsonContent.Add("volume", order.Volume.ToString().Replace(",", "."));
             jsonContent.Add("direction", order.Side == Side.Buy ? "buy" : "sell");
 
             // если ордер открывающий позицию - тут "open", если закрывающий - "close"
@@ -719,10 +720,11 @@ namespace OsEngine.Market.Servers.Huobi.Futures
 
             jsonContent.Add("lever_rate", "10");
             jsonContent.Add("order_price_type", "limit");
+            jsonContent.Add("channel_code", "AAe2ccbd47");
 
             string url = _privateUriBuilder.Build("POST", "/api/v1/contract_order");
 
-            StringContent httpContent = new StringContent(jsonContent.ToString(), Encoding.UTF8, "application/json");
+            StringContent httpContent = new StringContent(JsonConvert.SerializeObject(jsonContent), Encoding.UTF8, "application/json");
 
             var httpClient = new HttpClient();
 
@@ -746,13 +748,13 @@ namespace OsEngine.Market.Servers.Huobi.Futures
 
                 order.State = OrderStateType.Fail;
 
-                OnOrderEvent(order);
+                MyOrderEvent(order);
             }
         }
 
-        public override void CancelOrder(Order order)
+        public void CancelOrder(Order order)
         {
-            JsonObject jsonContent = new JsonObject();
+            Dictionary<string, dynamic> jsonContent = new Dictionary<string, dynamic>();
 
             var contractData = order.SecurityNameCode.Split('_');
 
@@ -762,7 +764,7 @@ namespace OsEngine.Market.Servers.Huobi.Futures
 
             string url = _privateUriBuilder.Build("POST", "/api/v1/contract_cancel");
 
-            StringContent httpContent = new StringContent(jsonContent.ToString(), Encoding.UTF8, "application/json");
+            StringContent httpContent = new StringContent(JsonConvert.SerializeObject(jsonContent), Encoding.UTF8, "application/json");
 
             var httpClient = new HttpClient();
 
@@ -776,7 +778,7 @@ namespace OsEngine.Market.Servers.Huobi.Futures
             {
                 SendLogMessage($"Order num {order.NumberUser} canceled.", LogMessageType.Trade);
                 order.State = OrderStateType.Cancel;
-                OnOrderEvent(order);
+                MyOrderEvent(order);
             }
             else
             {
@@ -784,7 +786,7 @@ namespace OsEngine.Market.Servers.Huobi.Futures
             }
         }
 
-        public override void Subscrible(Security security)
+        public void Subscrible(Security security)
         {
             string topic = $"market.{security.NameId}.trade.detail";
 
@@ -799,25 +801,21 @@ namespace OsEngine.Market.Servers.Huobi.Futures
             topic = $"orders.{security.NameFull}";
 
             _wsSource.SendMessage($"{{\"op\":\"sub\", \"topic\":\"{topic}\", \"cid\": \"{clientId}\" }}");
-
-            //topic = $"trade.clearing#{security.NameFull}";
-
-            //_wsSource.SendMessage($"{{\"action\":\"sub\", \"cid\": \"{clientId}\", \"ch\":\"{topic}\" }}");
         }
 
-        public override List<Trade> GetTickDataToSecurity(Security security, DateTime startTime, DateTime endTime, DateTime actualTime)
+        public List<Trade> GetTickDataToSecurity(Security security, DateTime startTime, DateTime endTime, DateTime actualTime)
         {
             return null;
         }
 
-        public override void GetOrdersState(List<Order> orders)
+        public void GetOrdersState(List<Order> orders)
         {
-            
+
         }
 
         private readonly List<GetCandlestickResponse> _allCandleSeries = new List<GetCandlestickResponse>();
 
-        public override List<Candle> GetCandleDataToSecurity(Security security, TimeFrameBuilder timeFrameBuilder, DateTime startTime, DateTime endTime,
+        public List<Candle> GetCandleDataToSecurity(Security security, TimeFrameBuilder timeFrameBuilder, DateTime startTime, DateTime endTime,
             DateTime actualTime)
         {
             List<Candle> candles = new List<Candle>();
@@ -839,12 +837,12 @@ namespace OsEngine.Market.Servers.Huobi.Futures
 
                 string name = security.NameId;
 
-                if(security.NameId.Contains("CW") ||
+                if (security.NameId.Contains("CW") ||
                         security.NameId.Contains("NW") ||
                         security.NameId.Contains("CQ") ||
                         security.NameId.Contains("NQ"))
                 {
-                    name =  security.Name;
+                    name = security.Name;
                 }
 
                 List<Candle> newCandles = GetCandlesByRest(oldInterval, name, actualTime, midTime);
@@ -895,7 +893,6 @@ namespace OsEngine.Market.Servers.Huobi.Futures
         }
 
         private object _locker = new object();
-
         //
 
         private List<Candle> GetCandlesByRest(int oldInterval, string security, DateTime startTime, DateTime endTime)
@@ -923,7 +920,7 @@ namespace OsEngine.Market.Servers.Huobi.Futures
 
             var response = JsonConvert.DeserializeObject<GetCandlestickResponse>(resp);
 
-            if(response.status == "error")
+            if (response.status == "error")
             {
                 return null;
             }
@@ -1034,6 +1031,32 @@ namespace OsEngine.Market.Servers.Huobi.Futures
             };
 
             return auth.ToJson();
+        }
+
+        public void SendLogMessage(string messgae, LogMessageType logMessageType)
+        {
+            LogMessageEvent(messgae, logMessageType);
+        }
+
+
+        public event Action<Order> MyOrderEvent;
+        public event Action<MyTrade> MyTradeEvent;
+        public event Action<List<Portfolio>> PortfolioEvent;
+        public event Action<List<Security>> SecurityEvent;
+        public event Action<MarketDepth> MarketDepthEvent;
+        public event Action<Trade> NewTradesEvent;
+        public event Action ConnectEvent;
+        public event Action DisconnectEvent;
+        public event Action<string, LogMessageType> LogMessageEvent;
+
+        public void CancelAllOrders()
+        {
+            
+        }
+
+        public void ResearchTradesToOrders(List<Order> orders)
+        {
+           
         }
     }
 

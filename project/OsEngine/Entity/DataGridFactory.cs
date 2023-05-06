@@ -5,12 +5,10 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using OsEngine.Language;
 using System.IO;
+using System.Reflection;
 
 namespace OsEngine.Entity
 {
@@ -19,7 +17,7 @@ namespace OsEngine.Entity
         public static DataGridView GetDataGridView(DataGridViewSelectionMode selectionMode, DataGridViewAutoSizeRowsMode rowsSizeMode, bool createSaveMenu = false)
         {
             DataGridView grid = new DoubleBufferedDataGridView();
-
+            
             grid.AllowUserToOrderColumns = true;
             grid.AllowUserToResizeRows = true;
             grid.AutoSizeRowsMode = rowsSizeMode;
@@ -43,7 +41,6 @@ namespace OsEngine.Entity
             style.BackColor =  Color.FromArgb(21, 26, 30);
             style.SelectionBackColor = Color.FromArgb(17, 18, 23);
             style.ForeColor = Color.FromArgb(154, 156, 158);
-          
             grid.DefaultCellStyle = style;
 
             DataGridViewCellStyle headerStyle = new DataGridViewCellStyle();
@@ -197,6 +194,7 @@ namespace OsEngine.Entity
         {
             DataGridView newGrid = GetDataGridView(DataGridViewSelectionMode.FullRowSelect,
                 DataGridViewAutoSizeRowsMode.AllCells);
+
             newGrid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             DataGridViewCellStyle style = newGrid.DefaultCellStyle;
 

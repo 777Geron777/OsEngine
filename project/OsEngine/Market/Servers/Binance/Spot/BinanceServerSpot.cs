@@ -266,7 +266,6 @@ namespace OsEngine.Market.Servers.Binance.Spot
                     {
                         firstTrades = _client.GetTickHistoryToSecurity(security.Name, startOver, startOver.AddSeconds(60), 0);
                         startOver.AddSeconds(60);
-                        Thread.Sleep(60);
                     }
                     while (firstTrades == null || firstTrades.Count == 0);
 
@@ -298,11 +297,13 @@ namespace OsEngine.Market.Servers.Binance.Spot
 
                 if (markerDateTime != startOver.ToShortDateString())
                 {
+                    if (startOver >= endTime)
+                    {
+                        break;
+                    }
                     markerDateTime = startOver.ToShortDateString();
                     SendLogMessage(security.Name + " Binance Spot start loading: " + markerDateTime, LogMessageType.System);
                 }
-
-                Thread.Sleep(10);
             }
 
             if (trades.Count == 0)
@@ -424,13 +425,23 @@ namespace OsEngine.Market.Servers.Binance.Spot
                         return;
                     }
 
-                    var needDepth = _depths.Find(depth =>
-                        depth.SecurityNameCode == myDepth.stream.Split('@')[0].ToUpper());
+                    string secName = myDepth.stream.Split('@')[0].ToUpper();
+
+                    MarketDepth needDepth = null;
+
+                    for(int i = 0;i < _depths.Count;i++)
+                    {
+                        if(_depths[i].SecurityNameCode == secName)
+                        {
+                            needDepth = _depths[i];
+                            break;
+                        }
+                    }
 
                     if (needDepth == null)
                     {
                         needDepth = new MarketDepth();
-                        needDepth.SecurityNameCode = myDepth.stream.Split('@')[0].ToUpper();
+                        needDepth.SecurityNameCode = secName;
                         _depths.Add(needDepth);
                     }
 

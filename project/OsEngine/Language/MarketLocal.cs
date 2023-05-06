@@ -300,6 +300,13 @@ namespace OsEngine.Language
             "Eng:Securities_" +
             "Ru:Инструменты_");
 
+        public string Label67 => OsLocalization.ConvertToLocString(
+            "Eng:Are you sure you want to revoke ALL orders?_" +
+            "Ru:Вы уверены что хотите отозвать ВСЕ ордера?_");
+
+        public string Label68 => OsLocalization.ConvertToLocString(
+           "Eng:Are you sure you want to call off this order?_" +
+           "Ru:Вы точно хотите отозовать этот ордер?_");
 
         public string LabelComissionType => OsLocalization.ConvertToLocString(
             "Eng:Comission type_" +
@@ -805,6 +812,10 @@ namespace OsEngine.Language
             "Eng:Remove Candles From Memory_" +
             "Ru:Удалять свечи из памяти_");
 
+        public string ServerParam10 => OsLocalization.ConvertToLocString(
+           "Eng:Use Full Market Depth_" +
+           "Ru:Использовать полный стакан_");
+
         public string UseStock => OsLocalization.ConvertToLocString(
             "Eng:Stock_" +
             "Ru:Акции_");
@@ -828,5 +839,9 @@ namespace OsEngine.Language
         public string UseSecInfoUpdates => OsLocalization.ConvertToLocString(
             "Eng:Use sec info updates_" +
             "Ru:Включить обновления инструментов_");
+
+        public string ButtonNameChangePassword => OsLocalization.ConvertToLocString(
+            "Eng:Change password_" +
+            "Ru:Изменить пароль_");
     }
 }

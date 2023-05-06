@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Forms.Integration;
@@ -82,7 +83,36 @@ namespace OsEngine.OsTrader.Panels
 
             ParamGuiSettings = new ParamGuiSettings();
             ParamGuiSettings.LogMessageEvent += SendNewLogMessage;
+
+            OsTraderMaster.CriticalErrorEvent += OsTraderMaster_CriticalErrorEvent;
         }
+
+        /// <summary>
+        /// critical error and system restart event /
+        /// событие критической ошибки и перезапуск системы
+        /// </summary>
+        private void OsTraderMaster_CriticalErrorEvent()
+        {
+            new Thread(()=>
+            {
+                Thread.Sleep(20000);
+                try
+                {
+                    if (CriticalErrorEvent != null)
+                    {
+                        CriticalErrorEvent(CriticalErrorHandler.ErrorMessage);
+                    }
+                    
+                }
+                catch (Exception error)
+                {
+                    SendNewLogMessage(error.Message, LogMessageType.Error);
+                }
+            }).Start();
+            
+        }
+
+        protected event Action<string> CriticalErrorEvent;
 
         /// <summary>
         /// unique robot name / 
@@ -392,6 +422,8 @@ namespace OsEngine.OsTrader.Panels
         {
             try
             {
+                OsTraderMaster.CriticalErrorEvent -= OsTraderMaster_CriticalErrorEvent;
+
                 if (_riskManager != null)
                 {
                     _riskManager.RiskManagerAlarmEvent -= _riskManager_RiskManagerAlarmEvent;
@@ -404,11 +436,30 @@ namespace OsEngine.OsTrader.Panels
                     for (int i = 0; i < _botTabs.Count; i++)
                     {
                         _botTabs[i].StopPaint();
+                        _botTabs[i].Clear();
                         _botTabs[i].Delete();
                         _botTabs[i].LogMessageEvent -= SendNewLogMessage;
                     }
                     _botTabs.Clear();
                     _botTabs = null;
+                }
+
+                if(_tabSimple != null)
+                {
+                    _tabSimple.Clear();
+                    _tabSimple = null;
+                }
+
+                if(_tabsCluster != null)
+                {
+                    _tabsCluster.Clear();
+                    _tabsCluster = null;
+                }
+
+                if(_tabsScreener != null)
+                {
+                    _tabsScreener.Clear();
+                    _tabsScreener = null;
                 }
 
                 if(ParamGuiSettings != null)
@@ -1786,7 +1837,7 @@ position => position.State != PositionStateType.OpeningFail
             {
                 for (int i = 0; _tabSimple != null && i < _tabSimple.Count; i++)
                 {
-                    return _tabSimple[i].Connector.EmulatorIsOn;
+                    return _tabSimple[i].EmulatorIsOn;
                 }
 
                 for (int i = 0; _tabsScreener != null && i < _tabsScreener.Count; i++)
@@ -1797,7 +1848,7 @@ position => position.State != PositionStateType.OpeningFail
                     {
                         try
                         {
-                            return bot.Tabs[i2].Connector.EmulatorIsOn;
+                            return bot.Tabs[i2].EmulatorIsOn;
                         }
                         catch
                         {
@@ -1818,7 +1869,8 @@ position => position.State != PositionStateType.OpeningFail
 
                 for (int i = 0; _tabSimple != null && i < _tabSimple.Count; i++)
                 {
-                    _tabSimple[i].Connector.EmulatorIsOn = value;
+                    _tabSimple[i].EmulatorIsOn = value;
+                    _tabSimple[i].Connector.Save();
                 }
 
                 for (int i = 0; _tabsScreener != null && i < _tabsScreener.Count; i++)
@@ -1835,7 +1887,8 @@ position => position.State != PositionStateType.OpeningFail
                     {
                         try
                         {
-                            bot.Tabs[i2].Connector.EmulatorIsOn = value;
+                            bot.Tabs[i2].EmulatorIsOn = value;
+                            bot.Tabs[i2].Connector.Save();
                         }
                         catch
                         {

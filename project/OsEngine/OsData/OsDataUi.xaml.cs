@@ -6,7 +6,6 @@
 using OsEngine.Entity;
 using System.Windows;
 using OsEngine.Language;
-using OsEngine.Layout;
 
 namespace OsEngine.OsData
 {
@@ -16,42 +15,35 @@ namespace OsEngine.OsData
     /// </summary>
     public partial class OsDataUi
     {
-        OsDataMaster _osDataMaster;
+        OsDataMasterPainter _osDataMaster;
+
         public OsDataUi()
         {
-            
             InitializeComponent();
+            LabelTimeEndValue.Content = "";
+            LabelSetNameValue.Content = "";
+            LabelTimeStartValue.Content = "";
             OsEngine.Layout.StickyBorders.Listen(this);
-            _osDataMaster = new OsDataMaster(ChartHostPanel, HostLog, HostSource,
-                HostSet, ComboBoxSecurity,ComboBoxTimeFrame,RectChart, GreedChartPanel);
-            CheckBoxPaintOnOff.IsChecked = _osDataMaster.IsPaintEnabled;
-            CheckBoxPaintOnOff.Click += CheckBoxPaintOnOff_Click;
+
+            OsDataMaster master = new OsDataMaster();
+
+            _osDataMaster = new OsDataMasterPainter(master, 
+                ChartHostPanel, HostLog, HostSource,
+                HostSet, RectChart, GreedChartPanel,
+                LabelSetNameValue, LabelTimeStartValue, LabelTimeEndValue, ProgressBarLoadProgress);
+
             LabelOsa.Content = "V_" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
             Closing += OsDataUi_Closing;
             Label4.Content = OsLocalization.Data.Label4;
             Label24.Content = OsLocalization.Data.Label24;
-            CheckBoxPaintOnOff.Content = OsLocalization.Data.Label25;
             Label26.Header = OsLocalization.Data.Label26;
             NewDataSetButton.Content = OsLocalization.Data.Label30;
+            LabelSetName.Content = OsLocalization.Data.Label31;
+            LabelStartTimeStr.Content = OsLocalization.Data.Label18;
+            LabelTimeEndStr.Content = OsLocalization.Data.Label19;
 
             this.Activate();
             this.Focus();
-        }
-
-        void CheckBoxPaintOnOff_Click(object sender, RoutedEventArgs e)
-        {
-            if (CheckBoxPaintOnOff.IsChecked.HasValue &&
-                CheckBoxPaintOnOff.IsChecked.Value)
-            {
-                _osDataMaster.StartPaint();
-                _osDataMaster.SaveSettings();
-            }
-            else
-            {
-                _osDataMaster.StopPaint();
-                _osDataMaster.SaveSettings();
-            }
-            GlobalGUILayout.Listen(this, "osData");
         }
 
         void OsDataUi_Closing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -67,7 +59,7 @@ namespace OsEngine.OsData
 
         private void NewDataSetButton_Click(object sender, RoutedEventArgs e)
         {
-            _osDataMaster.CreateNewSet();
+            _osDataMaster.CreateNewSetDialog();
         }
     }
 }

@@ -180,16 +180,16 @@ namespace OsEngine.Language
             "Ru:Recovery_");
 
         public string GridRow6 => OsLocalization.ConvertToLocString(
-            "Eng:Average P\\L one pos_" +
-            "Ru:Сред. П\\У   движение_");
+            "Eng:Average P\\L 1 contract_" +
+            "Ru:Сред. П\\У 1 контракт_");
 
         public string GridRow7 => OsLocalization.ConvertToLocString(
-            "Eng:Average P\\L one pos %_" +
-            "Ru:Сред. П\\У движение %_");
+            "Eng:Average P\\L 1 contract %_" +
+            "Ru:Сред. П\\У 1 контракт %_");
 
         public string GridRow8 => OsLocalization.ConvertToLocString(
-            "Eng:Average P\\L portfolio_" +
-            "Ru:Сред. П\\У    капитал_");
+            "Eng:Average P\\L classic_" +
+            "Ru:Сред. П\\У стандарт_");
 
         public string GridRow9 => OsLocalization.ConvertToLocString(
             "Eng:Average P\\L portfolio %_" +
@@ -227,6 +227,10 @@ namespace OsEngine.Language
             "Eng:Average trade time_" +
             "Ru:Среднее время удержания_");
 
+        public string GridRow18 => OsLocalization.ConvertToLocString(
+            "Eng:Sharp ratio_" +
+            "Ru:Sharp ratio_");
+
         public string Message1 => OsLocalization.ConvertToLocString(
             "Eng:You must select a file to save!_" +
             "Ru:Необходимо выбрать файл для сохранения!_");
@@ -246,5 +250,6 @@ namespace OsEngine.Language
         public string Message5 => OsLocalization.ConvertToLocString(
              "Eng:Are you sure you want to close all positions at market?_" +
              "Ru:Вы уверены что хотите закрыть все позиции по маркету?_");
+
     }
 }
