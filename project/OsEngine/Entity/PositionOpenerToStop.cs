@@ -4,7 +4,7 @@
 */
 
 using System;
-using OsEngine.OsTrader.Panels.Tab;
+
 
 namespace OsEngine.Entity
 {
@@ -19,12 +19,13 @@ namespace OsEngine.Entity
             ExpiresBars = 0;
         }
 
-        public PositionOpenerToStop(int thisBarNumber, int expiresBars, DateTime serverTime)
-        {
-            OrderCreateBarNumber = thisBarNumber;
-            ExpiresBars = expiresBars;
-            TimeCreate = serverTime;
-        }
+        public string Security;
+
+        public string TabName;
+
+        public int Number;
+
+        public PositionOpenerToStopLifeTimeType LifeTimeType;
 
         /// <summary>
         /// order price
@@ -68,7 +69,6 @@ namespace OsEngine.Entity
             set { _expiresBars = value; }
         }
 
-
         /// <summary>
         /// The bar number at which the order was created
         /// Номер бара при котором был создан ордер
@@ -95,5 +95,32 @@ namespace OsEngine.Entity
         /// время создания приказа
         /// </summary>
         public DateTime TimeCreate;
+    }
+
+    /// <summary>
+    /// activation type stop order / 
+    /// тип активации стоп приказа
+    /// </summary>
+    public enum StopActivateType
+    {
+
+        /// <summary>
+        /// activate when the price is higher or equal
+        /// активировать когда цена будет выше или равно
+        /// </summary>
+        HigherOrEqual,
+
+        /// <summary>
+        /// activate when the price is lower or equal / 
+        /// активировать когда цена будет ниже или равно
+        /// </summary>
+        LowerOrEqyal
+    }
+
+    public enum PositionOpenerToStopLifeTimeType
+    {
+        CandlesCount,
+
+        NoLifeTime
     }
 }
