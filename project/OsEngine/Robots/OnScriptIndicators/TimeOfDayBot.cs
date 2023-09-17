@@ -21,8 +21,16 @@ namespace OsEngine.Robots.OnScriptIndicators
             Stop = CreateParameter("Stop", 1, 1.0m, 10, 0.1m);
             Profit = CreateParameter("Profit", 1, 1.0m, 10, 0.1m);
 
+            CreateParameterCheckBox("SomeCheckBox", true);
+            CreateParameter("SomeStringParam", "value");
+
+
             _tab.NewTickEvent += TabOnNewTickEvent;
             _tab.PositionOpeningSuccesEvent += TabOnPositionOpeningSuccesEvent;
+
+            Description = "TimeOfDayBot. " +
+                "We choose which position we want to open Sell and Buy and set the entry time. " +
+                "Exit: by stop and profit %.";
         }
 
         /// <summary>

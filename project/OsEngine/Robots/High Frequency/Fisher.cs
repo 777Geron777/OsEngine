@@ -10,7 +10,15 @@ using OsEngine.Entity;
 using OsEngine.OsTrader.Panels;
 using OsEngine.OsTrader.Panels.Tab;
 using OsEngine.Indicators;
+/* Description
+Fisher based on multithreading
 
+Entering a position - we are waiting for a sharp price deviation 
+by the specified number of percent from the edge of the order book.
+
+Exit a position when the price rolls back by 50 percent or more of the entry
+price. Those. if the price has returned half or more of the original movement.
+ */
 namespace OsEngine.Robots.High_Frequency
 {
     public class Fisher : BotPanel
@@ -35,6 +43,12 @@ namespace OsEngine.Robots.High_Frequency
             worker.Start();
 
             DeleteEvent += Fisher_DeleteEvent;
+
+            Description = "Fisher based on multithreading " +
+                "Entering a position - we are waiting for a sharp price deviation  " +
+                "by the specified number of percent from the edge of the order book. " +
+                "Exit a position when the price rolls back by 50 percent or more of the entry " +
+                "price. Those. if the price has returned half or more of the original movement.";
         }
 
         private void Fisher_DeleteEvent()
@@ -74,28 +88,35 @@ namespace OsEngine.Robots.High_Frequency
         {
             while(true)
             {
-                Thread.Sleep(TimeRebuildOrder.ValueInt * 1000);
-
-                if (_isDisposed)
+                try
                 {
-                    return;
-                }
+                    Thread.Sleep(TimeRebuildOrder.ValueInt * 1000);
 
-                if (Regime.ValueString == "Off")
+                    if (_isDisposed)
+                    {
+                        return;
+                    }
+
+                    if (Regime.ValueString == "Off")
+                    {
+                        continue;
+                    }
+
+                    if (_sma.DataSeries[0].Values == null ||
+                        _sma.ParametersDigit[0].Value + 3 > _sma.DataSeries[0].Values.Count)
+                    {
+                        continue;
+                    }
+
+                    CanselAllOrders();
+                    CloseAllPositions();
+                    OpenOrders();
+                }
+                catch (Exception e) 
                 {
-                   continue;
+                    _tab.SetNewLogMessage(e.ToString(),Logging.LogMessageType.Error);
+                    Thread.Sleep(5000);
                 }
-
-                if (_sma.DataSeries[0].Values == null ||
-                    _sma.ParametersDigit[0].Value + 3 > _sma.DataSeries[0].Values.Count)
-                {
-                    continue;
-                }
-
-                CanselAllOrders();
-                CloseAllPositions();
-                OpenOrders();
-
             }
         }
 
@@ -190,6 +211,14 @@ namespace OsEngine.Robots.High_Frequency
             decimal lastMa = _sma.DataSeries[0].Last;
             decimal lastBestBuy = _tab.PriceBestBid;
             decimal lastBestSell = _tab.PriceBestAsk;
+
+            if(lastMa == 0
+                || lastBestBuy == 0
+                || lastBestSell == 0)
+            {
+                return;
+            }
+
 
             // проверяем чтобы цены были не дальше 1% от машки
 

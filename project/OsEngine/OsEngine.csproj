@@ -60,7 +60,7 @@
     <LangVersion>8.0</LangVersion>
   </PropertyGroup>
   <PropertyGroup>
-    <ApplicationIcon>Images\OsLogo.ico</ApplicationIcon>
+    <ApplicationIcon>OsLogo.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="cgate_net64, Version=5.10.0.36987, Culture=neutral, processorArchitecture=AMD64">
@@ -82,10 +82,6 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="Newtonsoft.Json, Version=12.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.12.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
-    </Reference>
-    <Reference Include="OkonkwoOandaV20, Version=1.0.7247.23935, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>Vendors\OkonkwoOandaV20.dll</HintPath>
     </Reference>
     <Reference Include="protobuf-net, Version=2.4.0.0, Culture=neutral, PublicKeyToken=257b51d87d2e4d67, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -377,6 +373,14 @@
       <DependentUpon>AwaitUi.xaml</DependentUpon>
     </Compile>
     <Compile Include="Entity\CandleConverter.cs" />
+    <Compile Include="Entity\CointegrationBuilder.cs" />
+    <Compile Include="Entity\ColorCustomDialog.xaml.cs">
+      <DependentUpon>ColorCustomDialog.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Entity\CorrelationBuilder.cs" />
+    <Compile Include="Entity\CustomMessageBoxUi.xaml.cs">
+      <DependentUpon>CustomMessageBoxUi.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Entity\DataGridFactory.cs" />
     <Compile Include="Entity\DateTimeSelectionDialog.xaml.cs">
       <DependentUpon>DateTimeSelectionDialog.xaml</DependentUpon>
@@ -393,11 +397,13 @@
     <Compile Include="Entity\StrategyParameter.cs" />
     <Compile Include="Entity\TimeFrameBuilder.cs" />
     <Compile Include="Entity\Utils\CompressionUtils.cs" />
+    <Compile Include="Indicators\AC.cs" />
     <Compile Include="Indicators\Aindicator.cs" />
     <Compile Include="Indicators\AIndicatorUi.xaml.cs">
       <DependentUpon>AIndicatorUi.xaml</DependentUpon>
     </Compile>
     <Compile Include="Indicators\Entity.cs" />
+    <Compile Include="Indicators\IndicatorAttribute.cs" />
     <Compile Include="Indicators\IndicatorParameter.cs" />
     <Compile Include="Indicators\IndicatorsFactory.cs" />
     <Compile Include="Indicators\ScriptSpells.cs" />
@@ -487,6 +493,16 @@
     <Compile Include="Market\Servers\Bitfinex\BitfitnexEntity\JsonConverter.cs" />
     <Compile Include="Market\Servers\Bitfinex\BitfitnexEntity\NewOrderPayload.cs" />
     <Compile Include="Market\Servers\Bitfinex\BitfitnexEntity\SubscriptionInformation.cs" />
+    <Compile Include="Market\Servers\BitGet\BitGetFutures\BitGetFuturesServerPermission.cs" />
+    <Compile Include="Market\Servers\BitGet\BitGetFutures\BitGetServerFutures.cs" />
+    <Compile Include="Market\Servers\BitGet\BitGetFutures\Entity\RequestWebsocketAuth.cs" />
+    <Compile Include="Market\Servers\BitGet\BitGetFutures\Entity\ResponseRestMessage.cs" />
+    <Compile Include="Market\Servers\BitGet\BitGetFutures\Entity\ResponseWebSocketMessageAction.cs" />
+    <Compile Include="Market\Servers\BitGet\BitGetSpot\BitGetServerSpot.cs" />
+    <Compile Include="Market\Servers\BitGet\BitGetSpot\BitGetSpotServerPermission.cs" />
+    <Compile Include="Market\Servers\BitGet\BitGetSpot\Entity\RequestWebsocketAuth.cs" />
+    <Compile Include="Market\Servers\BitGet\BitGetSpot\Entity\ResponseMessageRest.cs" />
+    <Compile Include="Market\Servers\BitGet\BitGetSpot\Entity\ResponseWebSocketMessageAction.cs" />
     <Compile Include="Market\Servers\BitMaxFutures\BitMaxFuturesServer.cs" />
     <Compile Include="Market\Servers\BitMax\BitMaxEntity.cs" />
     <Compile Include="Market\Servers\BitMax\BitMaxMarketDepthCreator.cs" />
@@ -506,6 +522,10 @@
     <Compile Include="Market\Servers\BitStamp\BitStampEntity\RequestAuthenticator.cs" />
     <Compile Include="Market\Servers\BitStamp\BitStampServer.cs" />
     <Compile Include="Market\Servers\BitStamp\BitStampEntity\JsonResponse.cs" />
+    <Compile Include="Market\Servers\BybitSpot\BybitSpotServer.cs" />
+    <Compile Include="Market\Servers\BybitSpot\BybitSpotServerPermission.cs" />
+    <Compile Include="Market\Servers\BybitSpot\Entities\ResponseRestMessage.cs" />
+    <Compile Include="Market\Servers\BybitSpot\Entities\ResponseWebSocketMessage.cs" />
     <Compile Include="Market\Servers\Bybit\BybitServer.cs" />
     <Compile Include="Market\Servers\Bybit\BybitServerPermission.cs" />
     <Compile Include="Market\Servers\Bybit\Entities\Client.cs" />
@@ -719,10 +739,6 @@
     <Compile Include="Market\Servers\Entity\MarshalUTF8.cs" />
     <Compile Include="Market\Servers\Entity\ServerWorkingTimeSettings.cs" />
     <Compile Include="Market\Servers\Entity\TimeManager.cs" />
-    <Compile Include="Market\Servers\SmartCom\SmartComServer.cs" />
-    <Compile Include="Market\Servers\SmartCom\SmartComServerUi.xaml.cs">
-      <DependentUpon>SmartComServerUi.xaml</DependentUpon>
-    </Compile>
     <Compile Include="Market\Servers\Tester\GoToUi.xaml.cs">
       <DependentUpon>GoToUi.xaml</DependentUpon>
     </Compile>
@@ -809,10 +825,17 @@
     <Compile Include="Market\Services\CandlesCreator.cs" />
     <Compile Include="Market\Services\RestChannel.cs" />
     <Compile Include="Market\Services\WsSource.cs" />
+    <Compile Include="Market\SupportTable\SupportTableBase.cs" />
+    <Compile Include="Market\SupportTable\SupportTableUi.xaml.cs">
+      <DependentUpon>SupportTableUi.xaml</DependentUpon>
+    </Compile>
     <Compile Include="OsConverter\OsCandleConverterUi.xaml.cs">
       <DependentUpon>OsCandleConverterUi.xaml</DependentUpon>
     </Compile>
     <Compile Include="OsData\OsDataMaster.cs" />
+    <Compile Include="OsData\OsDataSetDetailUi.xaml.cs">
+      <DependentUpon>OsDataSetDetailUi.xaml</DependentUpon>
+    </Compile>
     <Compile Include="OsData\OsDataSetPainter.cs" />
     <Compile Include="OsData\OsDataUi.xaml.cs">
       <DependentUpon>OsDataUi.xaml</DependentUpon>
@@ -907,20 +930,56 @@
     <Compile Include="OsTrader\Panels\BotPanelChartUI.xaml.cs">
       <DependentUpon>BotPanelChartUI.xaml</DependentUpon>
     </Compile>
+    <Compile Include="OsTrader\Panels\Tab\BotTabPair.cs" />
+    <Compile Include="OsTrader\Panels\Tab\BotTabPairAutoSelectPairsUi.xaml.cs">
+      <DependentUpon>BotTabPairAutoSelectPairsUi.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="OsTrader\Panels\Tab\BotTabPairCommonSettingsUi.xaml.cs">
+      <DependentUpon>BotTabPairCommonSettingsUi.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="OsTrader\Panels\Tab\BotTabPairUi.xaml.cs">
+      <DependentUpon>BotTabPairUi.xaml</DependentUpon>
+    </Compile>
     <Compile Include="OsTrader\Panels\Tab\BotTabScreener.cs" />
     <Compile Include="OsTrader\Panels\Tab\BotTabScreenerUi.xaml.cs">
       <DependentUpon>BotTabScreenerUi.xaml</DependentUpon>
     </Compile>
+    <Compile Include="OsTrader\Panels\Tab\Internal\PositionCloseUi2.xaml.cs">
+      <DependentUpon>PositionCloseUi2.xaml</DependentUpon>
+    </Compile>
     <Compile Include="OsTrader\Panels\Tab\Internal\PositionOpenUi2.xaml.cs">
       <DependentUpon>PositionOpenUi2.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Robots\AutoTestBots\ServerTests\AServerTester.cs" />
+    <Compile Include="Robots\AutoTestBots\ServerTests\Conn_1_Status.cs" />
+    <Compile Include="Robots\AutoTestBots\ServerTests\Conn_2_Spam_Subscr.cs" />
+    <Compile Include="Robots\AutoTestBots\ServerTests\Conn_3_SubscrAllSec.cs" />
+    <Compile Include="Robots\AutoTestBots\ServerTests\Conn_4_Stress_Memory.cs" />
+    <Compile Include="Robots\AutoTestBots\ServerTests\Conn_5_Validation_Candles.cs" />
+    <Compile Include="Robots\AutoTestBots\ServerTests\Data_1_Integrity.cs" />
+    <Compile Include="Robots\AutoTestBots\ServerTests\Data_2_Validation_Candles.cs" />
+    <Compile Include="Robots\AutoTestBots\ServerTests\Data_3_Validation_Trades.cs" />
+    <Compile Include="Robots\AutoTestBots\ServerTests\Data_4_Stress_Candles.cs" />
+    <Compile Include="Robots\AutoTestBots\ServerTests\Data_5_Stress_Trades.cs" />
+    <Compile Include="Robots\AutoTestBots\ServerTests\Orders_1_FakeOrders.cs" />
+    <Compile Include="Robots\AutoTestBots\ServerTests\Orders_2_LimitsExecute.cs" />
+    <Compile Include="Robots\AutoTestBots\ServerTests\Orders_3_MarketOrders.cs" />
+    <Compile Include="Robots\AutoTestBots\ServerTests\Orders_4_LimitCancel.cs" />
+    <Compile Include="Robots\AutoTestBots\ServerTests\Portfolio_1_Validation.cs" />
+    <Compile Include="Robots\AutoTestBots\ServerTests\Var_2_MarketDepth.cs" />
+    <Compile Include="Robots\AutoTestBots\ServerTests\Var_1_Securities.cs" />
     <Compile Include="Robots\AutoTestBots\TestBotCandlesComparison.cs" />
     <Compile Include="Robots\AutoTestBots\TestBotConnection.cs" />
     <Compile Include="Robots\AutoTestBots\TestBotConnectionParams.xaml.cs">
       <DependentUpon>TestBotConnectionParams.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Robots\AutoTestBots\TestBotOpenAndCanselOrders.cs" />
+    <Compile Include="Robots\BotCreateUi2.xaml.cs">
+      <DependentUpon>BotCreateUi2.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Robots\BotFactory.cs" />
     <Compile Include="Robots\CounterTrend\ClusterCountertrend.cs" />
+    <Compile Include="Robots\Engines\EnginePair.cs" />
     <Compile Include="Robots\OnScriptIndicators\GridSample.cs" />
     <Compile Include="Robots\Engines\CandleEngine.cs" />
     <Compile Include="Robots\Engines\ClusterEngine.cs" />
@@ -935,6 +994,9 @@
     <Compile Include="Robots\OnScriptIndicators\BollingerRevers.cs" />
     <Compile Include="Robots\OnScriptIndicators\BollingerTrailing.cs" />
     <Compile Include="Robots\OnScriptIndicators\CciTrade.cs" />
+    <Compile Include="Robots\PairArbitrage\PairCointegrationSideTrader.cs" />
+    <Compile Include="Robots\PairArbitrage\PairCorrelationNegative.cs" />
+    <Compile Include="Robots\PairArbitrage\PairCorrelationTrader.cs" />
     <Compile Include="Robots\TechSapmles\BlockIndicatorsSample.cs" />
     <Compile Include="Robots\TechSapmles\CustomParamsUseBotSample.cs" />
     <Compile Include="Robots\OnScriptIndicators\FundBalanceDivergenceBot.cs" />
@@ -1023,9 +1085,6 @@
     <Compile Include="OsTrader\Panels\Tab\Internal\AcebergMaker.cs" />
     <Compile Include="OsTrader\Panels\Tab\Internal\PositionCloseUi.xaml.cs">
       <DependentUpon>PositionCloseUi.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="OsTrader\Panels\Tab\Internal\PositionModificateUi.xaml.cs">
-      <DependentUpon>PositionModificateUi.xaml</DependentUpon>
     </Compile>
     <Compile Include="OsTrader\Panels\Tab\Internal\PositionCreator.cs" />
     <Compile Include="OsTrader\RiskManager\RiskManager.cs" />
@@ -1266,6 +1325,14 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="Entity\ColorCustomDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Entity\CustomMessageBoxUi.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Entity\DateTimeSelectionDialog.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -1323,10 +1390,6 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Market\Servers\Optimizer\OptimizerDataStorageUi.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Market\Servers\SmartCom\SmartComServerUi.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -1398,7 +1461,15 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="Market\SupportTable\SupportTableUi.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="OsConverter\OsCandleConverterUi.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="OsData\OsDataSetDetailUi.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -1466,7 +1537,23 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="OsTrader\Panels\Tab\BotTabPairAutoSelectPairsUi.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="OsTrader\Panels\Tab\BotTabPairCommonSettingsUi.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="OsTrader\Panels\Tab\BotTabPairUi.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="OsTrader\Panels\Tab\BotTabScreenerUi.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="OsTrader\Panels\Tab\Internal\PositionCloseUi2.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -1475,6 +1562,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Robots\AutoTestBots\TestBotConnectionParams.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Robots\BotCreateUi2.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -1554,10 +1645,6 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="OsTrader\Panels\Tab\Internal\PositionModificateUi.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
     <Page Include="OsTrader\Panels\Tab\Internal\PositionStopUi.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -1606,12 +1693,6 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
       <SubType>Designer</SubType>
     </EmbeddedResource>
-    <None Include="lua\dkjson.lua" />
-    <None Include="lua\qscallbacks.lua" />
-    <None Include="lua\qsfunctions.lua" />
-    <None Include="lua\qsutils.lua" />
-    <None Include="lua\QuikSharp.lua" />
-    <None Include="lua\socket.lua" />
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
@@ -1648,17 +1729,6 @@
     <None Include="Resources\wolf01.wav" />
     <None Include="Resources\Duck.wav" />
     <None Include="Resources\Bird.wav" />
-  </ItemGroup>
-  <ItemGroup>
-    <COMReference Include="SmartCOM4Lib">
-      <Guid>{D12929CB-4569-46B7-99CE-FFF546E41866}</Guid>
-      <VersionMajor>1</VersionMajor>
-      <VersionMinor>0</VersionMinor>
-      <Lcid>0</Lcid>
-      <WrapperTool>tlbimp</WrapperTool>
-      <Isolated>False</Isolated>
-      <EmbedInteropTypes>False</EmbedInteropTypes>
-    </COMReference>
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Robots\1readme.txt" />
@@ -1717,8 +1787,12 @@
     <EmbeddedResource Include="Resources\OsEngine_logo_transpared.png" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="lua\clibs\lua51.dll" />
-    <Content Include="lua\clibs\socket\core.dll" />
+    <Resource Include="Images\Support\No.png" />
+    <Resource Include="Images\Support\Prime.png" />
+    <Resource Include="Images\Support\Standart.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="OsLogo.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

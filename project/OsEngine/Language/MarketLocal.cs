@@ -118,7 +118,7 @@ namespace OsEngine.Language
 
         public string Label20 => OsLocalization.ConvertToLocString(
             "Eng:Deploy servers automatically_" +
-            "Ru:Разворачивать сервера автоматически_");
+            "Ru:Авто-развёртывание подключений_");
 
         public string Label21 => OsLocalization.ConvertToLocString(
            "Eng: Connection state _" +
@@ -308,6 +308,123 @@ namespace OsEngine.Language
            "Eng:Are you sure you want to call off this order?_" +
            "Ru:Вы точно хотите отозовать этот ордер?_");
 
+        public string Label69 => OsLocalization.ConvertToLocString(
+           "Eng:Logo_" +
+           "Ru:Логотип_");
+
+        public string Label70 => OsLocalization.ConvertToLocString(
+           "Eng:Name_" +
+           "Ru:Название_");
+
+        public string Label71 => OsLocalization.ConvertToLocString(
+           "Eng:Support_" +
+           "Ru:Поддержка_");
+
+        public string Label72 => OsLocalization.ConvertToLocString(
+           "Eng:Discount_" +
+           "Ru:Скидка_");
+
+        public string Label73 => OsLocalization.ConvertToLocString(
+           "Eng:Get discount_" +
+           "Ru:Получить скидку_");
+
+        public string Label74 => OsLocalization.ConvertToLocString(
+           "Eng:All detected problems are put first \n on the fixing_" +
+           "Ru:Все обнаруженные проблемы ставятся в \n первую очередь на правки_");
+
+        public string Label75 => OsLocalization.ConvertToLocString(
+          "Eng:All detected problems are put in the \n second turn on the fixing_" +
+          "Ru:Все обнаруженные проблемы ставятся во \n вторую очередь на правки_");
+
+        public string Label76 => OsLocalization.ConvertToLocString(
+          "Eng:All detected problems must be corrected \n by the users themselves_" +
+          "Ru:Все обнаруженные проблемы должны быть \n устранены пользователями самостоятельно_");
+
+        public string Label77 => OsLocalization.ConvertToLocString(
+          "Eng:Connectors support rules_" +
+          "Ru:Правила поддержки коннекторов_");
+
+        public string Label78 => OsLocalization.ConvertToLocString(
+          "Eng:MOEX_" +
+          "Ru:Россия_");
+
+        public string Label79 => OsLocalization.ConvertToLocString(
+          "Eng:Crypto_" +
+          "Ru:Крипта_");
+
+        public string Label80 => OsLocalization.ConvertToLocString(
+          "Eng:International_" +
+          "Ru:Международные_");
+
+        public string Label81 => OsLocalization.ConvertToLocString(
+          "Eng:Support rules_" +
+          "Ru:Правила поддержки_");
+
+        public string Label82 => OsLocalization.ConvertToLocString(
+          "Eng:Delete_" +
+          "Ru:Удалить_");
+
+        public string Label83 => OsLocalization.ConvertToLocString(
+          "Eng: \nDo you want to delete a position on the exchange? \nRobots trading this security will be stopped!_" +
+          "Ru: \nВы хотите удалить позицию на бирже? \nРоботы торгующие эту бумагу будут остановлены!_");
+
+        public string Label84 => OsLocalization.ConvertToLocString(
+          "Eng:Server is not active! The operation is not possible!_" +
+          "Ru:Сервер не активен! Операция не возможна!_");
+
+        public string Label85 => OsLocalization.ConvertToLocString(
+          "Eng:Set_" +
+          "Ru:Настроить_");
+
+        public string Label86 => OsLocalization.ConvertToLocString(
+          "Eng:Info_" +
+          "Ru:Подробнее_");
+
+        public string Label87 => OsLocalization.ConvertToLocString(
+         "Eng:If true - then OsEngine stores in the OsData folder all the deal feed it receives. It's very resource intensive! Recommendation - false._" +
+         "Ru:Если true - то OsEngine хранит в папке OsData всю ленту сделок которую получает. Это очень ресурсоёмко! Рекомендация - false._");
+
+        public string Label88 => OsLocalization.ConvertToLocString(
+         "Eng:Adjusts the number of trades that will be loaded from the file system. It works if the storage of trades is enabled. The more - the harder it will be for the program._" +
+         "Ru:Регулирует количество трейдов которые будут загружены из файловой системы. Работает если включено хранение трейдов. Чем больше - тем труднее будет программе._");
+
+        public string Label89 => OsLocalization.ConvertToLocString(
+         "Eng:If true - then OsEngine stores in the OsData folder the candlesticks it receives and generates in the process of work. Recommendation - true._" +
+         "Ru:Если true - то OsEngine хранит в папке OsData свечи которые получает и формирует в процессе работы. Рекомендация - true._");
+
+        public string Label90 => OsLocalization.ConvertToLocString(
+         "Eng:Adjusts the number of candlesticks that will be loaded from the file system. Works if candles storage is enabled. It is recommended to keep at least 200_" +
+         "Ru:Регулирует количество свечек которые будут загружены из файловой системы. Работает если включено хранение свечек. Рекомендутся оставлять не менее 200_");
+
+        public string Label91 => OsLocalization.ConvertToLocString(
+         "Eng:If true - deals in the deals feed contain the best buy and sell price and their volumes. Loads CPU. Recommendation - false._" +
+         "Ru:Если true - сделки в ленте сделок содержат лучшую цену покупки и продажи и их объёмы. Нагружает ЦП. Рекомендация - false._");
+
+        public string Label92 => OsLocalization.ConvertToLocString(
+          "Eng:If true - arrays with deals will be automatically cleared inside the program. Recommendation - true._" +
+          "Ru:Если true - массивы со сделками будут автоматически очищаться внутри программы. Рекомендация - true._");
+
+        public string Label93 => OsLocalization.ConvertToLocString(
+          "Eng:If true - arrays with candlesticks will be automatically cleared inside the program. Recommendation - false._" +
+          "Ru:Если true - массивы со свечками будут автоматически очищаться внутри программы. Рекомендация - false._");
+
+        public string Label94 => OsLocalization.ConvertToLocString(
+          "Eng:If true - full size marketDepths will be fed from the connector. Recommendation - false._" +
+          "Ru:Если true - из коннектора будут подаваться полноразмерные стаканы заявок в роботов. Рекомендация - false._");
+
+        public string Label95 => OsLocalization.ConvertToLocString(
+          "Eng:If true - trades with price change will be fed from the server to the robots. Deals with the same price will not be transmitted. It greatly facilitates the work of the program. Recommendation - true._" +
+          "Ru:Если true - из сервера в роботов будут подаваться сделки с изменением цены. Сделки с одинаковой ценой транслироваться не будут. Сильно облегчает работу программы. Рекомендовано - true._");
+
+        public string Label96 => OsLocalization.ConvertToLocString(
+          "Eng: It takes up to 15 minutes to download tickets via LUA QUIK for all options of all assets in all terms. Until the end of the download, the instruments will not appear in the data settings. Wait for them._" +
+          "Ru:На загрузку через LUA QUIK  тикетов для всех опционов всех активов во всех сроках необходимо до 15 минут.До окончания загрузки инструменты в настройках данных не появятся.Ждите их._");
+
+        public string Label97 => OsLocalization.ConvertToLocString(
+          "Eng:It takes up to 5 minutes to download other assets via LUA QUIK. Until the download is completed, the tools will not appear in the data settings. Wait for them._" +
+          "Ru:На загрузку прочих активов через LUA QUIK необходимо до 5 минут.До окончания загрузки инструменты в настройках данных не появятся.Ждите их._");
+
+
         public string LabelComissionType => OsLocalization.ConvertToLocString(
             "Eng:Comission type_" +
             "Ru:Тип комиссии_");
@@ -327,7 +444,6 @@ namespace OsEngine.Language
         public string TabItem2 => OsLocalization.ConvertToLocString(
             "Eng: Logging_" +
             "Ru: Логирование _");
-
 
         // Servers
 
@@ -426,8 +542,6 @@ namespace OsEngine.Language
         public string TabItem4 => OsLocalization.ConvertToLocString(
             "Eng: Logging _" +
             "Ru: Логирование _");
-
-
 
         public string ButtonConnect => OsLocalization.ConvertToLocString(
             "Eng:Connect_" +
@@ -763,6 +877,9 @@ namespace OsEngine.Language
             "Eng:Secret key_" +
             "Ru:Секретный ключ_");
 
+        public string ServerParamPassphrase => OsLocalization.ConvertToLocString(
+            "Eng:Passphrase_" +
+            "Ru:Пароль_");
 
         public string ServerParamToken => OsLocalization.ConvertToLocString(
             "Eng:Token_" +
@@ -815,6 +932,10 @@ namespace OsEngine.Language
         public string ServerParam10 => OsLocalization.ConvertToLocString(
            "Eng:Use Full Market Depth_" +
            "Ru:Использовать полный стакан_");
+
+        public string ServerParam11 => OsLocalization.ConvertToLocString(
+          "Eng:Skip trades with the same price_" +
+          "Ru:Пропускать сделки с одинаковой ценой_");
 
         public string UseStock => OsLocalization.ConvertToLocString(
             "Eng:Stock_" +

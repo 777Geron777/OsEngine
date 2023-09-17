@@ -17,6 +17,7 @@ using OsEngine.Entity;
 using OsEngine.Language;
 using OsEngine.Logging;
 using MessageBox = System.Windows.MessageBox;
+using System.Globalization;
 
 namespace OsEngine.Journal.Internal
 {
@@ -44,12 +45,15 @@ namespace OsEngine.Journal.Internal
         {
             if (_worker == null)
             {
+                _currentCulture = OsLocalization.CurCulture;
                 _worker = new Task(WatcherHome);
                 _worker.Start();
             }
         }
 
         private static Task _worker;
+
+        private static CultureInfo _currentCulture;
 
         /// <summary>
         /// flow location
@@ -1510,9 +1514,16 @@ namespace OsEngine.Journal.Internal
         {
             try
             {
-                nRow.Cells[1].Value = position.TimeOpen;
+                nRow.Cells[1].Value = position.TimeOpen.ToString(_currentCulture);
 
-                nRow.Cells[2].Value = position.TimeClose;
+                if (position.TimeClose != position.TimeOpen)
+                {
+                    nRow.Cells[2].Value = position.TimeClose.ToString(_currentCulture);
+                }
+                else
+                {
+                    nRow.Cells[2].Value = "";
+                }
 
                 nRow.Cells[3].Value = position.NameBot;
 
@@ -1605,6 +1616,14 @@ namespace OsEngine.Journal.Internal
                 }
 
                 _positionsToPaint.Add(position);
+
+                if(_startProgram == StartProgram.IsTester)
+                {
+                    if(_positionsToPaint.Count > 200)
+                    {
+                        _positionsToPaint.RemoveAt(0);
+                    }
+                }
             }
             catch
             {
@@ -1633,10 +1652,18 @@ namespace OsEngine.Journal.Internal
                 nRow.Cells[0].Value = position.Number;
 
                 nRow.Cells.Add(new DataGridViewTextBoxCell());
-                nRow.Cells[1].Value = position.TimeOpen;
+                nRow.Cells[1].Value = position.TimeOpen.ToString(_currentCulture);
 
                 nRow.Cells.Add(new DataGridViewTextBoxCell());
-                nRow.Cells[2].Value = position.TimeClose;
+
+                if (position.TimeClose != position.TimeOpen)
+                {
+                    nRow.Cells[2].Value = position.TimeClose.ToString(_currentCulture);
+                }
+                else
+                {
+                    nRow.Cells[2].Value = "";
+                }
 
                 nRow.Cells.Add(new DataGridViewTextBoxCell());
                 nRow.Cells[3].Value = position.NameBot;
@@ -1735,7 +1762,7 @@ namespace OsEngine.Journal.Internal
 
             try
             {
-                MenuItem[] items = new MenuItem[7];
+                MenuItem[] items = new MenuItem[6];
 
                 items[0] = new MenuItem { Text = OsLocalization.Journal.PositionMenuItem1 };
                 items[0].Click += PositionCloseAll_Click;
@@ -1746,17 +1773,14 @@ namespace OsEngine.Journal.Internal
                 items[2] = new MenuItem { Text = OsLocalization.Journal.PositionMenuItem3 };
                 items[2].Click += PositionCloseForNumber_Click;
 
-                items[3] = new MenuItem { Text = OsLocalization.Journal.PositionMenuItem4 };
-                items[3].Click += PositionModificationForNumber_Click;
+                items[3] = new MenuItem { Text = OsLocalization.Journal.PositionMenuItem5 };
+                items[3].Click += PositionNewStop_Click;
 
-                items[4] = new MenuItem { Text = OsLocalization.Journal.PositionMenuItem5 };
-                items[4].Click += PositionNewStop_Click;
+                items[4] = new MenuItem { Text = OsLocalization.Journal.PositionMenuItem6 };
+                items[4].Click += PositionNewProfit_Click;
 
-                items[5] = new MenuItem { Text = OsLocalization.Journal.PositionMenuItem6 };
-                items[5].Click += PositionNewProfit_Click;
-
-                items[6] = new MenuItem { Text = OsLocalization.Journal.PositionMenuItem7 };
-                items[6].Click += PositionClearDelete_Click;
+                items[5] = new MenuItem { Text = OsLocalization.Journal.PositionMenuItem7 };
+                items[5].Click += PositionClearDelete_Click;
 
                 ContextMenu menu = new ContextMenu(items);
 
@@ -1827,7 +1851,6 @@ namespace OsEngine.Journal.Internal
                 SendNewLogMessage(error.ToString(), LogMessageType.Error);
             }
         }
-
 
         // work with context menu
 
@@ -1910,36 +1933,6 @@ namespace OsEngine.Journal.Internal
                 if (UserSelectActionEvent != null)
                 {
                     UserSelectActionEvent(GetPositionForNumber(number), SignalType.CloseOne);
-                }
-            }
-            catch (Exception error)
-            {
-                SendNewLogMessage(error.ToString(), LogMessageType.Error);
-            }
-        }
-
-        /// <summary>
-        /// the user has ordered a position modification
-        /// пользователь заказал модификацию позиции
-        /// </summary>
-        void PositionModificationForNumber_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                int number;
-                try
-                {
-                    number = Convert.ToInt32(_gridOpenDeal.Rows[_gridOpenDeal.CurrentCell.RowIndex].Cells[0].Value);
-                }
-                catch (Exception)
-                {
-                    return;
-                }
-
-
-                if (UserSelectActionEvent != null)
-                {
-                    UserSelectActionEvent(GetPositionForNumber(number), SignalType.Modificate);
                 }
             }
             catch (Exception error)

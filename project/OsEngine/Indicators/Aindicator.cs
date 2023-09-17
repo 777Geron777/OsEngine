@@ -624,7 +624,15 @@ namespace OsEngine.Indicators
             {
                 while (DataSeries[i].Values.Count < candles.Count)
                 {
-                    DataSeries[i].Values.Add(0);
+                    if (DataSeries[i].Values.Count == 0)
+                    {
+                        DataSeries[i].Values.Add(0);
+                    }
+                    else
+                    {
+                        DataSeries[i].Values.Add(0);
+                        // DataSeries[i].Values.Add(DataSeries[i].Values[DataSeries[i].Values.Count-1]);
+                    }
                 }
             }
 
@@ -671,7 +679,14 @@ namespace OsEngine.Indicators
             {
                 while (DataSeries[i].Values.Count < candles.Count)
                 {
-                    DataSeries[i].Values.Add(0);
+                    if (DataSeries[i].Values.Count == 0)
+                    {
+                        DataSeries[i].Values.Add(0);
+                    }
+                    else
+                    {
+                        DataSeries[i].Values.Add(DataSeries[i].Values[DataSeries[i].Values.Count - 1]);
+                    }
                 }
             }
 

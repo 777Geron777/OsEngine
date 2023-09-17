@@ -14,7 +14,6 @@ using WebSocket4Net;
 using System.Net.Http;
 using SuperSocket.ClientEngine;
 
-
 namespace OsEngine.Market.Servers.OKX
 {
     public class OkxClient
@@ -22,7 +21,6 @@ namespace OsEngine.Market.Servers.OKX
         private string PublicKey;
         private string SeckretKey;
         private string Password;
-        private bool HedgeModeIsOn;
 
         private string _baseUrl = "https://www.okx.com/";
         private string _publicWebSocket = "wss://ws.okx.com:8443/ws/v5/public";
@@ -30,6 +28,7 @@ namespace OsEngine.Market.Servers.OKX
 
         private bool _isDisposed = false;
 
+        HttpClient _httpPublicClient = new HttpClient();
 
         #region LockersWebSockets
 
@@ -40,17 +39,18 @@ namespace OsEngine.Market.Servers.OKX
 
         #endregion
 
-
         //Задержка на подписку для вебсокетов
-        public RateGate _rateGateWebSocket = new RateGate(1, TimeSpan.FromMilliseconds(1500));
+        public RateGate _rateGateWebSocket = new RateGate(1, TimeSpan.FromMilliseconds(500));
+        //Задержка на получения данных портфеля
+        public RateGate _rateGateGetBalance = new RateGate(1, TimeSpan.FromMilliseconds(500));
+        //Задержка на получения данных позиций
+        public RateGate _rateGateGetPositions = new RateGate(1, TimeSpan.FromMilliseconds(500));
 
-        public OkxClient(string PublicKey, string SeckretKey, string Password, bool HedgeModeIsOn)
+        public OkxClient(string PublicKey, string SeckretKey, string Password)
         {
             this.PublicKey = PublicKey;
             this.SeckretKey = SeckretKey;
             this.Password = Password;
-            this.HedgeModeIsOn = HedgeModeIsOn;
-
 
             Thread ThreadCleaningDoneOrders = new Thread(CleanDoneOrders);
             ThreadCleaningDoneOrders.CurrentCulture = new CultureInfo("ru-RU");
@@ -68,10 +68,15 @@ namespace OsEngine.Market.Servers.OKX
 
             try
             {
-                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls |
+                    SecurityProtocolType.Tls11 |
+                    SecurityProtocolType.Tls12 |
+                    SecurityProtocolType.Tls13 |
+                    SecurityProtocolType.Ssl3 |
+                    SecurityProtocolType.SystemDefault;
 
-                HttpClient httpClient = new HttpClient();
-                var response = httpClient.GetAsync(_baseUrl + "api/v5/public/time").Result;
+                
+                var response = _httpPublicClient.GetAsync(_baseUrl + "api/v5/public/time").Result;
 
                 if (response.StatusCode != HttpStatusCode.OK)
                 {
@@ -80,39 +85,34 @@ namespace OsEngine.Market.Servers.OKX
             }
             catch (Exception exception)
             {
-                SendLogMessage("Сервер не доступен или отсутствует интернет. " +
+                SendLogMessage("Server is not available or there is no internet. \n" +
                     exception.Message +
-                    " Возможно вы забыли включить VPN ;)", LogMessageType.Error);
+                    " \n You may have forgotten to turn on the VPN", LogMessageType.Error);
                 return;
             }
 
             IsConnectedTrades = true;
             IsConnectedDepths = true;
 
-            if (Connected != null)
-            {
-                Connected();
-            }
-
             SetPositionMode();
-
-            CreateDataChanels();
+            CreateDataChanelsReaders();
+            CreateTradeChanel();
+            CreateDepthsChanel();
+            CreateOrderChanel();
+            CreatePositionChanell();
         }
+
         public void Dispose()
         {
             Thread.Sleep(1000);
             try
             {
-                foreach (var ws in _wsChanelPositions)
-                {
-                    ws.Value.Closed -= new EventHandler(DisconnectPsoitonsChanel);
-                    ws.Value.MessageReceived -= new EventHandler<MessageReceivedEventArgs>(PushMessagePositions);
-
-                    ws.Value.Close();
-                    ws.Value.Dispose();
-                }
-
+                _clientPrivateBalanceAndOrders = null;
                 IsConnectedPositions = false;
+                _wsClientPositions.Closed -= new EventHandler(DisconnectPsoitonsChanel);
+                _wsClientPositions.MessageReceived -= new EventHandler<MessageReceivedEventArgs>(PushMessagePositions);
+                _wsClientPositions.Close();
+                _wsClientPositions.Dispose();
             }
             catch
             {
@@ -121,16 +121,11 @@ namespace OsEngine.Market.Servers.OKX
 
             try
             {
-                foreach (var ws in _wsChanelOrders)
-                {
-                    ws.Value.Closed -= new EventHandler(DisconnectOrdersChanel);
-                    ws.Value.MessageReceived -= new EventHandler<MessageReceivedEventArgs>(PushMessageOrders);
-
-                    ws.Value.Close();
-                    ws.Value.Dispose();
-                }
-
                 IsConnectedOrders = false;
+                _wsClientOrders.Closed -= new EventHandler(DisconnectOrdersChanel);
+                _wsClientOrders.MessageReceived -= new EventHandler<MessageReceivedEventArgs>(PushMessageOrders);
+                _wsClientOrders.Close();
+                _wsClientOrders.Dispose();
             }
             catch
             {
@@ -139,35 +134,25 @@ namespace OsEngine.Market.Servers.OKX
 
             try
             {
-                foreach (var ws in _wsChanelDepths)
-                {
-                    ws.Value.Closed -= new EventHandler(DisconnectDepthsChanel);
-                    ws.Value.MessageReceived -= new EventHandler<MessageReceivedEventArgs>(PushMessageDepths);
-
-                    ws.Value.Close();
-                    ws.Value.Dispose();
-                }
-
                 IsConnectedDepths = false;
+                _wsClientDepths.Closed -= new EventHandler(DisconnectDepthsChanel);
+                _wsClientDepths.MessageReceived -= new EventHandler<MessageReceivedEventArgs>(PushMessageDepths);
+                _wsClientDepths.Close();
+                _wsClientDepths.Dispose();
+                
             }
             catch
             {
                 // ignore
             }
 
-
             try
             {
-                foreach (var ws in _wsChanelTrades)
-                {
-                    ws.Value.Closed -= new EventHandler(DisconnectTradesChanel);
-                    ws.Value.MessageReceived -= new EventHandler<MessageReceivedEventArgs>(PushMessageTrade);
-
-                    ws.Value.Close();
-                    ws.Value.Dispose();
-                }
-
                 IsConnectedTrades = false;
+                _wsClientTrades.Closed -= new EventHandler(DisconnectTradesChanel);
+                _wsClientTrades.MessageReceived -= new EventHandler<MessageReceivedEventArgs>(PushMessageTrade);
+                _wsClientTrades.Close();
+                _wsClientTrades.Dispose();
             }
             catch
             {
@@ -182,10 +167,11 @@ namespace OsEngine.Market.Servers.OKX
 
             _isDisposed = true;
         }
-        private void CreateDataChanels()
+
+        private void CreateDataChanelsReaders()
         {
 
-            Thread keepAliveSokcets = new Thread(KeepAliveSokcets);
+            Thread keepAliveSokcets = new Thread(KeepAliveSockets);
             keepAliveSokcets.CurrentCulture = new CultureInfo("ru-RU");
             keepAliveSokcets.IsBackground = true;
             keepAliveSokcets.Start();
@@ -215,7 +201,8 @@ namespace OsEngine.Market.Servers.OKX
             portfolioData.IsBackground = true;
             portfolioData.Start();
         }
-        private void KeepAliveSokcets()
+
+        private void KeepAliveSockets()
         {
             while (true)
             {
@@ -225,42 +212,30 @@ namespace OsEngine.Market.Servers.OKX
 
                     lock (lockerPositionsWs)
                     {
-                        foreach (var wsPos in _wsChanelPositions)
+                        if (_wsClientPositions.State == WebSocketState.Open)
                         {
-                            if (wsPos.Value.State == WebSocketState.Open)
-                            {
-                                wsPos.Value.Send("ping");
-                            }
+                            _wsClientPositions.Send("ping");
                         }
                     }
                     lock (lockerOrdersWs)
                     {
-                        foreach (var wsOrd in _wsChanelOrders)
+                        if (_wsClientOrders.State == WebSocketState.Open)
                         {
-                            if (wsOrd.Value.State == WebSocketState.Open)
-                            {
-                                wsOrd.Value.Send("ping");
-                            }
+                            _wsClientOrders.Send("ping");
                         }
                     }
                     lock (lockerTradesWs)
                     {
-                        foreach (var wsTrade in _wsChanelTrades)
+                        if (_wsClientTrades.State == WebSocketState.Open)
                         {
-                            if (wsTrade.Value.State == WebSocketState.Open)
-                            {
-                                wsTrade.Value.Send("ping");
-                            }
+                            _wsClientTrades.Send("ping");
                         }
                     }
                     lock (lockerDepthsWs)
                     {
-                        foreach (var wsDepth in _wsChanelDepths)
+                        if (_wsClientDepths.State == WebSocketState.Open)
                         {
-                            if (wsDepth.Value.State == WebSocketState.Open)
-                            {
-                                wsDepth.Value.Send("ping");
-                            }
+                            _wsClientDepths.Send("ping");
                         }
                     }
                 }
@@ -270,6 +245,7 @@ namespace OsEngine.Market.Servers.OKX
                 }
             }
         }
+
         private void SendLogMessage(string message, LogMessageType type)
         {
             if (LogMessageEvent != null)
@@ -281,6 +257,7 @@ namespace OsEngine.Market.Servers.OKX
         #region Trade
 
         private object _lockOrder = new object();
+
         public void ExecuteOrder(Order order)
         {
             lock (_lockOrder)
@@ -289,7 +266,7 @@ namespace OsEngine.Market.Servers.OKX
                 {
                     if (_wsClientPositions != null)
                     {
-                        if (order.SecurityNameCode.EndsWith("SWAP"))
+                        if (order.SecurityNameCode.Contains("SWAP"))
                         {
                             SendOrderSwap(order);
                         }
@@ -306,6 +283,7 @@ namespace OsEngine.Market.Servers.OKX
                 }
             }
         }
+
         private void SendOrderSpot(Order order)
         {
 
@@ -329,10 +307,9 @@ namespace OsEngine.Market.Servers.OKX
             MyOrderRequest.Add(order);
             _wsClientPositions.Send(json);
         }
+
         private void SendOrderSwap(Order order)
         {
-
-
             var side = String.Empty;
             if (order.PositionConditionType == OrderPositionConditionType.Close)
             {
@@ -341,6 +318,7 @@ namespace OsEngine.Market.Servers.OKX
             else
             {
                 side = order.Side == Side.Buy ? "long" : "short";
+                //side = order.Side.ToString().ToLower();
             }
 
             OrderRequest<OrderRequestArgsSwap> orderRequest = new OrderRequest<OrderRequestArgsSwap>();
@@ -364,6 +342,7 @@ namespace OsEngine.Market.Servers.OKX
             MyOrderRequest.Add(order);
             _wsClientPositions.Send(json);
         }
+
         public void CancelOrder(Order order)
         {
             List<InstIdOrdId> arg = new List<InstIdOrdId>();
@@ -385,20 +364,403 @@ namespace OsEngine.Market.Servers.OKX
             _wsClientOrders.Send(json);
 
         }
-        private string GetListActivOrders()
-        {
-            var url = $"{_baseUrl}{"api/v5/trade/orders-pending"}";
-            using (var client = new HttpClient(new HttpInterceptor(PublicKey, SeckretKey, Password, null)))
-            {
-                var res = client.GetAsync(url).Result;
-                var contentStr = res.Content.ReadAsStringAsync().Result;
 
-                if (res.StatusCode != System.Net.HttpStatusCode.OK)
+        #endregion
+
+        #region Portfolio
+
+        DateTime _timeUpdatePortfolio;
+
+        private void UpdatePortfolios()
+        {
+            Thread.Sleep(30000);
+            while (true)
+            {
+                Thread.Sleep(1000);
+                try
                 {
-                    SendLogMessage(contentStr, LogMessageType.Error);
+                    if(_timeUpdatePortfolio.AddSeconds(30) > DateTime.Now)
+                    {
+                        continue;
+                    }
+
+                    _timeUpdatePortfolio = DateTime.Now;
+
+                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+
+                    var json = GetBalance();
+
+                    if (json.StartsWith("{\"code\":\"0\"") == false)
+                    {
+                        throw new Exception(json);
+                    }
+
+                    PorfolioResponse portfolio = JsonConvert.DeserializeAnonymousType(json, new PorfolioResponse());
+
+                    portfolio.data[0].details.AddRange(GeneratePositionToContracts());
+
+                    if (UpdatePortfolio != null)
+                    {
+                        UpdatePortfolio(portfolio);
+                    }
+
+                }
+                catch (Exception error)
+                {
+                    SendLogMessage($"{error.Message} {error.StackTrace}", LogMessageType.Error);
+                }
+            }
+        }
+
+        HttpClient _clientPrivateBalanceAndOrders = null;
+
+        private string GetBalance()
+        {
+            _rateGateGetBalance.WaitToProceed();
+            var url = $"{_baseUrl}{"api/v5/account/balance"}";
+
+            var res = GetBalanseOrMyTradesRequest(url);
+            var contentStr = res.Content.ReadAsStringAsync().Result;
+
+            if (res.StatusCode != System.Net.HttpStatusCode.OK)
+            {
+                SendLogMessage(contentStr, LogMessageType.Error);
+            }
+
+            return contentStr;
+        }
+
+        private List<PortdolioDetails> GeneratePositionToContracts()
+        {
+            List<PorfolioData> potfolios = new List<PorfolioData>();
+            List<PortdolioDetails> details = new List<PortdolioDetails>();
+
+
+            try
+            {
+                string blockBalance = GetBlockBalance();
+
+                PositonsResponce positons = JsonConvert.DeserializeAnonymousType(blockBalance, new PositonsResponce());
+
+                for (int i = 0; i < positons.data.Count; i++)
+                {
+                    PorfolioData porfolioData = new PorfolioData()
+                    {
+                        details = new List<PortdolioDetails> { new PortdolioDetails()
+                        {
+                            ccy = positons.data[i].instId + "_" + positons.data[i].posSide.ToUpper(),
+                            availEq = positons.data[i].pos, //notionalUsd
+                            frozenBal = "0"
+                    }   }
+                    };
+
+                    potfolios.Add(porfolioData);
+                }
+            }
+            catch (Exception error)
+            {
+                SendLogMessage($"{error.Message} {error.StackTrace}", LogMessageType.Error);
+            }
+
+            for (int i = 0; i < potfolios.Count; i++)
+            {
+                details.AddRange(potfolios[i].details);
+            }
+            return details;
+        }
+
+        private string GetBlockBalance()
+        {
+            _rateGateGetBalance.WaitToProceed();
+            var url = $"{_baseUrl}{"api/v5/account/positions"}";
+            var res = GetBalanseOrMyTradesRequest(url);
+            var contentStr = res.Content.ReadAsStringAsync().Result;
+
+            if (res.StatusCode != System.Net.HttpStatusCode.OK)
+            {
+                SendLogMessage(contentStr, LogMessageType.Error);
+            }
+
+            return contentStr;
+        }
+
+        public void GetPortfolios()
+        {
+            try
+            {
+
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+
+                var json = GetBalance();
+
+
+                if (json.StartsWith("{\"code\":\"0\"") == false)
+                {
+                    throw new Exception(json);
                 }
 
-                return contentStr;
+                PorfolioResponse portfolio = JsonConvert.DeserializeAnonymousType(json, new PorfolioResponse());
+
+                portfolio.data[0].details.AddRange(GeneratePositionToContracts());
+
+                if (NewPortfolio != null && portfolio != null)
+                {
+                    NewPortfolio(portfolio);
+                }
+
+
+            }
+            catch (Exception error)
+            {
+                SendLogMessage($"{error.Message} {error.StackTrace}", LogMessageType.Error);
+            }
+        }
+
+
+        private string _lockerBalanceGeter = "locker balance and orders geter";
+
+        public HttpResponseMessage GetBalanseOrMyTradesRequest(string url)
+        {
+            lock (_lockerBalanceGeter)
+            {
+                if (_clientPrivateBalanceAndOrders == null)
+                {
+                    _clientPrivateBalanceAndOrders = new HttpClient(new HttpInterceptor(PublicKey, SeckretKey, Password, null));
+                }
+
+                return _clientPrivateBalanceAndOrders.GetAsync(url).Result;
+            }
+        }
+
+        #endregion
+
+        #region Securities 
+
+        private string _lockerSecuityObj = "okx_sec_locker";
+
+        private SecurityResponce GetFuturesSecurities()
+        {
+            var response = _httpPublicClient.GetAsync("https://www.okx.com" + "/api/v5/public/instruments?instType=SWAP").Result;
+
+            string json = response.Content.ReadAsStringAsync().Result;
+
+            if (response.StatusCode != System.Net.HttpStatusCode.OK)
+            {
+                SendLogMessage(json, LogMessageType.Error);
+            }
+
+            SecurityResponce securityResponce = JsonConvert.DeserializeAnonymousType(json, new SecurityResponce());
+
+            return securityResponce;
+        }
+
+        private SecurityResponce GetSpotSecurities()
+        {
+            var response = _httpPublicClient.GetAsync("https://www.okx.com" + "/api/v5/public/instruments?instType=SPOT").Result;
+            var json = response.Content.ReadAsStringAsync().Result;
+            if (response.StatusCode != System.Net.HttpStatusCode.OK)
+            {
+                SendLogMessage(json, LogMessageType.Error);
+            }
+
+            SecurityResponce securityResponce = JsonConvert.DeserializeAnonymousType(json, new SecurityResponce());
+
+            return securityResponce;
+        }
+
+        public void GetSecurities()
+        {
+            lock (_lockerSecuityObj)
+            {
+                try
+                {
+                    SecurityResponce securityResponceFutures = GetFuturesSecurities();
+                    SecurityResponce securityResponceSpot = GetSpotSecurities();
+                    securityResponceFutures.data.AddRange(securityResponceSpot.data);
+                    if (UpdatePairs != null)
+                    {
+                        UpdatePairs(securityResponceFutures);
+                    }
+                }
+                catch (Exception error)
+                {
+                    if (error.Message.Equals("Unexpected character encountered while parsing value: <. Path '', line 0, position 0."))
+                    {
+                        SendLogMessage("service is unavailable", LogMessageType.Error);
+                        return;
+                    }
+                    SendLogMessage($"{error.Message} {error.StackTrace}", LogMessageType.Error);
+                }
+            }
+        }
+
+        #endregion
+
+        #region Candles
+
+        private string GetStringBar(TimeSpan tf)
+        {
+            try
+            {
+                if (tf.Hours != 0)
+                {
+                    return $"{tf.Hours}H";
+                }
+                if (tf.Minutes != 0)
+                {
+                    return $"{tf.Minutes}m";
+                }
+                if (tf.Days != 0)
+                {
+                    return $"{tf.Days}D";
+                }
+
+            }
+            catch (Exception error)
+            {
+                SendLogMessage($"{error.Message} {error.StackTrace}", LogMessageType.Error);
+            }
+
+            return String.Empty;
+        }
+
+        private int GetCountCandlesToLoad()
+        {
+            var server = (AServer)ServerMaster.GetServers().Find(server => server.ServerType == ServerType.OKX);
+
+            for (int i = 0; i < server.ServerParameters.Count; i++)
+            {
+                if (server.ServerParameters[i].Name.Equals("Candles to load"))
+                {
+                    var Param = (ServerParameterInt)server.ServerParameters[i];
+                    return Param.Value;
+                }
+            }
+
+            return 100;
+        }
+
+        private CandlesResponce GetResponseCandles(string nameSec, TimeSpan tf)
+        {
+
+            int NumberCandlesToLoad = GetCountCandlesToLoad();
+
+            string bar = GetStringBar(tf);
+
+            CandlesResponce candlesResponce = new CandlesResponce();
+            candlesResponce.data = new List<List<string>>();
+
+            do
+            {
+
+                int limit = NumberCandlesToLoad;
+                if (NumberCandlesToLoad > 100)
+                {
+                    limit = 100;
+                }
+
+                string after = String.Empty;
+
+                if (candlesResponce.data.Count != 0)
+                {
+                    after = $"&after={candlesResponce.data[candlesResponce.data.Count - 1][0]}";
+                }
+
+
+                string url = _baseUrl + $"api/v5/market/history-candles?instId={nameSec}&bar={bar}&limit={limit}" + after;
+
+                var responce = _httpPublicClient.GetAsync(url).Result;
+                var json = responce.Content.ReadAsStringAsync().Result;
+                candlesResponce.data.AddRange(JsonConvert.DeserializeAnonymousType(json, new CandlesResponce()).data);
+
+                if (responce.StatusCode != System.Net.HttpStatusCode.OK)
+                {
+                    SendLogMessage(json, LogMessageType.Error);
+                }
+
+                NumberCandlesToLoad -= limit;
+
+
+            } while (NumberCandlesToLoad > 0);
+
+            return candlesResponce;
+        }
+
+        private void ConvertCandles(CandlesResponce candlesResponce, List<Candle> candles)
+        {
+            for (int j = 0; j < candlesResponce.data.Count; j++)
+            {
+                Candle candle = new Candle();
+                try
+                {
+                    candle.TimeStart = TimeManager.GetDateTimeFromTimeStamp(Convert.ToInt64(candlesResponce.data[j][0]));
+
+                    candle.Open = candlesResponce.data[j][1].ToDecimal();
+                    candle.High = candlesResponce.data[j][2].ToDecimal();
+                    candle.Low = candlesResponce.data[j][3].ToDecimal();
+                    candle.Close = candlesResponce.data[j][4].ToDecimal();
+                    candle.Volume = candlesResponce.data[j][5].ToDecimal();
+                    var VolCcy = candlesResponce.data[j][6];
+
+                    candles.Add(candle);
+                }
+                catch (Exception error)
+                {
+                    SendLogMessage($"{error.Message} {error.StackTrace}", LogMessageType.Error);
+                }
+            }
+        }
+
+        public List<Candle> GetCandleHistory(string nameSec, TimeSpan tf)
+        {
+            CandlesResponce securityResponce = GetResponseCandles(nameSec, tf);
+
+            List<Candle> candles = new List<Candle>();
+
+            ConvertCandles(securityResponce, candles);
+
+            candles.Reverse();
+
+            return candles;
+        }
+
+        #endregion
+
+        #region WebSocket Activation
+
+        private bool IsConnectedPositions;
+
+        private bool IsConnectedOrders;
+
+        private bool IsConnectedDepths;
+
+        private bool IsConnectedTrades;
+
+        private void CheckFullActivation()
+        {
+            if(IsConnectedPositions == false)
+            {
+                return;
+            }
+
+            if (IsConnectedOrders == false)
+            {
+                return;
+            }
+
+            if (IsConnectedDepths == false)
+            {
+                return;
+            }
+
+            if (IsConnectedTrades == false)
+            {
+                return;
+            }
+
+            if(Connected != null)
+            {
+                Connected();
             }
         }
 
@@ -406,11 +768,7 @@ namespace OsEngine.Market.Servers.OKX
 
         #region MyTradeEvent
 
-        private bool IsConnectedPositions;
-
         private ConcurrentQueue<string> _newMessagePositions = new ConcurrentQueue<string>();
-
-        private Dictionary<string, WebSocket> _wsChanelPositions = new Dictionary<string, WebSocket>();
 
         private WebSocket _wsClientPositions;
 
@@ -443,12 +801,15 @@ namespace OsEngine.Market.Servers.OKX
                             {
                                 continue;
                             }
+
                             SendLogMessage(quotes.data[0].clOrdId + quotes.data[0].sMsg, LogMessageType.Error);
 
                             order = FindNeedOrder(quotes.data[0].clOrdId);
 
                             if (MyOrderEvent != null && order != null)
                             {
+                                order.State = OrderStateType.Fail;
+
                                 MyOrderEventFail(order);
                             }
                         }
@@ -470,65 +831,65 @@ namespace OsEngine.Market.Servers.OKX
             }
         }
 
-        public void SubscriblePositions(Security security)
+        public void CreatePositionChanell()
         {
-            if (!_wsChanelPositions.ContainsKey(security.Name))
-            {
-                _wsClientPositions = new WebSocket(_privateWebSocket);
+            _wsClientPositions = new WebSocket(_privateWebSocket);
 
-                _wsClientPositions.Opened += new EventHandler((sender, e) => {
-                    //_rateGateWebSocketPositions.WaitToProceed();
-                    ConnectPositionsChanel(sender, e, security.Name);
-                });
-
-                _wsClientPositions.Closed += new EventHandler(DisconnectPsoitonsChanel);
-
-                _wsClientTrades.Error += new EventHandler<SuperSocket.ClientEngine.ErrorEventArgs>((sender, e) => { WsError(sender, e, security.Name, "Position Chanell"); });
-
-                _wsClientPositions.MessageReceived += new EventHandler<MessageReceivedEventArgs>(PushMessagePositions);
-
-
-
-                if (_wsChanelPositions.ContainsKey(security.Name))
-                {
-                    _wsChanelPositions[security.Name].Close();
-                    _wsChanelPositions.Remove(security.Name);
-                }
-
-                _wsClientPositions.Open();
-                lock (lockerPositionsWs)
-                {
-                    _wsChanelPositions.Add(security.Name, _wsClientPositions);
-                }
-            }
-        }
-
-        private void ConnectPositionsChanel(object sender, EventArgs e, string securityName)
-        {
-            //Авторизация 
-            var client = (WebSocket)sender;
-            client.Send(Encryptor.MakeAuthRequest(PublicKey, SeckretKey, Password));
-
-
-            string TypeInst = "SPOT";
-            if (securityName.EndsWith("SWAP"))
-            {
-                TypeInst = "SWAP";
-            }
-
-            //Подписываемся на нужный канал
-            RequestSubscribe<SubscribeArgsAccount> requestTrade = new RequestSubscribe<SubscribeArgsAccount>();
-            requestTrade.args = new List<SubscribeArgsAccount>();
-            requestTrade.args.Add(new SubscribeArgsAccount()
-            {
-                channel = "positions",
-                instType = TypeInst
+            _wsClientPositions.Opened += new EventHandler((sender, e) => {
+                ConnectPositionsChanel(sender, e);
             });
 
-            var json = JsonConvert.SerializeObject(requestTrade);
-            client.Send(json);
+            _wsClientPositions.Closed += new EventHandler(DisconnectPsoitonsChanel);
+            _wsClientTrades.Error += new EventHandler<SuperSocket.ClientEngine.ErrorEventArgs>((sender, e) => { WsError(sender, e, "", "Position Chanell"); });
+            _wsClientPositions.MessageReceived += new EventHandler<MessageReceivedEventArgs>(PushMessagePositions);
+            _wsClientPositions.Open();
+        }
 
-            IsConnectedPositions = true;
+        private void ConnectPositionsChanel(object sender, EventArgs e)
+        {
+            try
+            {
+                //Авторизация 
+                var client = (WebSocket)sender;
+                client.Send(Encryptor.MakeAuthRequest(PublicKey, SeckretKey, Password));
+
+                string TypeInst = "SPOT";
+                RequestSubscribe<SubscribeArgsAccount> requestTradeSpot = new RequestSubscribe<SubscribeArgsAccount>();
+                requestTradeSpot.args = new List<SubscribeArgsAccount>();
+                requestTradeSpot.args.Add(new SubscribeArgsAccount()
+                {
+                    channel = "positions",
+                    instType = TypeInst
+                });
+
+                var jsonSpot = JsonConvert.SerializeObject(requestTradeSpot);
+                client.Send(jsonSpot);
+
+
+                TypeInst = "SWAP";
+                RequestSubscribe<SubscribeArgsAccount> requestTradeSwap = new RequestSubscribe<SubscribeArgsAccount>();
+                requestTradeSwap.args = new List<SubscribeArgsAccount>();
+                requestTradeSwap.args.Add(new SubscribeArgsAccount()
+                {
+                    channel = "positions",
+                    instType = TypeInst
+                });
+                var jsonSwap = JsonConvert.SerializeObject(requestTradeSwap);
+                client.Send(jsonSwap);
+
+                SendLogMessage("Positions channel is open", LogMessageType.System);
+                IsConnectedPositions = true;
+                CheckFullActivation();
+            }
+            catch (Exception error)
+            {
+                IsConnectedPositions = false;
+                SendLogMessage("Positions channel connection CRITICAL ERROR " + "\n" + error.ToString(), LogMessageType.System);
+                if (Disconnected != null)
+                {
+                    Disconnected();
+                }
+            }
         }
 
         private void DisconnectPsoitonsChanel(object sender, EventArgs e)
@@ -536,8 +897,6 @@ namespace OsEngine.Market.Servers.OKX
             if (IsConnectedPositions)
             {
                 IsConnectedPositions = false;
-
-                _wsChanelPositions.Clear();
 
                 if (Disconnected != null)
                 {
@@ -578,7 +937,6 @@ namespace OsEngine.Market.Servers.OKX
             }
         }
 
-
         private void CleanDoneOrders()
         {
             while (true)
@@ -598,16 +956,11 @@ namespace OsEngine.Market.Servers.OKX
             }
         }
 
-
         #endregion
 
         #region MyOrderEvent
 
-        private bool IsConnectedOrders;
-
         private ConcurrentQueue<string> _newMessageOrders = new ConcurrentQueue<string>();
-
-        private Dictionary<string, WebSocket> _wsChanelOrders = new Dictionary<string, WebSocket>();
 
         private WebSocket _wsClientOrders;
 
@@ -659,65 +1012,70 @@ namespace OsEngine.Market.Servers.OKX
             }
         }
 
-        public void SubscribleOrders(Security security)
+        private void CreateOrderChanel()
         {
-            if (!_wsChanelOrders.ContainsKey(security.Name))
-            {
-                _wsClientOrders = new WebSocket(_privateWebSocket);
+            _wsClientOrders = new WebSocket(_privateWebSocket);
 
-                _wsClientOrders.Opened += new EventHandler((sender, e) => {
-                    //_rateGateWebSocketOrders.WaitToProceed();
-                    ConnectOrdersChanel(sender, e, security.Name);
-                });
-
-                _wsClientOrders.Closed += new EventHandler(DisconnectOrdersChanel);
-
-                _wsClientTrades.Error += new EventHandler<SuperSocket.ClientEngine.ErrorEventArgs>((sender, e) => { WsError(sender, e, security.Name, "Orders Chanell"); });
-
-                _wsClientOrders.MessageReceived += new EventHandler<MessageReceivedEventArgs>(PushMessageOrders);
-
-
-
-                if (_wsChanelOrders.ContainsKey(security.Name))
-                {
-                    _wsChanelOrders[security.Name].Close();
-                    _wsChanelOrders.Remove(security.Name);
-                }
-
-                _wsClientOrders.Open();
-
-                lock (lockerOrdersWs)
-                {
-                    _wsChanelOrders.Add(security.Name, _wsClientOrders);
-                }
-            }
-        }
-
-        private void ConnectOrdersChanel(object sender, EventArgs e, string securityName)
-        {
-            //Авторизация 
-            var client = (WebSocket)sender;
-            client.Send(Encryptor.MakeAuthRequest(PublicKey, SeckretKey, Password));
-
-            string TypeInst = "SPOT";
-            if (securityName.EndsWith("SWAP"))
-            {
-                TypeInst = "SWAP";
-            }
-
-            //Подписываемся на нужный канал
-            RequestSubscribe<SubscribeArgsAccount> requestTrade = new RequestSubscribe<SubscribeArgsAccount>();
-            requestTrade.args = new List<SubscribeArgsAccount>();
-            requestTrade.args.Add(new SubscribeArgsAccount()
-            {
-                channel = "orders",
-                instType = TypeInst
+            _wsClientOrders.Opened += new EventHandler((sender, e) => {
+                ConnectOrdersChanel(sender, e);
             });
 
-            var json = JsonConvert.SerializeObject(requestTrade);
-            client.Send(json);
+            _wsClientOrders.Closed += new EventHandler(DisconnectOrdersChanel);
 
-            IsConnectedOrders = true;
+            _wsClientTrades.Error += new EventHandler<SuperSocket.ClientEngine.ErrorEventArgs>((sender, e) => { WsError(sender, e, "", "Orders Chanell"); });
+
+            _wsClientOrders.MessageReceived += new EventHandler<MessageReceivedEventArgs>(PushMessageOrders);
+
+            _wsClientOrders.Open();
+        }
+
+        private void ConnectOrdersChanel(object sender, EventArgs e)
+        {
+            try
+            {
+                //Авторизация 
+                var client = (WebSocket)sender;
+                client.Send(Encryptor.MakeAuthRequest(PublicKey, SeckretKey, Password));
+
+                string TypeInst = "SPOT";
+
+                //Подписываемся на нужный канал
+                RequestSubscribe<SubscribeArgsAccount> requestTradeSpot = new RequestSubscribe<SubscribeArgsAccount>();
+                requestTradeSpot.args = new List<SubscribeArgsAccount>();
+                requestTradeSpot.args.Add(new SubscribeArgsAccount()
+                {
+                    channel = "orders",
+                    instType = TypeInst
+                });
+
+                var jsonSpot = JsonConvert.SerializeObject(requestTradeSpot);
+                client.Send(jsonSpot);
+
+                TypeInst = "SWAP";
+                //Подписываемся на нужный канал
+                RequestSubscribe<SubscribeArgsAccount> requestTradeSwap = new RequestSubscribe<SubscribeArgsAccount>();
+                requestTradeSwap.args = new List<SubscribeArgsAccount>();
+                requestTradeSwap.args.Add(new SubscribeArgsAccount()
+                {
+                    channel = "orders",
+                    instType = TypeInst
+                });
+                var jsonSwap = JsonConvert.SerializeObject(requestTradeSwap);
+                client.Send(jsonSwap);
+
+                SendLogMessage("Orders channel is open", LogMessageType.System);
+                IsConnectedOrders = true;
+                CheckFullActivation();
+            }
+            catch(Exception error)
+            {
+                IsConnectedOrders = false;
+                SendLogMessage("Orders channel connection CRITICAL ERROR " + "\n" + error.ToString(), LogMessageType.System);
+                if(Disconnected != null)
+                {
+                    Disconnected();
+                }
+            }
         }
 
         private void DisconnectOrdersChanel(object sender, EventArgs e)
@@ -725,8 +1083,6 @@ namespace OsEngine.Market.Servers.OKX
             if (IsConnectedOrders)
             {
                 IsConnectedOrders = false;
-
-                _wsChanelOrders.Clear();
 
                 if (Disconnected != null)
                 {
@@ -749,449 +1105,45 @@ namespace OsEngine.Market.Servers.OKX
             _newMessageOrders.Enqueue(e.Message);
         }
 
-
-        /// <summary>
-        /// проверить статус ордеров на бирже
-        /// </summary>
-        /// <param name="orders"></param>
-        public void GetOrdersState(List<Order> orders)
-        {
-            for (int i = 0; i < orders.Count; i++)
-            {
-                try
-                {
-                    string json = GetOrderState(orders[i]);
-
-                    var oldOrder = JsonConvert.DeserializeAnonymousType(json, new ObjectChanel<OrderResponseData>());
-
-
-                    //if (oldOrder.data.Count == 0)
-                    //{
-                    //    throw new Exception(json + orders[i].NumberMarket + "  " + orders[i].NumberUser);
-                    //}
-
-                    if (MyOrderEvent != null)
-                    {
-                        MyOrderEvent(oldOrder);
-                    }
-                }
-                catch (Exception error)
-                {
-                    SendLogMessage($"{error.Message} { error.StackTrace}", LogMessageType.Error);
-                }
-            }
-        }
-
-        private string GetOrderState(Order order)
-        {
-            var url = $"{_baseUrl}{"api/v5/trade/order?"}{"ordId=" + order.NumberMarket}{"&instId=" + order.SecurityNameCode}";
-            using (var client = new HttpClient(new HttpInterceptor(PublicKey, SeckretKey, Password, null)))
-            {
-                var res = client.GetAsync(url).Result;
-                var contentStr = res.Content.ReadAsStringAsync().Result;
-
-                if (res.StatusCode != System.Net.HttpStatusCode.OK)
-                {
-                    SendLogMessage(contentStr, LogMessageType.Error);
-                }
-
-                return contentStr;
-            }
-        }
-
-        #endregion
-
-        #region Portfolio
-
-        private void UpdatePortfolios()
-        {
-            Thread.Sleep(30000);
-            while (true)
-            {
-                Thread.Sleep(30000);
-                try
-                {
-                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-
-                    var json = GetBalance();
-
-
-                    if (json.StartsWith("{\"code\":\"0\"") == false)
-                    {
-                        throw new Exception(json);
-                    }
-
-                    PorfolioResponse portfolio = JsonConvert.DeserializeAnonymousType(json, new PorfolioResponse());
-
-
-                    portfolio.data[0].details.AddRange(GeneratePositionToContracts());
-
-
-                    if (UpdatePortfolio != null)
-                    {
-                        UpdatePortfolio(portfolio);
-                    }
-
-                }
-                catch (Exception error)
-                {
-                    SendLogMessage($"{error.Message} { error.StackTrace}", LogMessageType.Error);
-                }
-            }
-        }
-
-        private string GetBalance()
-        {
-            var url = $"{_baseUrl}{"api/v5/account/balance"}";
-            using (var client = new HttpClient(new HttpInterceptor(PublicKey, SeckretKey, Password, null)))
-            {
-                var res = client.GetAsync(url).Result;
-                var contentStr = res.Content.ReadAsStringAsync().Result;
-
-                if (res.StatusCode != System.Net.HttpStatusCode.OK)
-                {
-                    SendLogMessage(contentStr, LogMessageType.Error);
-                }
-
-                return contentStr;
-            }
-        }
-
-
-        private List<PortdolioDetails> GeneratePositionToContracts()
-        {
-            List<PorfolioData> potfolios = new List<PorfolioData>();
-            List<PortdolioDetails> details = new List<PortdolioDetails>();
-
-
-            try
-            {
-                string blockBalance = GetBlockBalance();
-
-                PositonsResponce positons = JsonConvert.DeserializeAnonymousType(blockBalance, new PositonsResponce());
-
-                for (int i = 0; i < positons.data.Count; i++)
-                {
-                    PorfolioData porfolioData = new PorfolioData()
-                    {
-                        details = new List<PortdolioDetails> { new PortdolioDetails()
-                        {
-                            ccy = positons.data[i].instId + "_" + positons.data[i].posSide.ToUpper(),
-                            availEq = positons.data[i].pos, //notionalUsd
-                            frozenBal = "0"
-                    }   }
-                    };
-
-                    potfolios.Add(porfolioData);
-                }
-            }
-            catch (Exception error)
-            {
-                SendLogMessage($"{error.Message} { error.StackTrace}", LogMessageType.Error);
-            }
-
-            for (int i = 0; i < potfolios.Count; i++)
-            {
-                details.AddRange(potfolios[i].details);
-            }
-            return details;
-        }
-
-        private string GetBlockBalance()
-        {
-
-            var url = $"{_baseUrl}{"api/v5/account/positions"}";
-            using (var client = new HttpClient(new HttpInterceptor(PublicKey, SeckretKey, Password, null)))
-            {
-                var res = client.GetAsync(url).Result;
-                var contentStr = res.Content.ReadAsStringAsync().Result;
-
-                if (res.StatusCode != System.Net.HttpStatusCode.OK)
-                {
-                    SendLogMessage(contentStr, LogMessageType.Error);
-                }
-
-                return contentStr;
-            }
-        }
-
-        public void GetPortfolios()
-        {
-            try
-            {
-
-                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-
-                var json = GetBalance();
-
-
-                if (json.StartsWith("{\"code\":\"0\"") == false)
-                {
-                    throw new Exception(json);
-                }
-
-                PorfolioResponse portfolio = JsonConvert.DeserializeAnonymousType(json, new PorfolioResponse());
-
-                portfolio.data[0].details.AddRange(GeneratePositionToContracts());
-
-                if (NewPortfolio != null && portfolio != null)
-                {
-                    NewPortfolio(portfolio);
-                }
-
-
-            }
-            catch (Exception error)
-            {
-                SendLogMessage($"{error.Message} { error.StackTrace}", LogMessageType.Error);
-            }
-        }
-
-        #endregion
-
-        #region Securities 
-
-        private object lockedSecuity = new object();
-
-        private SecurityResponce GetFuturesSecurities(HttpClient httpClient)
-        {
-            var response = httpClient.GetAsync("https://www.okx.com" + "/api/v5/public/instruments?instType=SWAP").Result;
-
-            string json = response.Content.ReadAsStringAsync().Result;
-
-            if (response.StatusCode != System.Net.HttpStatusCode.OK)
-            {
-                SendLogMessage(json, LogMessageType.Error);
-            }
-
-            SecurityResponce securityResponce = JsonConvert.DeserializeAnonymousType(json, new SecurityResponce());
-
-            return securityResponce;
-        }
-
-        private SecurityResponce GetSpotSecurities(HttpClient httpClient)
-        {
-            var response = httpClient.GetAsync("https://www.okx.com" + "/api/v5/public/instruments?instType=SPOT").Result;
-
-            var json = response.Content.ReadAsStringAsync().Result;
-
-            if (response.StatusCode != System.Net.HttpStatusCode.OK)
-            {
-                SendLogMessage(json, LogMessageType.Error);
-            }
-
-            SecurityResponce securityResponce = JsonConvert.DeserializeAnonymousType(json, new SecurityResponce());
-
-            return securityResponce;
-        }
-
-        public void GetSecurities()
-        {
-            lock (lockedSecuity)
-            {
-                try
-                {
-                    HttpClient httpClient = new HttpClient();
-
-                    SecurityResponce securityResponceFutures = GetFuturesSecurities(httpClient);
-
-                    SecurityResponce securityResponceSpot = GetSpotSecurities(httpClient);
-
-                    securityResponceFutures.data.AddRange(securityResponceSpot.data);
-
-                    if (UpdatePairs != null)
-                    {
-                        UpdatePairs(securityResponceFutures);
-                    }
-                }
-                catch (Exception error)
-                {
-                    if (error.Message.Equals("Unexpected character encountered while parsing value: <. Path '', line 0, position 0."))
-                    {
-                        SendLogMessage("service is unavailable", LogMessageType.Error);
-                        return;
-                    }
-                    SendLogMessage($"{error.Message} { error.StackTrace}", LogMessageType.Error);
-                }
-            }
-        }
-
-        #endregion
-
-        #region Candles
-
-        private string GetStringBar(TimeSpan tf)
-        {
-            try
-            {
-                if (tf.Hours != 0)
-                {
-                    return $"{tf.Hours}H";
-                }
-                if (tf.Minutes != 0)
-                {
-                    return $"{tf.Minutes}m";
-                }
-                if (tf.Days != 0)
-                {
-                    return $"{tf.Days}D";
-                }
-
-            }
-            catch (Exception error)
-            {
-                SendLogMessage($"{error.Message} { error.StackTrace}", LogMessageType.Error);
-            }
-
-            return String.Empty;
-        }
-
-        private int GetCountCandlesToLoad()
-        {
-            var server = (AServer)ServerMaster.GetServers().Find(server => server.ServerType == ServerType.OKX);
-
-            for (int i = 0; i < server.ServerParameters.Count; i++)
-            {
-                if (server.ServerParameters[i].Name.Equals("Candles to load"))
-                {
-                    var Param = (ServerParameterInt)server.ServerParameters[i];
-                    return Param.Value;
-                }
-            }
-
-            return 100;
-        }
-
-        private CandlesResponce GetResponseCandles(string nameSec, TimeSpan tf)
-        {
-
-            int NumberCandlesToLoad = GetCountCandlesToLoad();
-
-            string bar = GetStringBar(tf);
-
-            CandlesResponce candlesResponce = new CandlesResponce();
-            candlesResponce.data = new List<List<string>>();
-
-            do
-            {
-
-                int limit = NumberCandlesToLoad;
-                if (NumberCandlesToLoad > 100)
-                {
-                    limit = 100;
-                }
-
-                string after = String.Empty;
-
-                if (candlesResponce.data.Count != 0)
-                {
-                    after = $"&after={candlesResponce.data[candlesResponce.data.Count - 1][0]}";
-                }
-
-
-                string url = _baseUrl + $"api/v5/market/history-candles?instId={nameSec}&bar={bar}&limit={limit}" + after;
-
-                HttpClient httpClient = new HttpClient();
-                var responce = httpClient.GetAsync(url).Result;
-                var json = responce.Content.ReadAsStringAsync().Result;
-                candlesResponce.data.AddRange(JsonConvert.DeserializeAnonymousType(json, new CandlesResponce()).data);
-
-                if (responce.StatusCode != System.Net.HttpStatusCode.OK)
-                {
-                    SendLogMessage(json, LogMessageType.Error);
-                }
-
-                NumberCandlesToLoad -= limit;
-
-
-            } while (NumberCandlesToLoad > 0);
-
-            return candlesResponce;
-        }
-
-        private void ConvertCandles(CandlesResponce candlesResponce, List<Candle> candles)
-        {
-            for (int j = 0; j < candlesResponce.data.Count; j++)
-            {
-                Candle candle = new Candle();
-                try
-                {
-                    candle.TimeStart = TimeManager.GetDateTimeFromTimeStamp(Convert.ToInt64(candlesResponce.data[j][0]));
-
-                    candle.Open = Convert.ToDecimal(candlesResponce.data[j][1].Replace(".", ","));
-                    candle.High = Convert.ToDecimal(candlesResponce.data[j][2].Replace(".", ","));
-                    candle.Low = Convert.ToDecimal(candlesResponce.data[j][3].Replace(".", ","));
-                    candle.Close = Convert.ToDecimal(candlesResponce.data[j][4].Replace(".", ","));
-                    candle.Volume = Convert.ToDecimal(candlesResponce.data[j][5].Replace(".", ","));
-                    var VolCcy = candlesResponce.data[j][6];
-
-                    candles.Add(candle);
-                }
-                catch (Exception error)
-                {
-                    SendLogMessage($"{error.Message} { error.StackTrace}", LogMessageType.Error);
-                }
-            }
-        }
-
-        public List<Candle> GetCandleHistory(string nameSec, TimeSpan tf)
-        {
-            CandlesResponce securityResponce = GetResponseCandles(nameSec, tf);
-
-            List<Candle> candles = new List<Candle>();
-
-            ConvertCandles(securityResponce, candles);
-
-            candles.Reverse();
-
-            return candles;
-        }
-
         #endregion
 
         #region NewMarketDepthsEvent
 
-        private bool IsConnectedDepths;
-
         private ConcurrentQueue<string> _newMessageDepths = new ConcurrentQueue<string>();
-
-        private Dictionary<string, WebSocket> _wsChanelDepths = new Dictionary<string, WebSocket>();
 
         private WebSocket _wsClientDepths;
 
+        private void CreateDepthsChanel()
+        {
+            _wsClientDepths = new WebSocket(_publicWebSocket);
+
+            _wsClientDepths.Opened += new EventHandler((sender, e) => {
+                ConnectDepthsChanel(sender, e);
+            });
+
+            _wsClientDepths.Closed += new EventHandler(DisconnectDepthsChanel);
+
+            _wsClientTrades.Error += new EventHandler<SuperSocket.ClientEngine.ErrorEventArgs>((sender, e) => { WsError(sender, e, "", "Depths Chanell"); });
+
+            _wsClientDepths.MessageReceived += new EventHandler<MessageReceivedEventArgs>(PushMessageDepths);
+
+            _wsClientDepths.Open();
+        }
 
         public void SubscribleDepths(Security security)
         {
-            if (!_wsChanelDepths.ContainsKey(security.Name))
+            RequestSubscribe<SubscribeArgs> requestTrade = new RequestSubscribe<SubscribeArgs>();
+            requestTrade.args = new List<SubscribeArgs>();
+            requestTrade.args.Add(new SubscribeArgs()
             {
-                _wsClientDepths = new WebSocket(_publicWebSocket);
+                //channel = "books",
+                channel = "books5",
+                instId = security.Name
+            });
 
-                _wsClientDepths.Opened += new EventHandler((sender, e) => {
-                    //_rateGateWebSocketDepths.WaitToProceed();
-                    ConnectDepthsChanel(sender, e, security.Name);
-                });
+            var json = JsonConvert.SerializeObject(requestTrade);
 
-                _wsClientDepths.Closed += new EventHandler(DisconnectDepthsChanel);
-
-                _wsClientTrades.Error += new EventHandler<SuperSocket.ClientEngine.ErrorEventArgs>((sender, e) => { WsError(sender, e, security.Name, "Depths Chanell"); });
-
-                _wsClientDepths.MessageReceived += new EventHandler<MessageReceivedEventArgs>(PushMessageDepths);
-
-
-
-                if (_wsChanelDepths.ContainsKey(security.Name))
-                {
-                    _wsChanelDepths[security.Name].Close();
-                    _wsChanelDepths.Remove(security.Name);
-                }
-
-                _wsClientDepths.Open();
-
-                lock (lockerDepthsWs)
-                {
-                    _wsChanelDepths.Add(security.Name, _wsClientDepths);
-                }
-            }
+            _wsClientDepths.Send(json);
         }
 
         private void PushMessageDepths(object sender, MessageReceivedEventArgs e)
@@ -1252,22 +1204,11 @@ namespace OsEngine.Market.Servers.OKX
             }
         }
 
-        private void ConnectDepthsChanel(object sender, EventArgs e, string securityName)
+        private void ConnectDepthsChanel(object sender, EventArgs e)
         {
-            var client = (WebSocket)sender;
-            RequestSubscribe<SubscribeArgs> requestTrade = new RequestSubscribe<SubscribeArgs>();
-            requestTrade.args = new List<SubscribeArgs>();
-            requestTrade.args.Add(new SubscribeArgs()
-            {
-                channel = "books5",
-                instId = securityName
-            });
-
-            var json = JsonConvert.SerializeObject(requestTrade);
-
-            client.Send(json);
-
+            SendLogMessage("Market depths channel is open", LogMessageType.System);
             IsConnectedDepths = true;
+            CheckFullActivation();
         }
 
         private void DisconnectDepthsChanel(object sender, EventArgs e)
@@ -1275,8 +1216,6 @@ namespace OsEngine.Market.Servers.OKX
             if (IsConnectedDepths)
             {
                 IsConnectedDepths = false;
-
-                _wsChanelDepths.Clear();
 
                 if (Disconnected != null)
                 {
@@ -1289,46 +1228,40 @@ namespace OsEngine.Market.Servers.OKX
 
         #region NewTicksEvent
 
-        private bool IsConnectedTrades;
-
         private ConcurrentQueue<string> _newMessageTrade = new ConcurrentQueue<string>();
-
-        private Dictionary<string, WebSocket> _wsChanelTrades = new Dictionary<string, WebSocket>();
 
         private WebSocket _wsClientTrades;
 
         public void SubscribleTrades(Security security)
         {
-            if (!_wsChanelTrades.ContainsKey(security.Name))
+            RequestSubscribe<SubscribeArgs> requestTrade = new RequestSubscribe<SubscribeArgs>();
+            requestTrade.args = new List<SubscribeArgs>();
+            requestTrade.args.Add(new SubscribeArgs()
             {
-                _wsClientTrades = new WebSocket(_publicWebSocket); // create web-socket / создаем вебсоке
+                channel = "trades",
+                instId = security.Name
+            });
 
-                _wsClientTrades.Opened += new EventHandler((sender, e) => {
-                    //_rateGateWebSocketTicks.WaitToProceed();
-                    ConnectTradesChanel(sender, e, security.Name);
-                }); //Connect
+            var json = JsonConvert.SerializeObject(requestTrade);
 
-                _wsClientTrades.Closed += new EventHandler(DisconnectTradesChanel);
+            _wsClientTrades.Send(json);
+        }
 
-                _wsClientTrades.Error += new EventHandler<SuperSocket.ClientEngine.ErrorEventArgs>((sender, e) => { WsError(sender, e, security.Name, "Trades Chanell"); });
+        private void CreateTradeChanel()
+        {
+            _wsClientTrades = new WebSocket(_publicWebSocket); // create web-socket / создаем вебсоке
 
-                _wsClientTrades.MessageReceived += new EventHandler<MessageReceivedEventArgs>(PushMessageTrade);
+            _wsClientTrades.Opened += new EventHandler((sender, e) => {;
+                ConnectTradesChanel(sender, e);
+            });
 
+            _wsClientTrades.Closed += new EventHandler(DisconnectTradesChanel);
 
+            _wsClientTrades.Error += new EventHandler<SuperSocket.ClientEngine.ErrorEventArgs>((sender, e) => { WsError(sender, e, "", "Trades Chanell"); });
 
-                if (_wsChanelTrades.ContainsKey(security.Name))
-                {
-                    _wsChanelTrades[security.Name].Close();
-                    _wsChanelTrades.Remove(security.Name);
-                }
+            _wsClientTrades.MessageReceived += new EventHandler<MessageReceivedEventArgs>(PushMessageTrade);
 
-                _wsClientTrades.Open();
-
-                lock (lockerTradesWs)
-                {
-                    _wsChanelTrades.Add(security.Name, _wsClientTrades);
-                }
-            }
+            _wsClientTrades.Open();
         }
 
         private void ConverterTrades()
@@ -1401,22 +1334,11 @@ namespace OsEngine.Market.Servers.OKX
             }
         }
 
-        private void ConnectTradesChanel(object sender, EventArgs e, string securityName)
+        private void ConnectTradesChanel(object sender, EventArgs e)
         {
-            var client = (WebSocket)sender;
-            RequestSubscribe<SubscribeArgs> requestTrade = new RequestSubscribe<SubscribeArgs>();
-            requestTrade.args = new List<SubscribeArgs>();
-            requestTrade.args.Add(new SubscribeArgs()
-            {
-                channel = "trades",
-                instId = securityName
-            });
-
-            var json = JsonConvert.SerializeObject(requestTrade);
-
-            client.Send(json);
-
+            SendLogMessage("Trades channel is open", LogMessageType.System);
             IsConnectedTrades = true;
+            CheckFullActivation();
         }
 
         private void DisconnectTradesChanel(object sender, EventArgs e)
@@ -1424,8 +1346,6 @@ namespace OsEngine.Market.Servers.OKX
             if (IsConnectedTrades)
             {
                 IsConnectedTrades = false;
-
-                _wsChanelTrades.Clear();
 
                 if (Disconnected != null)
                 {
@@ -1437,22 +1357,6 @@ namespace OsEngine.Market.Servers.OKX
         #endregion
 
         #region PositionMode
-        private string GetConfigurationAccount()
-        {
-            var url = $"{_baseUrl}{"api/v5/account/config"}";
-            using (var client = new HttpClient(new HttpInterceptor(PublicKey, SeckretKey, Password, null)))
-            {
-                var res = client.GetAsync(url).Result;
-                var contentStr = res.Content.ReadAsStringAsync().Result;
-
-                if (res.StatusCode != HttpStatusCode.OK)
-                {
-                    SendLogMessage(contentStr, LogMessageType.Error);
-                }
-
-                return contentStr;
-            }
-        }
 
         public string SetLeverage(Security security)
         {
@@ -1477,14 +1381,8 @@ namespace OsEngine.Market.Servers.OKX
         {
             var dict = new Dictionary<string, string>();
 
-            if (HedgeModeIsOn == true)
-            {
-                dict["posMode"] = "long_short_mode";
-            }
-            if (HedgeModeIsOn == false)
-            {
-                dict["posMode"] = "net_mode";
-            }
+            dict["posMode"] = "long_short_mode";
+
             try
             {
                 string res = PushPositionMode(dict);
@@ -1550,8 +1448,7 @@ namespace OsEngine.Market.Servers.OKX
 
                 string url = _baseUrl + $"api/v5/market/history-candles?instId={nameSec}&bar={bar}&limit={limit}" + after;
 
-                HttpClient httpClient = new HttpClient();
-                var responce = httpClient.GetAsync(url).Result;
+                var responce = _httpPublicClient.GetAsync(url).Result;
                 var json = responce.Content.ReadAsStringAsync().Result;
                 candlesResponce.data.AddRange(JsonConvert.DeserializeAnonymousType(json, new CandlesResponce()).data);
 

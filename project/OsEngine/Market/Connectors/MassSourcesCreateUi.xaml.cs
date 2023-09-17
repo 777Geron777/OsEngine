@@ -247,7 +247,8 @@ namespace OsEngine.Market.Connectors
             ButtonRightInSearchResults.Click -= ButtonRightInSearchResults_Click;
             ButtonLeftInSearchResults.Click -= ButtonLeftInSearchResults_Click;
             _sorcesCreator = null;
-
+			
+            _gridSecurities.CellClick -= _gridSecurities_CellClick;
 
             Closed -= MassSourcesCreateUi_Closed;
 
@@ -678,7 +679,12 @@ namespace OsEngine.Market.Connectors
                             break;
                         }
                     }
+                }
 
+                if (ComboBoxPortfolio.SelectedItem == null
+                    && ComboBoxPortfolio.Items.Count != 0)
+                {
+                    ComboBoxPortfolio.SelectedItem = ComboBoxPortfolio.Items[0];
                 }
             }
             catch (Exception error)
@@ -731,6 +737,12 @@ namespace OsEngine.Market.Connectors
                 if (string.IsNullOrEmpty(_sorcesCreator.SecuritiesClass) == false)
                 {
                     ComboBoxClass.SelectedItem = _sorcesCreator.SecuritiesClass;
+                }
+
+                if (ComboBoxClass.SelectedItem == null
+                    && ComboBoxClass.Items.Count != 0)
+                {
+                    ComboBoxClass.SelectedItem = ComboBoxClass.Items[0];
                 }
 
             }
@@ -862,9 +874,33 @@ namespace OsEngine.Market.Connectors
             colum6.Width = 50;
             newGrid.Columns.Add(colum6);
 
-
             _gridSecurities = newGrid;
             SecuritiesHost.Child = _gridSecurities;
+			
+            _gridSecurities.CellClick += _gridSecurities_CellClick;		
+        }
+
+        private void _gridSecurities_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            _gridSecurities.ClearSelection();
+
+            for (int i = 0; i < _gridSecurities.RowCount; i++)
+            {
+                if (i == e.RowIndex)
+                {
+                    for (int y = 0; y < _gridSecurities.ColumnCount; y++)
+                    {
+                        _gridSecurities.Rows[e.RowIndex].Cells[y].Style.ForeColor = System.Drawing.ColorTranslator.FromHtml("#ffffff");
+                    }
+                }
+                else
+                {
+                    for (int y = 0; y < _gridSecurities.ColumnCount; y++)
+                    {
+                        _gridSecurities.Rows[i].Cells[y].Style.ForeColor = System.Drawing.ColorTranslator.FromHtml("#FFA1A1A1");
+                    }
+                }
+            }
         }
 
         private void UpdateGrid(List<Security> securities)

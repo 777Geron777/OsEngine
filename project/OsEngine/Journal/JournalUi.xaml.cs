@@ -58,6 +58,8 @@ namespace OsEngine.Journal
             _startProgram = startProgram;
             _botsJournals = botsJournals;
             InitializeComponent();
+            _currentCulture = OsLocalization.CurCulture;
+
             OsEngine.Layout.StickyBorders.Listen(this);
 
             TabBots.SizeChanged += TabBotsSizeChanged;
@@ -149,53 +151,47 @@ namespace OsEngine.Journal
             {
                 return;
             }
+
             // 2 sorting deals on ALL / Long / Short
             // 2 сортируем сделки на ВСЕ / Лонг / Шорт
 
             List<Position> positionsAll = new List<Position>();
-            List<Position> positionsLong = new List<Position>();
-            List<Position> positionsShort = new List<Position>();
 
             for (int i = 0; i < myJournals.Count; i++)
             {
                 if (myJournals[i].AllPosition != null) positionsAll.AddRange(myJournals[i].AllPosition);
-                if (myJournals[i].CloseAllLongPositions != null)
-                    positionsLong.AddRange(myJournals[i].CloseAllLongPositions);
-                if (myJournals[i].CloseAllShortPositions != null)
-                    positionsShort.AddRange(myJournals[i].CloseAllShortPositions);
             }
-
-            positionsLong =
-                positionsLong.FindAll(
-                    pos => pos.State != PositionStateType.OpeningFail && pos.State != PositionStateType.Opening);
-            positionsShort =
-                positionsShort.FindAll(
-                    pos => pos.State != PositionStateType.OpeningFail && pos.State != PositionStateType.Opening);
-            // 3 sort transactions by time (this is better in a separate method)
-            // 3 сортируем сделки по времени(это лучше в отдельном методе)
-
 
             List<Position> newPositionsAll = new List<Position>();
 
             for (int i = 0; i < positionsAll.Count; i++)
             {
-                if (newPositionsAll.Count == 0 ||
-                    newPositionsAll[newPositionsAll.Count - 1].TimeCreate <= positionsAll[i].TimeCreate)
+                Position pose = positionsAll[i];
+
+                if (pose.State == PositionStateType.OpeningFail)
                 {
-                    newPositionsAll.Add(positionsAll[i]);
+                    continue;
                 }
-                else if (newPositionsAll[0].TimeCreate >= positionsAll[i].TimeCreate)
+
+                DateTime timeCreate = pose.TimeCreate;
+
+                if (newPositionsAll.Count == 0 ||
+                    newPositionsAll[newPositionsAll.Count - 1].TimeCreate <= timeCreate)
                 {
-                    newPositionsAll.Insert(0, positionsAll[i]);
+                    newPositionsAll.Add(pose);
+                }
+                else if (newPositionsAll[0].TimeCreate >= timeCreate)
+                {
+                    newPositionsAll.Insert(0, pose);
                 }
                 else
                 {
                     for (int i2 = 0; i2 < newPositionsAll.Count - 1; i2++)
                     {
-                        if (newPositionsAll[i2].TimeCreate <= positionsAll[i].TimeCreate &&
-                            newPositionsAll[i2 + 1].TimeCreate >= positionsAll[i].TimeCreate)
+                        if (newPositionsAll[i2].TimeCreate <= timeCreate &&
+                            newPositionsAll[i2 + 1].TimeCreate >= timeCreate)
                         {
-                            newPositionsAll.Insert(i2 + 1, positionsAll[i]);
+                            newPositionsAll.Insert(i2 + 1, pose);
                             break;
                         }
                     }
@@ -203,64 +199,6 @@ namespace OsEngine.Journal
             }
 
             positionsAll = newPositionsAll;
-
-            List<Position> newPositionsLong = new List<Position>();
-
-            for (int i = 0; i < positionsLong.Count; i++)
-            {
-                if (newPositionsLong.Count == 0 ||
-                    newPositionsLong[newPositionsLong.Count - 1].TimeCreate <= positionsLong[i].TimeCreate)
-                {
-                    newPositionsLong.Add(positionsLong[i]);
-                }
-                else if (newPositionsLong[0].TimeCreate > positionsLong[i].TimeCreate)
-                {
-                    newPositionsLong.Insert(0, positionsLong[i]);
-                }
-                else
-                {
-                    for (int i2 = 0; i2 < newPositionsLong.Count - 1; i2++)
-                    {
-                        if (newPositionsLong[i2].TimeCreate <= positionsLong[i].TimeCreate &&
-                            newPositionsLong[i2 + 1].TimeCreate >= positionsLong[i].TimeCreate)
-                        {
-                            newPositionsLong.Insert(i2 + 1, positionsLong[i]);
-                            break;
-                        }
-                    }
-                }
-            }
-
-            positionsLong = newPositionsLong;
-
-            List<Position> newPositionsShort = new List<Position>();
-
-            for (int i = 0; i < positionsShort.Count; i++)
-            {
-                if (newPositionsShort.Count == 0 ||
-                    newPositionsShort[newPositionsShort.Count - 1].TimeCreate <= positionsShort[i].TimeCreate)
-                {
-                    newPositionsShort.Add(positionsShort[i]);
-                }
-                else if (newPositionsShort[0].TimeCreate > positionsShort[i].TimeCreate)
-                {
-                    newPositionsShort.Insert(0, positionsShort[i]);
-                }
-                else
-                {
-                    for (int i2 = 0; i2 < newPositionsShort.Count - 1; i2++)
-                    {
-                        if (newPositionsShort[i2].TimeCreate <= positionsShort[i].TimeCreate &&
-                            newPositionsShort[i2 + 1].TimeCreate >= positionsShort[i].TimeCreate)
-                        {
-                            newPositionsShort.Insert(i2 + 1, positionsShort[i]);
-                            break;
-                        }
-                    }
-                }
-            }
-
-            positionsShort = newPositionsShort;
 
             _allPositions = positionsAll.FindAll(p => p.State != PositionStateType.OpeningFail);
             _longPositions = _allPositions.FindAll(p => p.Direction == Side.Buy);
@@ -1562,22 +1500,50 @@ namespace OsEngine.Journal
             // дд в %
 
             List<decimal> ddPepcent = new decimal[positionsAll.Count].ToList();
-            lastMax = 0;
-            currentProfit = 0;
+
+            decimal firsValue = positionsAll[0].PortfolioValueOnOpenPosition;
 
             for (int i = 0; i < positionsAll.Count; i++)
             {
-                currentProfit += positionsAll[i].ProfitPortfolioPersent;
-
-                if (lastMax < currentProfit)
+                if (firsValue != 0)
                 {
-                    lastMax = currentProfit;
+                    break;
+                }
+                firsValue = positionsAll[i].PortfolioValueOnOpenPosition;
+            }
+
+            if (firsValue == 0)
+            {
+                firsValue = 1;
+            }
+
+            decimal thisSumm = firsValue;
+            decimal thisPik = firsValue;
+
+            for (int i = 0; i < positionsAll.Count; i++)
+            {
+                thisSumm += positionsAll[i].ProfitPortfolioPunkt * (positionsAll[i].MultToJournal / 100);
+
+                if (thisSumm > thisPik)
+                {
+                    thisPik = thisSumm;
                 }
 
-                if (currentProfit - lastMax < 0)
+                decimal thisDown = 0;
+
+                if (thisSumm < 0)
                 {
-                    ddPepcent[i] = Math.Round(currentProfit - lastMax,4);
+                    // уже ушли ниже нулевой отметки по счёту
+
+                    thisDown = -thisPik + thisSumm;
                 }
+                else if (thisSumm > 0)
+                {
+                    // выше нулевой отметки по счёту
+                    thisDown = -(thisPik - thisSumm);
+                }
+
+                ddPepcent[i] = (thisDown / (thisPik / 100));
             }
 
             Series drowDownPersent = new Series("SeriesDdPercent");
@@ -1715,10 +1681,18 @@ namespace OsEngine.Journal
                 nRow.Cells[0].Value = position.Number;
 
                 nRow.Cells.Add(new DataGridViewTextBoxCell());
-                nRow.Cells[1].Value = position.TimeCreate;
+                nRow.Cells[1].Value = position.TimeCreate.ToString(_currentCulture);
 
                 nRow.Cells.Add(new DataGridViewTextBoxCell());
-                nRow.Cells[2].Value = position.TimeClose;
+
+                if (position.TimeClose != position.TimeOpen)
+                {
+                    nRow.Cells[2].Value = position.TimeClose.ToString(_currentCulture);
+                }
+                else
+                {
+                    nRow.Cells[2].Value = "";
+                }
 
                 nRow.Cells.Add(new DataGridViewTextBoxCell());
                 nRow.Cells[3].Value = position.NameBot;

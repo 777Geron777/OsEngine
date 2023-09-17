@@ -7,6 +7,8 @@ namespace OsEngine.Entity
 {
     public static class Extensions
     {
+        private static CultureInfo _culture = CultureInfo.GetCultureInfo("ru-RU");
+
         public static string RemoveExcessFromSecurityName(this string value)
         {
             if (value == null)
@@ -86,13 +88,30 @@ namespace OsEngine.Entity
 
         public static string ToStringWithNoEndZero(this decimal value)
         {
-            string result = value.ToString(CultureInfo.GetCultureInfo("ru-RU"));
+            string result = value.ToString(_culture);
 
             if(result.Contains(","))
             {
                 result = result.TrimEnd('0');
 
                 if(result.EndsWith(","))
+                {
+                    result = result.TrimEnd(',');
+                }
+            }
+
+            return result;
+        }
+
+        public static string ToStringWithNoEndZero(this double value)
+        {
+            string result = value.ToString(_culture);
+
+            if (result.Contains(","))
+            {
+                result = result.TrimEnd('0');
+
+                if (result.EndsWith(","))
                 {
                     result = result.TrimEnd(',');
                 }
@@ -349,11 +368,11 @@ namespace OsEngine.Entity
 
             for (int i = 0; i < tradesToMerge.Count; i++)
             {
-                Trade candle = tradesToMerge[i];
+                Trade tradeNew = tradesToMerge[i];
 
-                if (candle.Time > newTrades[newTrades.Count - 1].Time)
+                if (tradeNew.Time >= newTrades[newTrades.Count - 1].Time)
                 {
-                    newTrades.Add(candle);
+                    newTrades.Add(tradeNew);
                 }
             }
 

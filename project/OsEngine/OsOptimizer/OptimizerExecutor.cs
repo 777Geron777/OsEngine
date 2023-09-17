@@ -66,6 +66,7 @@ namespace OsEngine.OsOptimizer
 
             _primeThreadWorker = new Thread(PrimeThreadWorkerPlace);
             _primeThreadWorker.Name = "OptimizerExecutorThread";
+            _primeThreadWorker.IsBackground = true;
             _primeThreadWorker.Start();
 
             return true;
@@ -116,6 +117,11 @@ namespace OsEngine.OsOptimizer
             int countBots = BotCountOneFaze(_parameters,_parametersOn);
 
             _countAllServersMax = countBots * (_master.IterationCount * 2);
+
+            if(_master.LastInSample)
+            {
+                _countAllServersMax = _countAllServersMax - countBots;
+            }
 
             SendLogMessage(OsLocalization.Optimizer.Message4 + _countAllServersMax, LogMessageType.System);
 
@@ -493,7 +499,7 @@ namespace OsEngine.OsOptimizer
                     Thread.Sleep(50);
                 }
                 // SendLogMessage("Bot Out of Sample", LogMessageType.System);
-                StartNewBot(reportInSample.Reports[i].GetParameters(), new List<IIStrategyParameter>(), report,
+                StartNewBot(reportInSample.Reports[i].GetParameters(), null, report,
                     reportInSample.Reports[i].BotName.Replace(" InSample", "") + " OutOfSample");
             }
 
@@ -719,10 +725,17 @@ namespace OsEngine.OsOptimizer
 
             for (int i = 0; i < parametrs.Count; i++)
             {
-                IIStrategyParameter par = paramOptimized.Find(p => p.Name == parametrs[i].Name);
+                IIStrategyParameter par = null;
+
+                if (paramOptimized != null)
+                {
+                  par = paramOptimized.Find(p => p.Name == parametrs[i].Name);
+                }
+                bool isInOptimizeParams = true;
 
                 if (par == null)
                 {
+                    isInOptimizeParams = false;
                     par = parametrs[i];
                 }
 
@@ -739,17 +752,37 @@ namespace OsEngine.OsOptimizer
                 {
                     ((StrategyParameterString)bot.Parameters[i]).ValueString = ((StrategyParameterString)par).ValueString;
                 }
-                else if (par.Type == StrategyParameterType.Int)
-                {
-                    ((StrategyParameterInt)bot.Parameters[i]).ValueInt = ((StrategyParameterInt)par).ValueInt;
-                }
-                else if (par.Type == StrategyParameterType.Decimal)
-                {
-                    ((StrategyParameterDecimal)bot.Parameters[i]).ValueDecimal = ((StrategyParameterDecimal)par).ValueDecimal;
-                }
                 else if (par.Type == StrategyParameterType.TimeOfDay)
                 {
                     ((StrategyParameterTimeOfDay)bot.Parameters[i]).Value = ((StrategyParameterTimeOfDay)par).Value;
+                }
+                else if (par.Type == StrategyParameterType.CheckBox)
+                {
+                    ((StrategyParameterCheckBox)bot.Parameters[i]).CheckState = ((StrategyParameterCheckBox)par).CheckState;
+                }
+
+                if(isInOptimizeParams == true 
+                    || paramOptimized == null)
+                {
+                    if (par.Type == StrategyParameterType.Int)
+                    {
+                        ((StrategyParameterInt)bot.Parameters[i]).ValueInt = ((StrategyParameterInt)par).ValueInt;
+                    }
+                    else if (par.Type == StrategyParameterType.Decimal)
+                    {
+                        ((StrategyParameterDecimal)bot.Parameters[i]).ValueDecimal = ((StrategyParameterDecimal)par).ValueDecimal;
+                    }
+                }
+                else //if (isInOptimizeParams == false)
+                {
+                    if (par.Type == StrategyParameterType.Int)
+                    {
+                        ((StrategyParameterInt)bot.Parameters[i]).ValueInt = ((StrategyParameterInt)par).ValueIntDefolt;
+                    }
+                    else if (par.Type == StrategyParameterType.Decimal)
+                    {
+                        ((StrategyParameterDecimal)bot.Parameters[i]).ValueDecimal = ((StrategyParameterDecimal)par).ValueDecimalDefolt;
+                    }
                 }
             }
 

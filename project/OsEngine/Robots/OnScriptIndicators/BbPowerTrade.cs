@@ -20,8 +20,8 @@ public class BbPowerTrade : BotPanel
         Volume = CreateParameter("Volume", 1, 1.0m, 50, 4);
         Slippage = CreateParameter("Slippage", 0, 0, 20, 1);
         Step = CreateParameter("Step", 100, 50m, 500, 20);
-        BullsPowerPeriod = CreateParameter("Bulls Period", 13, 10, 50, 2);
-        BearsPowerPeriod = CreateParameter("Bears Period", 13, 10, 50, 2);
+        BullsPowerPeriod = CreateParameter("Bulls Period", 13, 10, 50, 200);
+        BearsPowerPeriod = CreateParameter("Bears Period", 13, 10, 50, 200);
 
 
         _bearsP = IndicatorsFactory.CreateIndicatorByName("BearsPower", name + "BearsPower", false);
@@ -36,6 +36,10 @@ public class BbPowerTrade : BotPanel
 
         _tab.CandleFinishedEvent += Strateg_CandleFinishedEvent;
         ParametrsChangeByUser += Event_ParametrsChangeByUser;
+
+        Description = "Trend strategy based on two indicators BullsPower and BearsPower" +
+            "Bulls + Bears is less than negative Step - close the position and enter Short. " +
+            "Bulls + Bears more than Step - close the position and enter Long.";
     }
 
     void Event_ParametrsChangeByUser()

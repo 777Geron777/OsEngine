@@ -7,10 +7,7 @@ using OsEngine.Market.Servers.OKX.Entity;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Net.Http;
 using System.Threading;
-using System.Collections.Concurrent;
-using System.Threading.Tasks;
 
 namespace OsEngine.Market.Servers.OKX
 {
@@ -24,7 +21,6 @@ namespace OsEngine.Market.Servers.OKX
             CreateParameterString(OsLocalization.Market.ServerParamPublicKey, "");
             CreateParameterPassword(OsLocalization.Market.ServerParamSecretKey, "");
             CreateParameterPassword(OsLocalization.Market.ServerParamPassword, "");
-            CreateParameterBoolean("Long/Short", false);
         }
 
         public List<Candle> GetCandleHistory(string nameSec, TimeSpan tf)
@@ -41,7 +37,7 @@ namespace OsEngine.Market.Servers.OKX
         }
 
         OkxClient _client;
-
+        
         public ServerType ServerType
         {
             get { return ServerType.OKX; }
@@ -58,8 +54,7 @@ namespace OsEngine.Market.Servers.OKX
                 _client = new OkxClient(
                     ((ServerParameterString)ServerParameters[0]).Value,
                     ((ServerParameterPassword)ServerParameters[1]).Value,
-                    ((ServerParameterPassword)ServerParameters[2]).Value,
-                    ((ServerParameterBool)ServerParameters[3]).Value
+                    ((ServerParameterPassword)ServerParameters[2]).Value
                     );
                 _client.Connected += _client_Connected;
                 _client.UpdatePairs += _client_UpdatePairs;
@@ -77,6 +72,8 @@ namespace OsEngine.Market.Servers.OKX
 
         public void Dispose()
         {
+            _subscribledSecurities.Clear();
+
             if (_client != null)
             {
                 _client.Dispose();
@@ -125,27 +122,33 @@ namespace OsEngine.Market.Servers.OKX
             }
         }
 
+        private List<Security> _subscribledSecurities = new List<Security>();
+
         public void Subscrible(Security security)
         {
+            for(int i = 0;i < _subscribledSecurities.Count;i++)
+            {
+                if (_subscribledSecurities[i].Name ==  security.Name 
+                    && _subscribledSecurities[i].NameClass == security.NameClass)
+                {
+                    return;
+                }
+            }
 
-            _client.SetLeverage(security);
+            _subscribledSecurities.Add(security);
 
             _client._rateGateWebSocket.WaitToProceed();
 
             _client.SubscribleTrades(security);
             _client.SubscribleDepths(security);
-            _client.SubscriblePositions(security);
-
-            Thread checkOrdersWorkerPlace = new Thread(CheckOrdersWorkerPlace);
-            checkOrdersWorkerPlace.CurrentCulture = new CultureInfo("ru-RU");
-            checkOrdersWorkerPlace.IsBackground = true;
-            checkOrdersWorkerPlace.Name = "ConvertToTrade";
-            checkOrdersWorkerPlace.Start();
-
-            _client.SubscribleOrders(security);
         }
 
         #region Trade
+
+        public void CancelAllOrdersToSecurity(Security security)
+        {
+
+        }
 
         public void CancelAllOrders()
         {
@@ -174,13 +177,28 @@ namespace OsEngine.Market.Servers.OKX
             Order newOrder = new Order();
             newOrder.SecurityNameCode = item.instId;
             newOrder.TimeCallBack = TimeManager.GetDateTimeFromTimeStamp(Convert.ToInt64(item.cTime));
+
+            if (item.clOrdId.Equals(String.Empty))
+            {
+                return;
+            }
+
             if (!item.clOrdId.Equals(String.Empty))
             {
                 newOrder.NumberUser = Convert.ToInt32(item.clOrdId);
             }
 
             newOrder.NumberMarket = item.ordId.ToString();
-            newOrder.Side = item.posSide.Equals("long") ? Side.Buy : Side.Sell;
+
+            if(item.posSide == "net")
+            {
+                newOrder.Side = item.side.Equals("buy") ? Side.Buy : Side.Sell;
+            }
+            else
+            {
+                newOrder.Side = item.posSide.Equals("long") ? Side.Buy : Side.Sell;
+            }
+            
             newOrder.State = stateType;
             newOrder.Volume = item.sz.Replace('.', ',').ToDecimal();
             newOrder.Price = item.avgPx.Replace('.', ',').ToDecimal() != 0 ? item.avgPx.Replace('.', ',').ToDecimal() : item.px.Replace('.', ',').ToDecimal();
@@ -192,51 +210,15 @@ namespace OsEngine.Market.Servers.OKX
                 MyOrderEvent(newOrder);
             }
 
-            OrdersToCheckMyTrades.Enqueue(newOrder);
-        }
 
-        ConcurrentQueue<Order> OrdersToCheckMyTrades = new ConcurrentQueue<Order>();
-
-        private object lockerMyTrades = new object();
-
-        private void CheckOrdersWorkerPlace()
-        {
-            while (true)
+            if (stateType == OrderStateType.Patrial ||
+                stateType == OrderStateType.Done)
             {
-                try
+                List<MyTrade> tradesInOrder = GenerateTradesToOrder(newOrder, 1);
+
+                for (int i = 0; i < tradesInOrder.Count; i++)
                 {
-                    if (OrdersToCheckMyTrades.IsEmpty == false)
-                    {
-                        new Task(() =>
-                        {
-                            Task.Delay(300);
-
-                            Order orderToCheck = null;
-
-                            if (OrdersToCheckMyTrades.TryDequeue(out orderToCheck))
-                            {
-                                List<MyTrade> tradesInOrder = GenerateTradesToOrder(orderToCheck, 1);
-
-                                for (int i = 0; i < tradesInOrder.Count; i++)
-                                {
-                                    lock (lockerMyTrades)
-                                    {
-                                        MyTradeEvent(tradesInOrder[i]);
-                                    }
-                                }
-                            }
-                        }).Start();
-
-                    }
-                    else
-                    {
-                        Thread.Sleep(200);
-                    }
-                }
-                catch (Exception error)
-                {
-                    SendLogMessage($"{error.Message} { error.StackTrace}", LogMessageType.Error);
-                    Thread.Sleep(1000);
+                    MyTradeEvent(tradesInOrder[i]);
                 }
             }
         }
@@ -255,42 +237,36 @@ namespace OsEngine.Market.Servers.OKX
                 return myTrades;
             }
 
-            var PublicKey = (ServerParameterString)ServerParameters[0];
-            var SeckretKey = (ServerParameterPassword)ServerParameters[1];
-            var Password = (ServerParameterPassword)ServerParameters[2];
-
             string TypeInstr = order.SecurityNameCode.EndsWith("SWAP") ? "SWAP" : "SPOT";
 
             var url = $"{"https://www.okx.com/"}{"api/v5/trade/fills-history"}" + $"?ordId={order.NumberMarket}&" + $"instId={order.SecurityNameCode}&" + $"instType={TypeInstr}";
-            using (var client = new HttpClient(new HttpInterceptor(PublicKey.Value, SeckretKey.Value, Password.Value, null)))
+
+            var res = _client.GetBalanseOrMyTradesRequest(url);
+
+            var contentStr = res.Content.ReadAsStringAsync().Result;
+
+            if (res.StatusCode != System.Net.HttpStatusCode.OK)
             {
-
-                var res = client.GetAsync(url).Result;
-
-                var contentStr = res.Content.ReadAsStringAsync().Result;
-
-                if (res.StatusCode != System.Net.HttpStatusCode.OK)
-                {
-                    SendLogMessage(contentStr, LogMessageType.Error);
-                }
-
-                var quotes = JsonConvert.DeserializeAnonymousType(contentStr, new TradeDetailsResponce());
-
-                if (quotes == null ||
-                    quotes.data == null ||
-                    quotes.data.Count == 0)
-                {
-                    Thread.Sleep(200 * SeriasCalls);
-
-                    SeriasCalls++;
-
-                    return GenerateTradesToOrder(order, SeriasCalls);
-                }
-
-                CreateListTrades(myTrades, quotes);
-
-                return myTrades;
+                SendLogMessage(contentStr, LogMessageType.Error);
             }
+
+            var quotes = JsonConvert.DeserializeAnonymousType(contentStr, new TradeDetailsResponce());
+
+            if (quotes == null ||
+                quotes.data == null ||
+                quotes.data.Count == 0)
+            {
+                Thread.Sleep(200 * SeriasCalls);
+
+                SeriasCalls++;
+
+                return GenerateTradesToOrder(order, SeriasCalls);
+            }
+
+            CreateListTrades(myTrades, quotes);
+
+            return myTrades;
+
         }
 
         private void CreateListTrades(List<MyTrade> myTrades, TradeDetailsResponce quotes)
@@ -304,13 +280,39 @@ namespace OsEngine.Market.Servers.OKX
                 myTrade.Time = TimeManager.GetDateTimeFromTimeStamp(Convert.ToInt64(item.ts));
                 myTrade.NumberOrderParent = item.ordId.ToString();
                 myTrade.NumberTrade = item.tradeId.ToString();
-                myTrade.Volume = item.fillSz.Replace('.', ',').ToDecimal();
+
+                if(string.IsNullOrEmpty(item.fee))
+                {
+                    myTrade.Volume = item.fillSz.ToDecimal();
+                }
+                else
+                {// комиссия есть
+
+                    if(item.instId.StartsWith(item.feeCcy))
+                    { // комиссия взята в торгуемой валюте, а не в валюте биржи
+                        myTrade.Volume = item.fillSz.ToDecimal() + item.fee.ToDecimal();
+                    }
+                    else
+                    {
+                        myTrade.Volume = item.fillSz.ToDecimal();
+                    }
+                }
+                
                 if (!item.fillPx.Equals(String.Empty))
                 {
-                    myTrade.Price = item.fillPx.Replace('.', ',').ToDecimal();
+                    myTrade.Price = item.fillPx.ToDecimal();
                 }
                 myTrade.SecurityNameCode = item.instId;
-                myTrade.Side = item.posSide.Equals("long") ? Side.Buy : Side.Sell;
+
+                if(item.posSide == "net")
+                {
+                    myTrade.Side = item.side.Equals("buy") ? Side.Buy : Side.Sell;
+                }
+                else
+                {
+                    myTrade.Side = item.posSide.Equals("long") ? Side.Buy : Side.Sell;
+                }
+                
 
                 myTrades.Add(myTrade);
 
@@ -359,7 +361,7 @@ namespace OsEngine.Market.Servers.OKX
 
         public void GetOrdersState(List<Order> orders)
         {
-            _client.GetOrdersState(orders);
+            
         }
 
         public void SendOrder(Order order)
@@ -371,11 +373,12 @@ namespace OsEngine.Market.Servers.OKX
 
         #region Ticks
 
-        private object newTradelocked = new object();
+        private string _newTradelocked = "okxNewTradesLocker";
+
         private void _client_NewTradesEvent(TradeResponse tradeRespone)
         {
 
-            lock (newTradelocked)
+            lock (_newTradelocked)
             {
                 if (tradeRespone.data == null)
                 {
@@ -389,10 +392,11 @@ namespace OsEngine.Market.Servers.OKX
                     return;
                 }
 
-                trade.Price = Convert.ToDecimal(tradeRespone.data[0].px.Replace('.', ','));
+                trade.Price = tradeRespone.data[0].px.ToDecimal();
                 trade.Id = tradeRespone.data[0].tradeId;
                 trade.Time = TimeManager.GetDateTimeFromTimeStamp(Convert.ToInt64(tradeRespone.data[0].ts));
-                trade.Volume = Convert.ToDecimal(tradeRespone.data[0].sz.Replace('.', ','));
+                trade.Volume = tradeRespone.data[0].sz.ToDecimal();
+
                 if (tradeRespone.data[0].side.Equals("buy"))
                 {
                     trade.Side = Side.Buy;
@@ -413,7 +417,7 @@ namespace OsEngine.Market.Servers.OKX
 
         private List<MarketDepth> _depths;
 
-        private object _depthLocker = new object();
+        private string _depthLocker = "okxNewMdLocker";
 
         private void _client_UpdateMarketDepth(DepthResponse depthResponse)
         {
@@ -432,41 +436,40 @@ namespace OsEngine.Market.Servers.OKX
                         return;
                     }
 
-                    var needDepth = _depths.Find(depth => depth.SecurityNameCode == depthResponse.arg.instId);
+                    string secName = depthResponse.arg.instId;
+
+                    var needDepth = _depths.Find(depth => depth.SecurityNameCode == secName);
 
                     if (needDepth == null)
                     {
                         needDepth = new MarketDepth();
-                        needDepth.SecurityNameCode = depthResponse.arg.instId;
+                        needDepth.SecurityNameCode = secName;
                         _depths.Add(needDepth);
                     }
+
 
                     List<MarketDepthLevel> ascs = new List<MarketDepthLevel>();
                     List<MarketDepthLevel> bids = new List<MarketDepthLevel>();
 
                     for (int i = 0; i < depthResponse.data[0].asks.Count; i++)
                     {
-                        ascs.Add(new MarketDepthLevel()
-                        {
-                            Ask =
-                                depthResponse.data[0].asks[i][1].ToString().ToDecimal()
-                            ,
-                            Price =
-                                depthResponse.data[0].asks[i][0].ToString().ToDecimal()
+                        MarketDepthLevel level = new MarketDepthLevel();
 
-                        });
+                        level.Ask = depthResponse.data[0].asks[i][1].ToString().ToDecimal();
+
+                        level.Price = depthResponse.data[0].asks[i][0].ToString().ToDecimal();
+                        ascs.Add(level);
                     }
 
                     for (int i = 0; i < depthResponse.data[0].bids.Count; i++)
                     {
-                        bids.Add(new MarketDepthLevel()
-                        {
-                            Bid =
-                                depthResponse.data[0].bids[i][1].ToString().ToDecimal()
-                            ,
-                            Price =
-                                depthResponse.data[0].bids[i][0].ToString().ToDecimal()
-                        });
+                        MarketDepthLevel level = new MarketDepthLevel();
+
+                        level.Bid = depthResponse.data[0].bids[i][1].ToString().ToDecimal();
+
+                        level.Price = depthResponse.data[0].bids[i][0].ToString().ToDecimal();
+
+                        bids.Add(level);
                     }
 
                     needDepth.Asks = ascs;
@@ -478,6 +481,8 @@ namespace OsEngine.Market.Servers.OKX
                     {
                         return;
                     }
+
+                    //needDepth = RefreshDepthSupport(needDepth, depthResponse.arg.instId);
 
                     if (MarketDepthEvent != null)
                     {
@@ -515,7 +520,6 @@ namespace OsEngine.Market.Servers.OKX
                 {
                     PositionOnBoard newPortf = new PositionOnBoard();
                     newPortf.SecurityNameCode = array[i].SecurityNameCode;
-                    newPortf.ValueBegin = 0;
                     newPortf.ValueCurrent = 0;
                     newPortf.ValueBlocked = 0;
 
@@ -527,6 +531,7 @@ namespace OsEngine.Market.Servers.OKX
         }
 
         List<Portfolio> _portfolios = new List<Portfolio>();
+
         private void _client_UpdatePortfolio(PorfolioResponse portfs)
         {
             _client_NewPortfolio(portfs);
@@ -561,13 +566,36 @@ namespace OsEngine.Market.Servers.OKX
                 for (int i = 0; i < portfs.data[0].details.Count; i++)
                 {
                     PositionOnBoard newPortf = new PositionOnBoard();
-                    newPortf.SecurityNameCode = portfs.data[0].details[i].ccy;
-                    newPortf.ValueBegin = portfs.data[0].details[i].cashBal.ToDecimal();
-                    newPortf.ValueCurrent = portfs.data[0].details[i].availEq.ToDecimal();
-                    newPortf.ValueBlocked = portfs.data[0].details[i].frozenBal.ToDecimal();
 
+                    PortdolioDetails pos = portfs.data[0].details[i];
+
+                    if (pos.ccy.Contains("SWAP"))
+                    {
+                        newPortf.SecurityNameCode = pos.ccy;
+
+                        if (pos.ccy.Contains("LONG"))
+                        {
+                            newPortf.ValueBegin = pos.availEq.ToDecimal();
+                            newPortf.ValueCurrent = pos.availEq.ToDecimal();
+                            newPortf.ValueBlocked = pos.frozenBal.ToDecimal();
+                        }
+                        else if (pos.ccy.Contains("SHORT"))
+                        {
+                            newPortf.ValueBegin = -pos.availEq.ToDecimal();
+                            newPortf.ValueCurrent = -pos.availEq.ToDecimal();
+                            newPortf.ValueBlocked = pos.frozenBal.ToDecimal();
+                        }
+                    }
+                    else
+                    {
+                        newPortf.SecurityNameCode = pos.ccy;
+                        newPortf.ValueBegin = pos.availBal.ToDecimal();
+                        newPortf.ValueCurrent = pos.availBal.ToDecimal();
+                        newPortf.ValueBlocked = pos.frozenBal.ToDecimal();
+                    }
 
                     CoinsWithNonZeroBalance.Add(newPortf);
+
                     myPortfolio.SetNewPosition(newPortf);
                 }
 
@@ -609,6 +637,7 @@ namespace OsEngine.Market.Servers.OKX
             {
                 SecurityResponceItem item = securityResponce.data[i];
 
+                Security security = new Security();
 
                 SecurityType securityType = SecurityType.CurrencyPair;
 
@@ -617,26 +646,43 @@ namespace OsEngine.Market.Servers.OKX
                     securityType = SecurityType.Futures;
                 }
 
+                security.Lot = item.minSz.ToDecimal();
 
-                Security security = new Security();
+                string volStep = item.minSz.Replace(',', '.');
+
+                if (volStep != null
+                        && volStep.Length > 0 &&
+                        volStep.Split('.').Length > 1)
+                {
+                    security.DecimalsVolume = volStep.Split('.')[1].Length;
+                }
 
                 if (securityType == SecurityType.CurrencyPair)
                 {
                     security.Name = item.instId;
                     security.NameFull = item.instId;
-                    security.NameClass = "SPOT";
+                    security.NameClass = "SPOT_" + item.quoteCcy;
                 }
                 if (securityType == SecurityType.Futures)
                 {
                     security.Name = item.instId;
                     security.NameFull = item.instId;
-                    security.NameClass = "SWAP";
+
+                    if (item.instId.Contains("-USD-"))
+                    {
+                        security.NameClass = "SWAP_USD";
+                    }
+                    else
+                    {
+                        security.NameClass = "SWAP_" + item.settleCcy;
+                    }
                 }
 
+                security.Exchange = ServerType.OKX.ToString();
 
                 security.NameId = item.instId;
                 security.SecurityType = securityType;
-                security.Lot = item.lotSz.ToDecimal();
+
                 security.PriceStep = item.tickSz.ToDecimal();
                 security.PriceStepCost = security.PriceStep;
 

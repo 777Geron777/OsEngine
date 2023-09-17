@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Windows;
 
@@ -31,6 +32,41 @@ namespace OsEngine.Language
             return localizations;
         }
 
+        public static string CurLocalizationCode
+        {
+            get
+            {
+                if (_curLocalization == OsLocalType.Eng)
+                {
+                    return "en-US";
+                }
+                else if(_curLocalization == OsLocalType.Ru)
+                {
+                    return "ru-RU";
+                }
+
+                return "en-US";
+            }
+        }
+
+        public static CultureInfo CurCulture
+        {
+            get
+            {
+                return new CultureInfo(CurLocalizationCode);
+            }
+        }
+
+        public static string ShortDateFormatString
+        {
+            get
+            {
+                CultureInfo culture = CurCulture;
+
+                return CurCulture.DateTimeFormat.ShortDatePattern;
+            }
+        }
+
         public static OsLocalType CurLocalization
         {
             get
@@ -52,6 +88,9 @@ namespace OsEngine.Language
                     return;
                 }
                 _curLocalization = value;
+
+                // System.Threading.Thread.CurrentThread.CurrentUICulture = OsLocalization.CurCulture;
+                // System.Threading.Thread.CurrentThread.CurrentCulture = OsLocalization.CurCulture;
 
                 LocalizationTypeChangeEvent?.Invoke();
                 Save();
@@ -97,6 +136,9 @@ namespace OsEngine.Language
                     Enum.TryParse(reader.ReadLine(), true, out _curLocalization);
                     reader.Close();
                 }
+
+                // System.Threading.Thread.CurrentThread.CurrentUICulture = OsLocalization.CurCulture;
+                // System.Threading.Thread.CurrentThread.CurrentCulture = OsLocalization.CurCulture;
             }
             catch 
             {

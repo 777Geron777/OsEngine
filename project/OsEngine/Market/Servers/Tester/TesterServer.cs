@@ -845,6 +845,30 @@ namespace OsEngine.Market.Servers.Tester
 
             for (int i = 0; i < bots.Count; i++)
             {
+                List<BotTabPair> currentTabs = bots[i].TabsPair;
+
+                for (int i2 = 0; currentTabs != null && i2 < currentTabs.Count; i2++)
+                {
+                    List<PairToTrade> pairs = currentTabs[i2].Pairs;
+
+                    for(int i3 = 0; i3 < pairs.Count;i3++)
+                    {
+                        PairToTrade pair = pairs[i3];
+
+                        if(pair.Tab1.Securiti != null)
+                        {
+                            namesSecurity.Add(pair.Tab1.Securiti.Name);
+                        }
+                        if (pair.Tab2.Securiti != null)
+                        {
+                            namesSecurity.Add(pair.Tab2.Securiti.Name);
+                        }
+                    }
+                }
+            }
+
+            for (int i = 0; i < bots.Count; i++)
+            {
                 List<BotTabScreener> currentTabs = bots[i].TabsScreener;
 
                 for (int i2 = 0; currentTabs != null && i2 < currentTabs.Count; i2++)
@@ -1480,6 +1504,7 @@ namespace OsEngine.Market.Servers.Tester
             // проверяем в файле тестера данные о наличии мультипликаторов и ГО для бумаг
 
             SetToSecuritiesDopSettings();
+            LoadSecurityTestSettings();
 
             if (TestingNewSecurityEvent != null)
             {
@@ -2103,6 +2128,11 @@ namespace OsEngine.Market.Servers.Tester
                 { // test with using ticks / прогон на тиках
                     List<Trade> trades = security.LastTradeSeries;
 
+                    if(order.Price == 0)
+                    {
+                        order.Price = trades[0].Price;
+                    }
+
                     for (int indexTrades = 0; trades != null && indexTrades < trades.Count; indexTrades++)
                     {
                         if (CheckOrdersInTickTest(order, trades[indexTrades],false))
@@ -2115,6 +2145,13 @@ namespace OsEngine.Market.Servers.Tester
                 else if(security.DataType == SecurityTesterDataType.Candle)
                 { // test with using candles / прогон на свечках
                     Candle lastCandle = security.LastCandle;
+
+                    if (order.Price == 0)
+                    {
+                        order.Price = lastCandle.Open;
+                    }
+
+
                     if (CheckOrdersInCandleTest(order, lastCandle))
                     {
                         i--;
@@ -3746,7 +3783,8 @@ namespace OsEngine.Market.Servers.Tester
                 return;
             }
 
-            if (order.Price <= 0)
+            if (order.Price <= 0
+                && order.TypeOrder != OrderPriceType.Market)
             {
                 SendLogMessage(OsLocalization.Market.Message41 + order.Price, LogMessageType.Error);
                 FailedOperationOrder(order);

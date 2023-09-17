@@ -3,38 +3,31 @@
  * Ваши права на использование кода регулируются данной лицензией http://o-s-a.net/doc/license_simple_engine.pdf
 */
 
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
-using System.Runtime.Serialization;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Forms.Integration;
-using System.Windows.Shapes;
-using OsEngine.Charts;
+using OsEngine.Alerts;
 using OsEngine.Charts.CandleChart;
-using OsEngine.Charts.CandleChart.Indicators;
 using OsEngine.Entity;
 using OsEngine.Indicators;
 using OsEngine.Language;
 using OsEngine.Logging;
 using OsEngine.Market;
 using OsEngine.Market.Connectors;
-using OsEngine.OsTrader.Panels.Tab.Internal;
-using Chart = System.Windows.Forms.DataVisualization.Charting.Chart;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Windows.Controls;
+using System.Windows.Forms.Integration;
+using System.Windows.Shapes;
 
 namespace OsEngine.OsTrader.Panels.Tab
 {
-
     /// <summary>
-    /// tab - spread of candlestick data in the form of a candlestick chart /
-    /// вкладка - спред свечных данных в виде свечного графика
+    /// Tab - spread of candlestick data in the form of a candlestick chart
     /// </summary>
     public class BotTabIndex : IIBotTab
     {
-        public BotTabIndex(string name, StartProgram  startProgram)
-        { 
+        public BotTabIndex(string name, StartProgram startProgram)
+        {
             TabName = name;
             _startProgram = startProgram;
 
@@ -45,31 +38,45 @@ namespace OsEngine.OsTrader.Panels.Tab
         }
 
         /// <summary>
-        /// program that created the robot / 
-        /// программа создавшая робота
+        /// source type
+        /// </summary>
+        public BotTabType TabType
+        {
+            get
+            {
+                return BotTabType.Index;
+            }
+        }
+
+        /// <summary>
+        /// Program that created the robot
         /// </summary>
         private StartProgram _startProgram;
 
         /// <summary>
-        /// chart
-        /// чарт для прорисовки
+        /// Chart
         /// </summary>
         private ChartCandleMaster _chartMaster;
 
         /// <summary>
-        /// connectors array
-        /// Массив для хранения списка интсрументов
+        /// Connectors array
         /// </summary>
         public List<ConnectorCandles> Tabs = new List<ConnectorCandles>();
 
-        // управление
+        // control
 
         /// <summary>
-        /// show GUI
-        /// вызвать окно управления
+        /// Show GUI
         /// </summary>
         public void ShowDialog()
         {
+            if (ServerMaster.GetServers() == null ||
+                ServerMaster.GetServers().Count == 0)
+            {
+                SendNewLogMessage(OsLocalization.Market.Message1,LogMessageType.Error);
+                return;
+            }
+
             BotTabIndexUi ui = new BotTabIndexUi(this);
             ui.ShowDialog();
 
@@ -84,18 +91,21 @@ namespace OsEngine.OsTrader.Panels.Tab
         }
 
         /// <summary>
-        /// show connector GUI
-        /// покаазать окно настроек коннектора по индексу
+        /// Show connector GUI
         /// </summary>
         public void ShowIndexConnectorIndexDialog(int index)
         {
+            if(index >= Tabs.Count)
+            {
+                return;
+            }
+
             Tabs[index].ShowDialog(false);
             Save();
         }
 
         /// <summary>
-        /// Add new security to the list / 
-        /// Добавить новую бумагу в список
+        /// Add new security to the list
         /// </summary>
         public void ShowNewSecurityDialog()
         {
@@ -103,11 +113,11 @@ namespace OsEngine.OsTrader.Panels.Tab
 
             MassSourcesCreateUi ui = new MassSourcesCreateUi(creator);
             ui.ShowDialog();
-            
-            if(creator.SecuritiesNames != null &&
+
+            if (creator.SecuritiesNames != null &&
                 creator.SecuritiesNames.Count != 0)
             {
-                for(int i = 0;i < creator.SecuritiesNames.Count;i++)
+                for (int i = 0; i < creator.SecuritiesNames.Count; i++)
                 {
                     TryRunSecurity(creator.SecuritiesNames[i], creator);
                 }
@@ -116,11 +126,16 @@ namespace OsEngine.OsTrader.Panels.Tab
             }
         }
 
+        /// <summary>
+        /// try to connect security
+        /// </summary>
+        /// <param name="security">security</param>
+        /// <param name="creator">mass source creator</param>
         private void TryRunSecurity(ActivatedSecurity security, MassSourcesCreator creator)
         {
-            for(int i = 0; i < Tabs.Count;i++)
+            for (int i = 0; i < Tabs.Count; i++)
             {
-                if(Tabs[i].SecurityName == security.SecurityName &&
+                if (Tabs[i].SecurityName == security.SecurityName &&
                     Tabs[i].ServerType == creator.ServerType)
                 {
                     return;
@@ -129,13 +144,13 @@ namespace OsEngine.OsTrader.Panels.Tab
 
             int num = Tabs.Count;
 
-            while(true)
+            while (true)
             {
                 bool isNotInArray = true;
 
-                for(int i = 0;i < Tabs.Count;i++)
+                for (int i = 0; i < Tabs.Count; i++)
                 {
-                    if(Tabs[i].UniqName == TabName + num)
+                    if (Tabs[i].UniqName == TabName + num)
                     {
                         num++;
                         isNotInArray = false;
@@ -143,14 +158,13 @@ namespace OsEngine.OsTrader.Panels.Tab
                     }
                 }
 
-                if(isNotInArray == true)
+                if (isNotInArray == true)
                 {
                     break;
                 }
             }
 
-
-            ConnectorCandles connector = new ConnectorCandles(TabName + num, _startProgram,false);
+            ConnectorCandles connector = new ConnectorCandles(TabName + num, _startProgram, false);
             connector.SaveTradesInCandles = false;
 
             connector.ServerType = creator.ServerType;
@@ -172,27 +186,24 @@ namespace OsEngine.OsTrader.Panels.Tab
             connector.ReversCandlesPunktsBackMove = creator.ReversCandlesPunktsBackMove;
             connector.ComissionType = creator.ComissionType;
             connector.ComissionValue = creator.ComissionValue;
-            
+
             Tabs.Add(connector);
             Tabs[Tabs.Count - 1].NewCandlesChangeEvent += BotTabIndex_NewCandlesChangeEvent;
-
         }
 
         /// <summary>
-        /// make a new adapter to connect data / 
-        /// сделать новый адаптер для подключения данных
+        /// Make a new adapter to connect data
         /// </summary>
         public void CreateNewSecurityConnector()
         {
-            ConnectorCandles connector = new ConnectorCandles(TabName + Tabs.Count, _startProgram,false);
+            ConnectorCandles connector = new ConnectorCandles(TabName + Tabs.Count, _startProgram, false);
             connector.SaveTradesInCandles = false;
             Tabs.Add(connector);
             Tabs[Tabs.Count - 1].NewCandlesChangeEvent += BotTabIndex_NewCandlesChangeEvent;
         }
 
         /// <summary>
-        /// remove selected security from list / 
-        /// удалить выбранную бумагу из списка
+        /// Remove selected security from list
         /// </summary>
         public void DeleteSecurityTab(int index)
         {
@@ -208,8 +219,7 @@ namespace OsEngine.OsTrader.Panels.Tab
         }
 
         /// <summary>
-        /// start drawing this robot / 
-        /// начать прорисовку этого робота
+        /// Start drawing this robot
         /// </summary> 
         public void StartPaint(Grid grid, WindowsFormsHost host, Rectangle rectangle)
         {
@@ -217,8 +227,7 @@ namespace OsEngine.OsTrader.Panels.Tab
         }
 
         /// <summary>
-        /// stop drawing this robot / 
-        /// остановить прорисовку этого робота
+        /// Stop drawing this robot
         /// </summary>
         public void StopPaint()
         {
@@ -226,20 +235,38 @@ namespace OsEngine.OsTrader.Panels.Tab
         }
 
         /// <summary>
-        /// bot name /
-        /// уникальное имя робота.
+        /// Unique robot name
         /// </summary>
         public string TabName { get; set; }
 
         /// <summary>
-        /// bot number / 
-        /// номер вкладки
+        /// Tab number
         /// </summary>
         public int TabNum { get; set; }
+		
+        /// <summary>
+        /// custom name robot
+        /// пользовательское имя робота
+        /// </summary>
+        public string NameStrategy
+        {
+            get
+            {
+                if (TabName.Contains("tab"))
+                {
+                    return TabName.Remove(TabName.LastIndexOf("tab"), TabName.Length - TabName.LastIndexOf("tab"));
+                }
+                return "";
+            }
+        }
 
         /// <summary>
-        /// clear / 
-        /// очистить журнал и графики
+        /// Is the emulator enabled
+        /// </summary>
+        public bool EmulatorIsOn { get; set; }
+
+        /// <summary>
+        /// Clear
         /// </summary>
         public void Clear()
         {
@@ -248,14 +275,13 @@ namespace OsEngine.OsTrader.Panels.Tab
         }
 
         /// <summary>
-        /// save / 
-        /// сохранить настройки в файл
+        /// Save
         /// </summary>
         public void Save()
         {
             try
             {
-                if(_isLoaded)
+                if (_isLoaded)
                 {
                     return;
                 }
@@ -284,7 +310,7 @@ namespace OsEngine.OsTrader.Panels.Tab
         bool _isLoaded = false;
 
         /// <summary>
-        /// включена ли подача событий на верх или нет
+        /// Whether the submission of events to the top is enabled or not
         /// </summary>
         public bool EventsIsOn
         {
@@ -306,8 +332,7 @@ namespace OsEngine.OsTrader.Panels.Tab
         private bool _eventsIsOn = true;
 
         /// <summary>
-        /// load / 
-        /// загрузить настройки из файла
+        /// Load settings from file
         /// </summary>
         public void Load()
         {
@@ -325,11 +350,11 @@ namespace OsEngine.OsTrader.Panels.Tab
                     string[] save2 = reader.ReadLine().Split('#');
                     for (int i = 0; i < save2.Length - 1; i++)
                     {
-                        ConnectorCandles newConnector = new ConnectorCandles(save2[i], _startProgram,false);
+                        ConnectorCandles newConnector = new ConnectorCandles(save2[i], _startProgram, false);
                         newConnector.SaveTradesInCandles = false;
-                        
 
-                        if(newConnector.CandleMarketDataType != CandleMarketDataType.MarketDepth)
+
+                        if (newConnector.CandleMarketDataType != CandleMarketDataType.MarketDepth)
                         {
                             newConnector.NeadToLoadServerData = false;
                         }
@@ -340,7 +365,7 @@ namespace OsEngine.OsTrader.Panels.Tab
 
                     UserFormula = reader.ReadLine();
 
-                    if(reader.EndOfStream == false)
+                    if (reader.EndOfStream == false)
                     {
                         _eventsIsOn = Convert.ToBoolean(reader.ReadLine());
                     }
@@ -362,8 +387,7 @@ namespace OsEngine.OsTrader.Panels.Tab
         }
 
         /// <summary>
-        /// remove tab and all child structures
-        /// удалить робота и все дочерние структуры
+        /// Remove tab and all child structures
         /// </summary>
         public void Delete()
         {
@@ -374,15 +398,19 @@ namespace OsEngine.OsTrader.Panels.Tab
                 File.Delete(@"Engine\" + TabName + @"SpreadSet.txt");
             }
 
-            for(int i = 0; Tabs != null && i < Tabs.Count; i++)
+            for (int i = 0; Tabs != null && i < Tabs.Count; i++)
             {
                 Tabs[i].Delete();
+            }
+
+            if(TabDeletedEvent != null)
+            {
+                TabDeletedEvent();
             }
         }
 
         /// <summary>
-        /// whether the tab is connected to download data / 
-        /// подключена ли вкладка на скачивание данных
+        /// Whether the tab is connected to download data
         /// </summary>
         public bool IsConnected
         {
@@ -403,11 +431,13 @@ namespace OsEngine.OsTrader.Panels.Tab
             }
         }
 
+        /// <summary>
+        /// Time of the last update of the candle
+        /// </summary>
         public DateTime LastTimeCandleUpdate { get; set; }
 
         /// <summary>
-        /// new data came from the connector / 
-        /// из коннектора пришли новые данные
+        /// New data came from the connector
         /// </summary>
         private void BotTabIndex_NewCandlesChangeEvent(List<Candle> candles)
         {
@@ -433,8 +463,7 @@ namespace OsEngine.OsTrader.Panels.Tab
                     return;
                 }
             }
-            //loop to collect all the candles in one array
-            // цикл для сбора всех свечей в один массив
+            // loop to collect all the candles in one array
 
             if (string.IsNullOrWhiteSpace(ConvertedFormula))
             {
@@ -451,7 +480,7 @@ namespace OsEngine.OsTrader.Panels.Tab
                 {
                     Candles = val.ValueCandles;
 
-                    if (Candles.Count > 1 && 
+                    if (Candles.Count > 1 &&
                         Candles[Candles.Count - 1].TimeStart == Candles[Candles.Count - 2].TimeStart)
                     {
                         try
@@ -488,22 +517,19 @@ namespace OsEngine.OsTrader.Panels.Tab
         }
 
         /// <summary>
-        /// candles
-        /// свечи спреда
+        /// spread candles
         /// </summary>
         public List<Candle> Candles;
 
         /// <summary>
-        /// spread change event
-        /// спред изменился
+        /// Spread change event
         /// </summary>
         public event Action<List<Candle>> SpreadChangeEvent;
 
-// index calculation / расчёт индекса
+        // index calculation
 
         /// <summary>
-        /// formula /
-        /// формула
+        /// Formula
         /// </summary>
         public string UserFormula
         {
@@ -546,20 +572,17 @@ namespace OsEngine.OsTrader.Panels.Tab
         private string _userFormula;
 
         /// <summary>
-        /// formula reduced to program format / 
-        /// формула приведённая к формату программы
+        /// Formula reduced to program format
         /// </summary>
         public string ConvertedFormula;
 
         /// <summary>
-        /// array of objects for storing intermediate arrays of candles / 
-        /// массив объектов для хранения промежуточных массивов свечей
+        /// Array of objects for storing intermediate arrays of candles
         /// </summary>
         private List<ValueSave> _valuesToFormula;
 
         /// <summary>
-        /// check the formula for errors and lead to the appearance of the program / 
-        /// проверить формулу на ошибки и привести к виду программы
+        /// Check the formula for errors and lead to the appearance of the program
         /// </summary>
         public string ConvertFormula(string formula)
         {
@@ -568,21 +591,21 @@ namespace OsEngine.OsTrader.Panels.Tab
                 return "";
             }
 
-            // delete spaces / удаляем пробелы
+            // delete spaces
 
             formula = formula.Replace(" ", "");
 
-            // check the formula for validity / проверяем формулу на валиндность
+            // check the formula for validity
 
             for (int i = 0; i < formula.Length; i++)
             {
-                if (formula[i] != '/' && formula[i] !=  '*' && formula[i] !=  '+' && formula[i] !=  '-'
+                if (formula[i] != '/' && formula[i] != '*' && formula[i] != '+' && formula[i] != '-'
                     && formula[i] != '(' && formula[i] != ')' && formula[i] != 'A' && formula[i] != '1' && formula[i] != '0'
-                    && formula[i] !=  '2' && formula[i] !=  '3' && formula[i] !=  '4' && formula[i] !=  '5'
-                    && formula[i] !=  '6' && formula[i] !=  '7' && formula[i] !=  '8' && formula[i] !=  '9'
+                    && formula[i] != '2' && formula[i] != '3' && formula[i] != '4' && formula[i] != '5'
+                    && formula[i] != '6' && formula[i] != '7' && formula[i] != '8' && formula[i] != '9'
                     && formula[i] != '.')
-                { // incomprehensible characters / непонятные символы
-                    SendNewLogMessage(OsLocalization.Trader.Label76,LogMessageType.Error);
+                { // incomprehensible characters
+                    SendNewLogMessage(OsLocalization.Trader.Label76, LogMessageType.Error);
                     return "";
                 }
             }
@@ -591,35 +614,33 @@ namespace OsEngine.OsTrader.Panels.Tab
             {
                 if ((formula[i] == '/' || formula[i] == '*' || formula[i] == '+' || formula[i] == '-') &&
                     (formula[i - 1] == '/' || formula[i - 1] == '*' || formula[i - 1] == '+' || formula[i - 1] == '-'))
-                { // two signs in a row / два знака подряд
+                { // two signs in a row
                     SendNewLogMessage(OsLocalization.Trader.Label76,
                         LogMessageType.Error);
                     return "";
                 }
             }
 
-            // так хорошо A0 / (0.033 * A1 + 0.013 * A2 + 0.021 * A3)
-            // так плохо (A0) / (0.033 * A1 + 0.013 * A2 + 0.021 * A3)
-            // Удалить такую конструкцию (A0)
+            // so good A0 / (0.033 * A1 + 0.013 * A2 + 0.021 * A3)
+            // so bad (A0) / (0.033 * A1 + 0.013 * A2 + 0.021 * A3)
+            // delete this design (A0)
             for (int i = 3; i < formula.Length; i++)
             {
-                if(formula[i - 3] == '(' && formula[i] == ')')
+                if (formula[i - 3] == '(' && formula[i] == ')')
                 {
                     formula = formula.Remove(i, 1);
                     formula = formula.Remove(i - 3, 1);
                 }
             }
 
-
             return formula;
         }
 
         /// <summary>
-        ///  recalculate an arra / 
-        /// пересчитать массив
+        /// Recalculate an arra
         /// </summary>
-        /// <param name="formula">formula / формула</param>
-        /// <returns>the name of the array in which the final value lies / название массива в котором лежит финальное значение</returns>
+        /// <param name="formula">formula</param>
+        /// <returns>the name of the array in which the final value lies</returns>
         public string Calculate(string formula)
         {
             try
@@ -653,7 +674,6 @@ namespace OsEngine.OsTrader.Panels.Tab
                 int finishindex;
 
                 // 1 break into brackets
-                // 1 разбиваем на скобки
                 for (int i = 0; i < s.Length; i++)
                 {
                     if (s[i] == '(')
@@ -686,8 +706,6 @@ namespace OsEngine.OsTrader.Panels.Tab
                 }
 
                 // 2 split into two values
-                // 2 разбить на два значения
-
                 bool haveDevide = false;
                 int znakCount = 0;
                 for (int i = 0; i < s.Length; i++)
@@ -822,8 +840,6 @@ namespace OsEngine.OsTrader.Panels.Tab
                 }
 
                 // search for variables
-                // поиск переменных
-
                 string valueOne = "";
                 string valueTwo = "";
                 string znak = "";
@@ -855,15 +871,14 @@ namespace OsEngine.OsTrader.Panels.Tab
         }
 
         /// <summary>
-        /// calculate values / 
-        /// посчитать значения
+        /// Calculate values
         /// </summary>
-        /// <param name="valOne">value one / значение один</param>
-        /// <param name="valTwo">value two / значение два</param>
-        /// <param name="sign">sign / знак</param>
+        /// <param name="valOne">value one</param>
+        /// <param name="valTwo">value two</param>
+        /// <param name="sign">sign</param>
         private string Concate(string valOne, string valTwo, string sign)
         {
-            if(string.IsNullOrWhiteSpace(valOne))
+            if (string.IsNullOrWhiteSpace(valOne))
             {
                 return valTwo;
             }
@@ -876,7 +891,6 @@ namespace OsEngine.OsTrader.Panels.Tab
                 valOne[0] != 'B' && valTwo[0] != 'B')
             {
                 // both digit values
-                // оба значения цифры
                 decimal one = Convert.ToDecimal(valOne, new CultureInfo("en-US"));
                 decimal two = Convert.ToDecimal(valTwo, new CultureInfo("en-US"));
 
@@ -886,43 +900,39 @@ namespace OsEngine.OsTrader.Panels.Tab
                     && (valTwo[0] == 'A' || valTwo[0] == 'B'))
             {
                 // both value arrays
-                // оба значение массивы
                 return ConcateCandles(valOne, valTwo, sign);
             }
             else if ((valOne[0] == 'A' || valOne[0] == 'B')
                      && valTwo[0] != 'A' && valTwo[0] != 'B')
             {
                 // first value array
-                // первое значение массив
                 return ConcateCandleAndDecimal(valOne, valTwo, sign);
             }
             else if (valOne[0] != 'A' && valOne[0] != 'B'
                      && (valTwo[0] == 'A' || valTwo[0] == 'B'))
             {
                 // second value array
-                // второе значение массив
                 return ConcateDecimalAndCandle(valOne, valTwo, sign);
             }
             return "";
         }
 
         /// <summary>
-        /// add numbers // 
-        /// сложить цифры
+        /// Add numbers
         /// </summary>
         private string ConcateDecimals(decimal valOne, decimal valTwo, string sign)
         {
             if (sign == "+")
             {
-                return (valOne+valTwo).ToString();
+                return (valOne + valTwo).ToString();
             }
             else if (sign == "-")
             {
-                return (valOne-valTwo).ToString();
+                return (valOne - valTwo).ToString();
             }
             else if (sign == "*")
             {
-                return (valOne*valTwo).ToString();
+                return (valOne * valTwo).ToString();
             }
             else if (sign == "/")
             {
@@ -930,20 +940,17 @@ namespace OsEngine.OsTrader.Panels.Tab
                 {
                     return "0";
                 }
-                return (valOne/valTwo).ToString();
+                return (valOne / valTwo).ToString();
             }
             return "";
         }
 
         /// <summary>
-        /// count arrays of candles / 
-        /// посчитать массивы свечей
+        /// Count arrays of candles
         /// </summary>
-        private string ConcateCandles(string valOne,string valTwo,string sign)
+        private string ConcateCandles(string valOne, string valTwo, string sign)
         {
             // take the first value
-            // берём первое значение
-
             List<Candle> candlesOne = null;
 
             if (valOne[0] == 'A')
@@ -967,8 +974,6 @@ namespace OsEngine.OsTrader.Panels.Tab
             }
 
             // take the second value
-            // берём второе значение
-
             List<Candle> candlesTwo = null;
 
             if (valTwo[0] == 'A')
@@ -992,8 +997,6 @@ namespace OsEngine.OsTrader.Panels.Tab
             }
 
             // take outgoing value
-            // берём исходящее значение
-
             string znak = "";
 
             if (sign == "+")
@@ -1006,7 +1009,7 @@ namespace OsEngine.OsTrader.Panels.Tab
             }
             else if (sign == "*")
             {
-              znak = "multiply";
+                znak = "multiply";
             }
             else if (sign == "/")
             {
@@ -1018,7 +1021,7 @@ namespace OsEngine.OsTrader.Panels.Tab
             if (exitVal == null)
             {
                 exitVal = new ValueSave();
-                exitVal.Name = "B" +  valOne + znak + valTwo;
+                exitVal.Name = "B" + valOne + znak + valTwo;
                 exitVal.ValueCandles = new List<Candle>();
                 _valuesToFormula.Add(exitVal);
             }
@@ -1026,26 +1029,22 @@ namespace OsEngine.OsTrader.Panels.Tab
             List<Candle> exitCandles = exitVal.ValueCandles;
 
             if (exitCandles.Count != 0 &&
-                candlesOne[candlesOne.Count-1].TimeStart == candlesTwo[candlesTwo.Count-1].TimeStart &&
-                candlesOne[candlesOne.Count-1].TimeStart == exitCandles[exitCandles.Count-1].TimeStart)
+                candlesOne[candlesOne.Count - 1].TimeStart == candlesTwo[candlesTwo.Count - 1].TimeStart &&
+                candlesOne[candlesOne.Count - 1].TimeStart == exitCandles[exitCandles.Count - 1].TimeStart)
             {
                 // need to update only the last candle
-                // надо обновить только последнюю свечу
                 exitCandles[exitCandles.Count - 1] = (GetCandle(exitCandles[exitCandles.Count - 1], candlesOne[candlesOne.Count - 1], candlesTwo[candlesTwo.Count - 1], sign));
             }
             else if (exitCandles.Count != 0 &&
-                candlesOne[candlesOne.Count-1].TimeStart == candlesTwo[candlesTwo.Count-1].TimeStart &&
-                candlesOne[candlesOne.Count-2].TimeStart == exitCandles[exitCandles.Count-1].TimeStart)
+                candlesOne[candlesOne.Count - 1].TimeStart == candlesTwo[candlesTwo.Count - 1].TimeStart &&
+                candlesOne[candlesOne.Count - 2].TimeStart == exitCandles[exitCandles.Count - 1].TimeStart)
             {
                 // need to add one candle
-                // нужно добавить одну свечу
-                exitCandles.Add(GetCandle(null, candlesOne[candlesOne.Count - 1], candlesTwo[candlesTwo.Count-1], sign));
+                exitCandles.Add(GetCandle(null, candlesOne[candlesOne.Count - 1], candlesTwo[candlesTwo.Count - 1], sign));
             }
             else
             {
                 // need to update everything
-                // обновить нужно всё
-
                 int indexStartFirst = 0;
                 int indexStartSecond = 0;
 
@@ -1061,14 +1060,12 @@ namespace OsEngine.OsTrader.Panels.Tab
                             indexStartSecond = i2;
                             break;
                         }
-
                     }
 
                     if (indexStartSecond != 0)
                     {
                         break;
                     }
-
                 }
 
                 for (int i1 = indexStartFirst, i2 = indexStartSecond; i1 < candlesOne.Count && i2 < candlesTwo.Count; i2++, i1++)
@@ -1107,7 +1104,6 @@ namespace OsEngine.OsTrader.Panels.Tab
                     {
 
                     }
-
                 }
                 exitVal.ValueCandles = exitCandles;
             }
@@ -1116,8 +1112,7 @@ namespace OsEngine.OsTrader.Panels.Tab
         }
 
         /// <summary>
-        /// count an array of candles and a number / 
-        /// посчитать массив свечей и цифру
+        /// count an array of candles and a number
         /// </summary>
         private string ConcateCandleAndDecimal(string valOne, string valTwo, string sign)
         {
@@ -1132,7 +1127,7 @@ namespace OsEngine.OsTrader.Panels.Tab
                     return "";
                 }
                 candlesOne = Tabs[iOne].Candles(true);
-                if(candlesOne == null)
+                if (candlesOne == null)
                 {
                     return valOne;
                 }
@@ -1187,7 +1182,6 @@ namespace OsEngine.OsTrader.Panels.Tab
                 candlesOne[candlesOne.Count - 1].TimeStart == exitCandles[exitCandles.Count - 1].TimeStart)
             {
                 // need to update only the last candle
-                // надо обновить только последнюю свечу
                 lastOper = 1;
                 exitCandles[exitCandles.Count - 1] = (GetCandle(exitCandles[exitCandles.Count - 1], candlesOne[candlesOne.Count - 1], valueTwo, sign));
             }
@@ -1195,17 +1189,15 @@ namespace OsEngine.OsTrader.Panels.Tab
                 candlesOne[candlesOne.Count - 2].TimeStart == exitCandles[exitCandles.Count - 1].TimeStart)
             {
                 lastOper = 2;
-                // need to add one candle
-                // нужно добавить одну свечу
 
+                // need to add one candle
                 exitCandles.Add(GetCandle(null, candlesOne[candlesOne.Count - 1], valueTwo, sign));
             }
             else
             {
                 lastOper = 3;
-                // need to update everything
-                // обновить нужно всё
 
+                // need to update everything
                 int indexStartFirst = 0;
 
                 for (int i1 = candlesOne.Count - 1; exitCandles.Count != 0 && i1 > -1; i1--)
@@ -1213,7 +1205,7 @@ namespace OsEngine.OsTrader.Panels.Tab
                     if (candlesOne[i1].TimeStart <= exitCandles[exitCandles.Count - 1].TimeStart &&
                         indexStartFirst == 0)
                     {
-                        indexStartFirst = i1+1;
+                        indexStartFirst = i1 + 1;
                         break;
                     }
                 }
@@ -1229,19 +1221,14 @@ namespace OsEngine.OsTrader.Panels.Tab
         }
 
         /// <summary>
-        /// count number and array / 
-        /// посчитать цифру и массив
+        /// count number and array
         /// </summary>
-        private string ConcateDecimalAndCandle(string valOne,string valTwo,string sign)
+        private string ConcateDecimalAndCandle(string valOne, string valTwo, string sign)
         {
             // take the first value
-            // берём первое значение
-
             decimal valueOne = Convert.ToDecimal(valOne, new CultureInfo("en-US"));
 
             // take the second value
-            // берём второе значение
-
             List<Candle> candlesTwo = null;
 
             if (valTwo[0] == 'A')
@@ -1260,7 +1247,6 @@ namespace OsEngine.OsTrader.Panels.Tab
             }
 
             // take outgoing value
-            // берём исходящее значение
 
             string znak = "";
 
@@ -1274,7 +1260,7 @@ namespace OsEngine.OsTrader.Panels.Tab
             }
             else if (sign == "*")
             {
-              znak = "multiply";
+                znak = "multiply";
             }
             else if (sign == "/")
             {
@@ -1286,7 +1272,7 @@ namespace OsEngine.OsTrader.Panels.Tab
             if (exitVal == null)
             {
                 exitVal = new ValueSave();
-                exitVal.Name = "B" +  valOne + znak + valTwo;
+                exitVal.Name = "B" + valOne + znak + valTwo;
                 exitVal.ValueCandles = new List<Candle>();
                 _valuesToFormula.Add(exitVal);
             }
@@ -1297,20 +1283,17 @@ namespace OsEngine.OsTrader.Panels.Tab
                 candlesTwo[candlesTwo.Count - 1].TimeStart == exitCandles[exitCandles.Count - 1].TimeStart)
             {
                 // need to update only the last candle
-                // надо обновить только последнюю свечу
                 exitCandles[exitCandles.Count - 1] = (GetCandle(exitCandles[exitCandles.Count - 1], valueOne, candlesTwo[candlesTwo.Count - 1], sign));
             }
             else if (exitCandles.Count != 0 &&
                 candlesTwo[candlesTwo.Count - 2].TimeStart == exitCandles[exitCandles.Count - 1].TimeStart)
             {
                 // need to add one candle
-                // нужно добавить одну свечу
                 exitCandles.Add(GetCandle(null, valueOne, candlesTwo[candlesTwo.Count - 1], sign));
             }
             else
             {
                 // need to update everything
-                // обновить нужно всё
                 int indexStartSecond = 0;
 
                 for (int i2 = candlesTwo.Count - 1; exitCandles.Count != 0 && i2 > -1; i2--)
@@ -1318,14 +1301,14 @@ namespace OsEngine.OsTrader.Panels.Tab
                     if (candlesTwo[i2].TimeStart <= exitCandles[exitCandles.Count - 1].TimeStart &&
                         indexStartSecond == 0)
                     {
-                        indexStartSecond = i2+1;
+                        indexStartSecond = i2 + 1;
                         break;
                     }
                 }
 
                 for (int i2 = indexStartSecond; i2 < candlesTwo.Count; i2++)
                 {
-                     exitCandles.Add(GetCandle(null, valueOne, candlesTwo[i2], sign));
+                    exitCandles.Add(GetCandle(null, valueOne, candlesTwo[i2], sign));
                 }
                 exitVal.ValueCandles = exitCandles;
             }
@@ -1333,6 +1316,9 @@ namespace OsEngine.OsTrader.Panels.Tab
             return exitVal.Name;
         }
 
+        /// <summary>
+        /// Create index candle
+        /// </summary>
         private Candle GetCandle(Candle oldCandle, Candle candleOne, decimal valueTwo, string sign)
         {
             if (oldCandle == null)
@@ -1412,7 +1398,6 @@ namespace OsEngine.OsTrader.Panels.Tab
                 oldCandle.Low = Math.Min(Math.Min(o, h), Math.Min(l, c));
                 oldCandle.Open = o;
                 oldCandle.Close = c;
-
             }
             else if (sign == "-")
             {
@@ -1512,11 +1497,11 @@ namespace OsEngine.OsTrader.Panels.Tab
                 oldCandle.Close = c;
             }
 
-            if(oldCandle.Open > oldCandle.High)
+            if (oldCandle.Open > oldCandle.High)
             {
                 oldCandle.Open = oldCandle.High;
             }
-            if(oldCandle.Open < oldCandle.Low)
+            if (oldCandle.Open < oldCandle.Low)
             {
                 oldCandle.Open = oldCandle.Low;
             }
@@ -1532,44 +1517,39 @@ namespace OsEngine.OsTrader.Panels.Tab
             return oldCandle;
         }
 
-        // Индикаторы
+        // Indicators
 
         /// <summary>
-        /// create indicator / 
-        /// создать индикатор
+        /// Create indicator
         /// </summary>
-        /// <param name="indicator"> indicator /  индикатор</param>
-        /// <param name="nameArea">name of the area where it will be placed / название области на которую он будет помещён"Prime"</param>
-        /// <returns></returns>
+        /// <param name="indicator"> indicator</param>
+        /// <param name="nameArea">name of the area where it will be placed</param>
         public IIndicator CreateCandleIndicator(IIndicator indicator, string nameArea)
         {
             return _chartMaster.CreateIndicator(indicator, nameArea);
         }
 
         /// <summary>
-        /// remove indicator from candlestick chart / 
-        /// удалить индикатор со свечного графика
+        /// Remove indicator from candlestick chart
         /// </summary>
-        /// <param name="indicator">индикатор</param>
+        /// <param name="indicator">indicator</param>
         public void DeleteCandleIndicator(IIndicator indicator)
         {
             _chartMaster.DeleteIndicator(indicator);
         }
 
         /// <summary>
-        /// indicators available on the index / 
-        /// индикаторы доступные у индекса
+        /// indicators available on the index
         /// </summary>
         public List<IIndicator> Indicators
         {
             get { return _chartMaster.Indicators; }
-        } 
+        }
 
-// log / логирование
+        // log 
 
         /// <summary>
-        /// send log message / 
-        /// выслать новое сообщение на верх
+        /// send log message
         /// </summary>
         private void SendNewLogMessage(string message, LogMessageType type)
         {
@@ -1583,11 +1563,18 @@ namespace OsEngine.OsTrader.Panels.Tab
             }
         }
 
+        /// <summary>
+        /// New log message event
+        /// </summary>
         public event Action<string, LogMessageType> LogMessageEvent;
 
         /// <summary>
+        /// Source removed
+        /// </summary>
+        public event Action TabDeletedEvent;
+
+        /// <summary>
         /// get chart information
-        /// получить информацию о чарте
         /// </summary>
         public string GetChartLabel()
         {
@@ -1596,21 +1583,18 @@ namespace OsEngine.OsTrader.Panels.Tab
     }
 
     /// <summary>
-    /// object to store intermediate data by index / 
-    /// объект для хранения промежуточных данных по индексу
+    /// object to store intermediate data by index
     /// </summary>
     public class ValueSave
     {
         /// <summary>
-        /// name / 
-        /// имя
+        /// name
         /// </summary>
         public string Name;
 
         /// <summary>
-        /// candles / 
-        /// свечи
+        /// candles
         /// </summary>
-        public  List<Candle> ValueCandles;
+        public List<Candle> ValueCandles;
     }
 }

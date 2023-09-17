@@ -1,7 +1,6 @@
 ﻿using System.Windows.Forms;
 using OsEngine.Entity;
 using OsEngine.Language;
-using OsEngine.Market;
 using OsEngine.OsTrader.Panels;
 
 namespace OsEngine.Robots.Engines
@@ -13,6 +12,8 @@ namespace OsEngine.Robots.Engines
             : base(name, startProgram)
         {
             TabCreate(BotTabType.Cluster);
+
+            Description = "blank strategy for manual trading";
         }
 
         /// <summary>

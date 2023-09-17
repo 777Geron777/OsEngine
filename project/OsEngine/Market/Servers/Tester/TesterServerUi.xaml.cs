@@ -33,6 +33,7 @@ namespace OsEngine.Market.Servers.Tester
         public TesterServerUi(TesterServer server, Log log)
         {
             InitializeComponent();
+            _currentCulture = OsLocalization.CurCulture;
             OsEngine.Layout.StickyBorders.Listen(this);
             _server = server;
             _log = log;
@@ -210,9 +211,14 @@ namespace OsEngine.Market.Servers.Tester
             barUpdater.IsBackground = true;
             barUpdater.Start();
 
+            Thread profitChartUpdater = new Thread(ResizeWorker);
+            profitChartUpdater.Start();
+
             this.Activate();
             this.Focus();
         }
+
+        private CultureInfo _currentCulture;
 
         /// <summary>
         /// window is closing
@@ -322,6 +328,10 @@ namespace OsEngine.Market.Servers.Tester
 
             try
             {
+                if(_server == null)
+                {
+                    return;
+                }
                 ProgressBar.Value = (_server.TimeNow - DateTime.MinValue).TotalMinutes;
             }
             catch (Exception error)
@@ -572,6 +582,29 @@ namespace OsEngine.Market.Servers.Tester
 
 // chart/чарт
 
+        private void ResizeWorker()
+        {
+            while(true)
+            {
+                Thread.Sleep(3000);
+
+                if (_uiIsClosed)
+                {
+                    return;
+                }
+
+                if(_neadToUpdateChartValue == false)
+                {
+                    continue;
+                }
+
+                _neadToUpdateChartValue = false;
+
+                PaintProfitOnChart();
+                Resize();
+            }
+        }
+
         /// <summary>
         /// report chart
         /// чарт для отчёта
@@ -657,36 +690,58 @@ namespace OsEngine.Market.Servers.Tester
         /// </summary>
         private void PaintProfitOnChart()
         {
-            List<decimal> portfolio = _server.ProfitArray;
-
-            if (portfolio == null || portfolio.Count == 0)
+            if(_chartReport == null)
             {
                 return;
             }
 
-            for (int i = 0; i < portfolio.Count; i++)
+            try
             {
-                if (portfolio[i] != 0)
+                List<decimal> portfolio = _server.ProfitArray;
+
+                if (portfolio == null || portfolio.Count == 0)
                 {
-                    _chartReport.Series[0].Points.AddXY(i, portfolio[i]);
+                    return;
+                }
 
-                    if (i == 0)
-                    {
-                        _chartReport.Series[1].Points.AddXY(i,  portfolio[i] - 1000000);
-                        continue;
-                    }
+                if (_chartReport.InvokeRequired)
+                {
+                    _chartReport.Invoke(new Action(PaintProfitOnChart));
+                    return;
+                }
 
-                    _chartReport.Series[1].Points.AddXY(i, portfolio[i] - portfolio[i-1]);
+                _chartReport.Series[0].Points.Clear();
+                _chartReport.Series[1].Points.Clear();
 
-                    if (portfolio[i] - portfolio[i - 1] > 0)
+                for (int i = 0; i < portfolio.Count; i++)
+                {
+                    if (portfolio[i] != 0)
                     {
-                        _chartReport.Series[1].Points[_chartReport.Series[1].Points.Count - 1].Color = Color.DeepSkyBlue;
-                    }
-                    else
-                    {
-                        _chartReport.Series[1].Points[_chartReport.Series[1].Points.Count - 1].Color = Color.DarkRed;
+                        _chartReport.Series[0].Points.AddXY(i, portfolio[i]);
+
+                        if (i == 0)
+                        {
+                            _chartReport.Series[1].Points.AddXY(i, portfolio[i] - _server.StartPortfolio);
+                            continue;
+                        }
+
+                        _chartReport.Series[1].Points.AddXY(i, portfolio[i] - portfolio[i - 1]);
+
+                        if (portfolio[i] - portfolio[i - 1] > 0)
+                        {
+                            _chartReport.Series[1].Points[_chartReport.Series[1].Points.Count - 1].Color = Color.DeepSkyBlue;
+                        }
+                        else
+                        {
+                            _chartReport.Series[1].Points[_chartReport.Series[1].Points.Count - 1].Color = Color.DarkRed;
+                        }
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                _server.SendLogMessage(ex.ToString(), LogMessageType.Error);
+                return;
             }
         }
 
@@ -701,6 +756,12 @@ namespace OsEngine.Market.Servers.Tester
                 _chartReport.Invoke(new Action(PaintLastPointOnChart));
                 return;
             }
+
+            if(_server == null)
+            {
+                return;
+            }
+
             List<decimal> portfolio = _server.ProfitArray;
 
             if (portfolio.Count == 0)
@@ -746,6 +807,8 @@ namespace OsEngine.Market.Servers.Tester
         /// </summary>
         private bool _chartActive;
 
+        private bool _neadToUpdateChartValue;
+
         /// <summary>
         /// new value of portfolio from the server has come
         /// пришло новое значение портфеля из сервера
@@ -757,7 +820,7 @@ namespace OsEngine.Market.Servers.Tester
                 return;
             }
 
-            PaintLastPointOnChart();
+            _neadToUpdateChartValue = true;
         }
 
         private void Resize()
@@ -958,16 +1021,16 @@ namespace OsEngine.Market.Servers.Tester
                         nRow.Cells.Add(new DataGridViewTextBoxCell());
                         nRow.Cells[3].Value = securities[i].Security.PriceStep.ToStringWithNoEndZero();
                         nRow.Cells.Add(new DataGridViewTextBoxCell());
-                        nRow.Cells[4].Value = securities[i].TimeStart;
+                        nRow.Cells[4].Value = securities[i].TimeStart.ToString(_currentCulture);
                         nRow.Cells.Add(new DataGridViewTextBoxCell());
-                        nRow.Cells[5].Value = securities[i].TimeEnd;
+                        nRow.Cells[5].Value = securities[i].TimeEnd.ToString(_currentCulture);
 
                         _securitiesGrid.Rows.Add(nRow);
                     }
                 }
 
-                TextBoxFrom.Text = _server.TimeStart.ToString(new CultureInfo("RU-ru"));
-                TextBoxTo.Text = _server.TimeEnd.ToString(new CultureInfo("RU-ru"));
+                TextBoxFrom.Text = _server.TimeStart.ToString(_currentCulture);
+                TextBoxTo.Text = _server.TimeEnd.ToString(_currentCulture);
 
                 SliderFrom.Minimum = (_server.TimeMin - DateTime.MinValue).TotalMinutes;
                 SliderFrom.Maximum = (_server.TimeMax - DateTime.MinValue).TotalMinutes;
@@ -1065,7 +1128,7 @@ namespace OsEngine.Market.Servers.Tester
             DateTime to = DateTime.MinValue.AddMinutes(SliderFrom.Minimum + SliderFrom.Maximum - SliderTo.Value);
             _server.TimeEnd= to;
             _server.SaveSecurityTestSettings();
-            TextBoxTo.Text = to.ToString(new CultureInfo("RU-ru"));
+            TextBoxTo.Text = to.ToString(_currentCulture);
 
             if (SliderFrom.Minimum + SliderFrom.Maximum - SliderTo.Value < SliderFrom.Value)
             {
@@ -1081,7 +1144,7 @@ namespace OsEngine.Market.Servers.Tester
             DateTime from = DateTime.MinValue.AddMinutes(SliderFrom.Value);
             _server.TimeStart = from;
             _server.SaveSecurityTestSettings();
-            TextBoxFrom.Text = from.ToString(new CultureInfo("RU-ru"));
+            TextBoxFrom.Text = from.ToString(_currentCulture);
 
             if (SliderFrom.Minimum + SliderFrom.Maximum - SliderTo.Value < SliderFrom.Value)
             {
@@ -1096,7 +1159,7 @@ namespace OsEngine.Market.Servers.Tester
             DateTime to;
             try
             {
-                to = Convert.ToDateTime(TextBoxTo.Text);
+                to = Convert.ToDateTime(TextBoxTo.Text, _currentCulture);
 
                 if (to < _server.TimeMin ||
                     to > _server.TimeMax)
@@ -1106,7 +1169,7 @@ namespace OsEngine.Market.Servers.Tester
             }
             catch (Exception)
             {
-                TextBoxTo.Text = _server.TimeEnd.ToString(new CultureInfo("RU-ru"));
+                TextBoxTo.Text = _server.TimeEnd.ToString(_currentCulture);
                 return;
             }
 
@@ -1121,7 +1184,7 @@ namespace OsEngine.Market.Servers.Tester
             DateTime from;
             try
             {
-                from = Convert.ToDateTime(TextBoxFrom.Text);
+                from = Convert.ToDateTime(TextBoxFrom.Text, _currentCulture);
 
                 if (from < _server.TimeMin ||
                     from > _server.TimeMax)
@@ -1131,7 +1194,7 @@ namespace OsEngine.Market.Servers.Tester
             }
             catch (Exception)
             {
-                TextBoxFrom.Text = _server.TimeStart.ToString(new CultureInfo("RU-ru"));
+                TextBoxFrom.Text = _server.TimeStart.ToString(_currentCulture);
                 return;
             }
 

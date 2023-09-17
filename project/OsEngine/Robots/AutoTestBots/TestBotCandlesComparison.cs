@@ -9,7 +9,6 @@ using OsEngine.OsTrader.Panels;
 using OsEngine.OsTrader.Panels.Tab;
 using OsEngine.OsTrader.Panels.Attributes;
 using OsEngine.Market.Servers;
-using OsEngine.Market;
 using OsEngine.Charts.CandleChart;
 using System;
 using System.Threading;
@@ -38,6 +37,9 @@ namespace OsEngine.Robots.AutoTestBots
 
             TabCreate(BotTabType.Simple);
             _tab = TabsSimple[0];
+
+            Description = "Do not turn on - a robot for testing the synchronism of " +
+                "candles created inside OsEngine and requested from the exchange";
         }
 
         BotTabSimple _tab;

@@ -15,7 +15,9 @@ using System.Collections.Concurrent;
 using System.IO;
 using System.Threading.Tasks;
 using System.Text;
-
+using System.Xml;
+using System.Reflection;
+using OsEngine.Market.Servers.Hitbtc;
 
 namespace OsEngine.OsData
 {
@@ -990,8 +992,8 @@ namespace OsEngine.OsData
             {
                 DataPie curPie = DataPies[i];
 
-                DateTime curStart = curPie.StartActualTime;
-                DateTime curEnd = curPie.EndActualTime;
+                DateTime curStart = curPie.StartFact;
+                DateTime curEnd = curPie.EndFact;
 
                 if (curStart != DateTime.MinValue &&
                     curStart < start)
@@ -1009,6 +1011,9 @@ namespace OsEngine.OsData
             if (start == DateTime.MaxValue ||
                 end == DateTime.MinValue)
             {
+                TimeStartInReal = DateTime.MinValue;
+                TimeEndInReal = DateTime.MinValue;
+
                 return;
             }
 
@@ -1326,7 +1331,7 @@ namespace OsEngine.OsData
 
             if (pie.Status == DataPieStatus.Load)
             {
-                return;
+                //return;
             }
 
             string id = SecId;
@@ -1552,7 +1557,7 @@ namespace OsEngine.OsData
 
             List<Trade> trades =
                 server.GetTickDataToSecurity(
-                    id, SecClass, pie.Start, pie.End, pie.Start, false);
+                    id, SecClass, pie.Start, pie.End.AddDays(1), pie.Start, false);
 
             /*  tradesIsLoad =
       _myServer.GetTickDataToSecurity(loadSec.Id, loadSec.Class,
@@ -1636,23 +1641,19 @@ namespace OsEngine.OsData
                 return;
             }
 
-            StringBuilder builder = new StringBuilder();
-
-            for (int i = 0; i < extTrades.Count; i++)
-            {
-                builder.Append(extTrades[i].GetSaveString());
-
-                if (i + 1 != extTrades.Count)
-                {
-                    builder.Append("\n");
-                }
-            }
-
             try
             {
                 using (StreamWriter writer = new StreamWriter(_pathMyTxtFile, false))
                 {
-                    writer.WriteLine(builder.ToString());
+                    for(int i = 0;i < extTrades.Count;i++)
+                    {
+                        writer.WriteLine(extTrades[i].GetSaveString());
+                    }
+                }
+
+                if (NewLogMessageEvent != null)
+                {
+                    NewLogMessageEvent(SecName + " " + TimeFrame + " " + OsLocalization.Data.Label59, LogMessageType.System);
                 }
             }
             catch (Exception error)
@@ -2102,6 +2103,27 @@ namespace OsEngine.OsData
 
         }
 
+        public void Clear()
+        {
+            try
+            {
+                CountTriesToLoadSet = 0;
+                ObjectCount = 0;
+                StartFact = DateTime.MinValue;
+                EndFact = DateTime.MinValue;
+                Status = DataPieStatus.None;
+
+                if (File.Exists(_pathMyTempPieInTfFolder + "\\" + TempFileName))
+                {
+                    File.Delete(_pathMyTempPieInTfFolder + "\\" + TempFileName);
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
         public void UpDateStatus()
         {
             // 1 Актуальное время старта
@@ -2121,7 +2143,7 @@ namespace OsEngine.OsData
                 start = Trades[0].Time;
             }
 
-            StartActualTime =  start;
+            StartFact =  start;
 
             // 2 актуальное время конца
 
@@ -2137,7 +2159,7 @@ namespace OsEngine.OsData
                 end = Trades[Trades.Count - 1].Time;
             }
 
-            EndActualTime = end;
+            EndFact = end;
 
             if (Candles == null &&
                 Trades == null)
@@ -2145,12 +2167,14 @@ namespace OsEngine.OsData
                 ObjectCount = 0;
             }
 
-            if (Candles != null)
+            if (Candles != null
+                && Candles.Count != 0)
             {
                 ObjectCount = Candles.Count;
             }
 
-            if (Trades != null)
+            if (Trades != null 
+                && Trades.Count != 0)
             {
                 ObjectCount = Trades.Count;
             }
@@ -2158,15 +2182,32 @@ namespace OsEngine.OsData
 
         public DateTime Start;
 
-        public DateTime StartActualTime;
+        public DateTime StartFact;
 
         public DateTime End;
 
-        public DateTime EndActualTime;
+        public DateTime EndFact;
 
         public DataPieStatus Status;
 
         public int ObjectCount;
+
+        public string TempFileName
+        {
+            get
+            {
+                if (_tempFileName != null)
+                {
+                    return _tempFileName;
+                }
+
+                _tempFileName = Start.ToString("yyyyMMdd") + "_" + End.ToString("yyyyMMdd") + ".txt";
+
+                return _tempFileName;
+            }
+        }
+
+        private string _tempFileName;
 
         // свечи
 
@@ -2216,7 +2257,7 @@ namespace OsEngine.OsData
 
         private void SaveCandleDataPieInTempFile(List<Candle> candles)
         {
-            string pathToTempFile = _pathMyTempPieInTfFolder + "\\" + Start.ToString("yyyyMMdd") + "_" + End.ToString("yyyyMMdd") + ".txt";
+            string pathToTempFile = _pathMyTempPieInTfFolder + "\\" + TempFileName;
 
             try
             {
@@ -2295,7 +2336,7 @@ namespace OsEngine.OsData
 
         private void SaveTradesDataPieInTempFile(List<Trade> trades)
         {
-            string pathToTempFile = _pathMyTempPieInTfFolder + "\\" + Start.ToString("yyyyMMdd") + "_" + End.ToString("yyyyMMdd") + ".txt";
+            string pathToTempFile = _pathMyTempPieInTfFolder + "\\" + TempFileName;
 
             try
             {

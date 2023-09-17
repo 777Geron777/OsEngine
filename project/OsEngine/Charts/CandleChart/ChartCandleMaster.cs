@@ -9,7 +9,6 @@ using System.IO;
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Forms.Integration;
-using System.Windows.Shapes;
 using OsEngine.Alerts;
 using OsEngine.Charts.CandleChart.Elements;
 using OsEngine.Charts.CandleChart.Indicators;
@@ -19,8 +18,6 @@ using OsEngine.Indicators;
 using OsEngine.Language;
 using OsEngine.Logging;
 using OsEngine.Market;
-using OsEngine.PrimeSettings;
-using System.Threading;
 
 namespace OsEngine.Charts.CandleChart
 {
@@ -59,12 +56,14 @@ namespace OsEngine.Charts.CandleChart
                 ChartCandle.LogMessageEvent -= NewLogMessage;
                 ChartCandle.ClickToIndexEvent -= _chartCandle_ClickToIndexEvent;
                 ChartCandle.SizeAxisXChangeEvent -= ChartCandle_SizeAxisXChangeEvent;
+                ChartCandle.LastXIndexChangeEvent -= ChartCandle_LastXIndexChangeEvent;
             }
             ChartCandle = new WinFormsChartPainter(_name, _startProgram);
             ChartCandle.ChartClickEvent += ChartCandle_ChartClickEvent;
             ChartCandle.LogMessageEvent += NewLogMessage;
             ChartCandle.ClickToIndexEvent += _chartCandle_ClickToIndexEvent;
             ChartCandle.SizeAxisXChangeEvent += ChartCandle_SizeAxisXChangeEvent;
+            ChartCandle.LastXIndexChangeEvent += ChartCandle_LastXIndexChangeEvent;
             SetNewTimeFrameToChart(_timeFrameBuilder);  //AVP добавил, чтоб ChartCandle знал, с каким он таймфреймом. (Это важно для скринера, с отложенным созданием Чарта)  
 
             if (_indicators != null)
@@ -75,7 +74,6 @@ namespace OsEngine.Charts.CandleChart
                 }
             }
 
-           
         }
 
         /// <summary>
@@ -413,7 +411,8 @@ namespace OsEngine.Charts.CandleChart
                             }
                         }
                     }
-                    if (ChartCandle.AreaIsCreate("TradeArea") == true)
+                    if (ChartCandle != null && 
+                        ChartCandle.AreaIsCreate("TradeArea") == true)
                     {
                         writer.WriteLine("Trades");
                     }
@@ -435,7 +434,9 @@ namespace OsEngine.Charts.CandleChart
         {
             try
             {
-                if(_indicators != null)
+                _bindChart = null;
+
+                if (_indicators != null)
                 {
                     for (int i = 0; _indicators != null && i < _indicators.Count; i++)
                     {
@@ -489,8 +490,13 @@ namespace OsEngine.Charts.CandleChart
                 
                 if(_myPosition != null)
                 {
-                    _myPosition.Clear();
                     _myPosition = null;
+                }
+
+                if (_myStopLimit != null)
+                {
+                    _myStopLimit.Clear();
+                    _myStopLimit = null;
                 }
             }
             catch (Exception error)
@@ -515,6 +521,97 @@ namespace OsEngine.Charts.CandleChart
         /// чарт
         /// </summary>
         public IChartPainter ChartCandle;
+
+        // bind 
+
+        public void Bind(ChartCandleMaster chart)
+        {
+            _bindChart = chart;
+            _bindIsOn = true;
+        }
+
+        public void BindOff()
+        {
+            _bindIsOn = false;
+        }
+
+        public void BindOn()
+        {
+            _bindIsOn = true;
+        }
+
+        private bool _bindIsOn = false;
+
+        private ChartCandleMaster _bindChart;
+
+        private void ChartCandle_LastXIndexChangeEvent(int curXFromRight)
+        {
+
+            if(_bindChart == null &&
+                ChartCandle != null)
+            {
+                ChartCandle.LastXIndexChangeEvent -= ChartCandle_LastXIndexChangeEvent;
+                return;
+            }
+
+            if (_bindIsOn == false)
+            {
+                return;
+            }
+
+            if (ChartCandle == null)
+            {
+                return;
+            }
+
+            _bindChart.SetAxisXPositionFromRight(curXFromRight);
+        }
+
+        private void CheckBindAreaSize(int size)
+        {
+            if(_bindChart == null)
+            {
+                return;
+            }
+
+            if (_bindIsOn == false)
+            {
+                return;
+            }
+
+            if (size <= 0)
+            {
+                return;
+            }
+
+            if (ChartCandle == null)
+            {
+                return;
+            }
+
+            _bindChart.SetAxisXSize(size);
+
+        }
+
+        public void SetAxisXSize(int size)
+        {
+            if(ChartCandle == null)
+            {
+                return;
+            }
+
+            ChartCandle.SetAxisXSize(size);
+        }
+
+        public void SetAxisXPositionFromRight(int xPosition)
+        {
+            if (ChartCandle == null)
+            {
+                return;
+            }
+
+            ChartCandle.SetAxisXPositionFromRight(xPosition);
+        }
 
         // context menu контекстное меню
 
@@ -811,6 +908,8 @@ namespace OsEngine.Charts.CandleChart
         private void ChartCandle_SizeAxisXChangeEvent(int newSizeX)
         {
             //  return;
+
+            CheckBindAreaSize(newSizeX);
 
             if (_myPosition == null ||
                 _myPosition.Count == 0)
@@ -1367,6 +1466,7 @@ namespace OsEngine.Charts.CandleChart
                         _lastCandleIncome = DateTime.Now;
                         ChartCandle?.ProcessCandles(candles);
                         ChartCandle?.ProcessPositions(_myPosition);
+                        ChartCandle?.ProcessStopLimits(_myStopLimit);
                     }
 
                     if (_indicators != null)
@@ -1437,13 +1537,31 @@ namespace OsEngine.Charts.CandleChart
             }
         }
 
+        // stop Limits drawing
+
+        private List<PositionOpenerToStopLimit> _myStopLimit;
+
+        public void SetStopLimits(List<PositionOpenerToStopLimit> stopLimits)
+        {
+            if (_startProgram == StartProgram.IsOsOptimizer)
+            {
+                return;
+            }
+            _myStopLimit = stopLimits;
+
+            if (ChartCandle != null)
+            {
+                ChartCandle.ProcessStopLimits(stopLimits);
+            }
+        }
+
         // management управление
 
         /// <summary>
         /// to start drawing this chart on window
         /// начать прорисовывать данный чарт на окне
         /// </summary>
-        public void StartPaint(System.Windows.Controls.Grid gridChart, WindowsFormsHost host, Rectangle rectangle)
+        public void StartPaint(System.Windows.Controls.Grid gridChart, WindowsFormsHost host, System.Windows.Shapes.Rectangle rectangle)
         {
             try
             {
@@ -1454,6 +1572,7 @@ namespace OsEngine.Charts.CandleChart
                 ChartCandle.StartPaintPrimeChart(gridChart, host, rectangle);
                 ChartCandle.ProcessCandles(_myCandles);
                 ChartCandle.ProcessPositions(_myPosition);
+                ChartCandle.ProcessStopLimits(_myStopLimit);
 
                 for (int i = 0; _indicators != null && i < _indicators.Count; i++)
                 {
@@ -1466,6 +1585,12 @@ namespace OsEngine.Charts.CandleChart
                 }
                
                 PaintAlerts(_alertArray, true);
+
+                if(_lastStopChartScale > 10)
+                {
+                    ChartCandle.OpenChartScale = _lastStopChartScale;
+                    ChartCandle.MoveChartToTheRight();
+                }
             }
             catch (Exception error)
             {
@@ -1485,8 +1610,10 @@ namespace OsEngine.Charts.CandleChart
 
                 ChartCandle = null;
 
+                _lastStopChartScale = painter.OpenChartScale; 
                 painter.StopPaint();
                 painter.Delete();
+                
             }
            
             if (_grid != null)
@@ -1497,6 +1624,8 @@ namespace OsEngine.Charts.CandleChart
 
             //UpDateChartPainter();
         }
+
+        private int _lastStopChartScale = 0;
 
         /// <summary>
         /// clear chart
@@ -1512,6 +1641,7 @@ namespace OsEngine.Charts.CandleChart
             }
            
             _myPosition = null;
+            _myStopLimit = null;
 
             for (int i = 0; _indicators != null && i < _indicators.Count; i++)
             {
@@ -1672,6 +1802,7 @@ namespace OsEngine.Charts.CandleChart
 
             string lastSecurity = _securityOnThisChart;
             List<Position> positions = _myPosition;
+            List<PositionOpenerToStopLimit> limits = _myStopLimit;
             _timeFrameBuilder = timeFrameBuilder;
             _securityOnThisChart = security;
             _timeFrameSecurity = timeFrameBuilder.TimeFrame;
@@ -1681,9 +1812,16 @@ namespace OsEngine.Charts.CandleChart
             Clear();
             PaintLabelOnSlavePanel();
 
-            if (lastSecurity == security && positions != null)
+            if (lastSecurity == security)
             {
-                SetPosition(positions);
+                if(positions != null)
+                {
+                    SetPosition(positions);
+                }
+                if(limits != null)
+                {
+                    SetStopLimits(limits);
+                }
             }
         }
 

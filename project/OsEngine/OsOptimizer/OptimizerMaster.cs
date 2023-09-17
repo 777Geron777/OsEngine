@@ -69,7 +69,15 @@ namespace OsEngine.OsOptimizer
             {
                 return 0;
             }
-            return _optimizerExecutor.BotCountOneFaze(_parameters, _paramOn) * IterationCount * 2;
+
+            int value = _optimizerExecutor.BotCountOneFaze(_parameters, _paramOn) * IterationCount * 2;
+
+            if(LastInSample)
+            {
+                value = value - _optimizerExecutor.BotCountOneFaze(_parameters, _paramOn);
+            }
+
+            return value;
         }
 
         /// <summary>
@@ -578,7 +586,7 @@ namespace OsEngine.OsOptimizer
         /// </summary>
         public bool IsAcceptedByFilter(OptimizerReport report)
         {
-            if (FilterMiddleProfitIsOn && report.AverageProfitPercent < FilterMiddleProfitValue)
+            if (FilterMiddleProfitIsOn && report.AverageProfitPercentOneContract < FilterMiddleProfitValue)
             {
                 return false;
             }
@@ -911,6 +919,46 @@ namespace OsEngine.OsOptimizer
                 return _parameters;
             }
         }
+
+        public List<IIStrategyParameter> ParametersStandart
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_strategyName))
+                {
+                    return null;
+                }
+
+                BotPanel bot = BotFactory.GetStrategyForName(_strategyName, "", StartProgram.IsOsOptimizer, _isScript);
+
+                if (bot == null)
+                {
+                    return null;
+                }
+
+                if (bot.Parameters == null ||
+                    bot.Parameters.Count == 0)
+                {
+                    return null;
+                }
+
+                if (_parameters != null)
+                {
+                    _parameters.Clear();
+                    _parameters = null;
+                }
+
+                _parameters = new List<IIStrategyParameter>();
+
+                for (int i = 0; i < bot.Parameters.Count; i++)
+                {
+                    _parameters.Add(bot.Parameters[i]);
+                }
+
+                return _parameters;
+            }
+        }
+
         private List<IIStrategyParameter> _parameters;
 
         private void GetValueParameterSaveByUser(IIStrategyParameter parameter)

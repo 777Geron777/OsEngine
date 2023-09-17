@@ -680,6 +680,12 @@ namespace OsEngine.Market.Connectors
                     }
 
                 }
+
+                if(ComboBoxPortfolio.SelectedItem == null
+                    && ComboBoxPortfolio.Items.Count != 0)
+                {
+                    ComboBoxPortfolio.SelectedItem = ComboBoxPortfolio.Items[0];
+                }
             }
             catch (Exception error)
             {
@@ -731,6 +737,12 @@ namespace OsEngine.Market.Connectors
                 if (_connectorBot.Security != null)
                 {
                     ComboBoxClass.SelectedItem = _connectorBot.Security.NameClass;
+                }
+
+                if(ComboBoxClass.SelectedItem == null 
+                    && ComboBoxClass.Items.Count != 0)
+                {
+                    ComboBoxClass.SelectedItem = ComboBoxClass.Items[0];
                 }
 
             }
@@ -997,7 +1009,7 @@ namespace OsEngine.Market.Connectors
             colum0.CellTemplate = cell0;
             colum0.HeaderText = OsLocalization.Trader.Label165;
             colum0.ReadOnly = true;
-            colum0.Width = 100;
+            colum0.Width = 50;
             newGrid.Columns.Add(colum0);
 
             DataGridViewColumn colum2 = new DataGridViewColumn();
@@ -1035,9 +1047,28 @@ namespace OsEngine.Market.Connectors
 
         private void _gridSecurities_CellClick(object sender, DataGridViewCellEventArgs e)
         {
+            _gridSecurities.ClearSelection(); 
+			
             int columnInd = e.ColumnIndex;
-
             int rowInd = e.RowIndex;
+
+            for (int i = 0; i < _gridSecurities.RowCount; i++)
+            {
+                if (i == rowInd)
+                {
+                    for (int y = 0; y < _gridSecurities.ColumnCount; y++)
+                    {
+                        _gridSecurities.Rows[rowInd].Cells[y].Style.ForeColor = System.Drawing.ColorTranslator.FromHtml("#ffffff");
+                    }
+                }
+                else
+                {
+                    for (int y = 0; y < _gridSecurities.ColumnCount; y++)
+                    {
+                        _gridSecurities.Rows[i].Cells[y].Style.ForeColor = System.Drawing.ColorTranslator.FromHtml("#FFA1A1A1");
+                    }
+                }
+            }
 
             if(columnInd != 4)
             {

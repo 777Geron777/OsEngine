@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Forms.Integration;
@@ -20,11 +21,14 @@ namespace OsEngine.Market
     {
         public ServerMasterOrdersPainter()
         {
+            _currentCulture = OsLocalization.CurCulture;
             ServerMaster.ServerCreateEvent += ServerMaster_ServerCreateEvent;
 
             Task task = new Task(PainterThreadArea);
             task.Start();
         }
+
+        private CultureInfo _currentCulture;
 
         /// <summary>
         /// incoming events. a new server has been deployed in server-master
@@ -167,49 +171,60 @@ namespace OsEngine.Market
             {
                 await Task.Delay(5000);
 
-                if (MainWindow.ProccesIsWorked == false)
+                try
                 {
-                    return;
+
+                    if (MainWindow.ProccesIsWorked == false)
+                    {
+                        return;
+                    }
+
+                    if (_needToPaintOrders)
+                    {
+                        _needToPaintOrders = false;
+
+                        //_orders
+
+                        List<Order> activeOrders = new List<Order>();
+
+                        List<Order> historicalOrders = new List<Order>();
+
+                        for (int i = 0; i < _orders.Count; i++)
+                        {
+                            Order order = _orders[i];
+
+                            if (order.State == OrderStateType.Activ
+                                || order.State == OrderStateType.Pending
+                                || order.State == OrderStateType.None)
+                            {
+                                activeOrders.Add(order);
+                            }
+                            else
+                            {
+                                historicalOrders.Add(order);
+                            }
+                        }
+
+                        SortOrders(activeOrders);
+                        SortOrders(historicalOrders);
+
+                        // высылаем на прорисовку отдельно
+
+                        if (_gridActiveOrders != null)
+                        {
+                            PaintOrders(activeOrders, _gridActiveOrders);
+                        }
+
+                        if (_gridHistoricalOrders != null)
+                        {
+                            PaintOrders(historicalOrders, _gridHistoricalOrders);
+                        }
+                    }
+
                 }
-
-                if (_needToPaintOrders)
+                catch (Exception error)
                 {
-                    _needToPaintOrders = false;
-
-                    //_orders
-
-                    List<Order> activeOrders = new List<Order>();
-
-                    List<Order> historicalOrders = new List<Order>();
-
-                    for (int i = 0; i < _orders.Count; i++)
-                    {
-                        if (_orders[i].State == OrderStateType.Activ 
-                            || _orders[i].State == OrderStateType.Pending
-                            || _orders[i].State == OrderStateType.None)
-                        {
-                            activeOrders.Add(_orders[i]);
-                        }
-                        else
-                        {
-                            historicalOrders.Add(_orders[i]);
-                        }
-                    }
-
-                    SortOrders(activeOrders);
-                    SortOrders(historicalOrders);
-
-                    // высылаем на прорисовку отдельно
-
-                    if (_gridActiveOrders != null)
-                    {
-                        PaintOrders(activeOrders, _gridActiveOrders);
-                    }
-
-                    if (_gridHistoricalOrders != null)
-                    {
-                        PaintOrders(historicalOrders, _gridHistoricalOrders);
-                    }
+                    SendNewLogMessage(error.ToString(), LogMessageType.Error);
                 }
             }
         }
@@ -401,7 +416,7 @@ namespace OsEngine.Market
                     nRow.Cells[1].Value = ordersToPaint[i].NumberMarket;
 
                     nRow.Cells.Add(new DataGridViewTextBoxCell());
-                    nRow.Cells[2].Value = ordersToPaint[i].TimeCreate;
+                    nRow.Cells[2].Value = ordersToPaint[i].TimeCreate.ToString(_currentCulture);
 
                     nRow.Cells.Add(new DataGridViewTextBoxCell());
                     nRow.Cells[3].Value = ordersToPaint[i].SecurityNameCode;

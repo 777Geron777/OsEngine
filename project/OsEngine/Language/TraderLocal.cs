@@ -379,7 +379,7 @@ namespace OsEngine.Language
 
         public string Label92 => OsLocalization.ConvertToLocString(
             "Eng:Slippage_" +
-            "Ru:Проскальзывание_");
+            "Ru:Проскальз._");
 
         public string Label93 => OsLocalization.ConvertToLocString(
             "Eng:From entry to stop_" +
@@ -875,7 +875,274 @@ namespace OsEngine.Language
 
         public string Label216 => OsLocalization.ConvertToLocString(
            "Eng:Do you want to recall selected order?_" +
-           "Ru:Вы хотите отозвать выбранную заявку?_"); 
+           "Ru:Вы хотите отозвать выбранную заявку?_");
 
+        public string Label217 => OsLocalization.ConvertToLocString(
+           "Eng:Close at limit_" +
+           "Ru:Закрыть лимит ордером_");
+
+        public string Label218 => OsLocalization.ConvertToLocString(
+           "Eng:Close at market_" +
+           "Ru:Закрыть маркет ордером_");
+
+        public string Label219 => OsLocalization.ConvertToLocString(
+           "Eng:Close at stop_" +
+           "Ru:Выставить стоп ордер_");
+
+        public string Label220 => OsLocalization.ConvertToLocString(
+           "Eng:Close at profit_" +
+           "Ru:Выставить профит ордер_");
+
+        public string Label221 => OsLocalization.ConvertToLocString(
+           "Eng:Close at fake_" +
+           "Ru:Закрыть фэйк ордером_");
+
+        public string Label222 => OsLocalization.ConvertToLocString(
+           "Eng:Profit_" +
+           "Ru:Профит_");
+
+        public string Label223 => OsLocalization.ConvertToLocString(
+          "Eng:Volume_" +
+          "Ru:Объём_");
+
+        public string Label224 => OsLocalization.ConvertToLocString(
+          "Eng:State_" +
+          "Ru:Статус_");
+
+        public string Label225 => OsLocalization.ConvertToLocString(
+          "Eng:Number_" +
+          "Ru:Номер_");
+
+        public string Label226 => OsLocalization.ConvertToLocString(
+          "Eng:Close position window_" +
+          "Ru:Окно закрытия позиции_");
+
+        public string Label227 => OsLocalization.ConvertToLocString(
+          "Eng:The position already has an order to close in the market. Shall I continue?_" +
+          "Ru:У позиции уже есть ордер на закрытие в рынке. Продолжить?_");
+
+        public string Label228 => OsLocalization.ConvertToLocString(
+          "Eng:Side_" +
+          "Ru:Сторона_");
+
+        public string Label229 => OsLocalization.ConvertToLocString(
+          "Eng:Close date_" +
+          "Ru:Дата закрытия_");
+
+        public string Label230 => OsLocalization.ConvertToLocString(
+          "Eng:Close time_" +
+          "Ru:Время закрытия_");
+
+        public string Label231 => OsLocalization.ConvertToLocString(
+          "Eng:As soon as the first security is connected, the position support setting will be available_" +
+          "Ru:Как только подключится первый инструмент, настройка поддержки позиции будет доступна_");
+
+        public string Label232 => OsLocalization.ConvertToLocString(
+           "Eng:Common settings_" +
+           "Ru:Общие настройки_");
+
+        public string Label233 => OsLocalization.ConvertToLocString(
+          "Eng:Sort_" +
+          "Ru:Сорт_");
+
+        public string Label234 => OsLocalization.ConvertToLocString(
+          "Eng:Pair num_" +
+          "Ru:Номер_");
+
+        public string Label235 => OsLocalization.ConvertToLocString(
+          "Eng:Set security_" +
+          "Ru:Выбрать бумагу_");
+
+        public string Label236 => OsLocalization.ConvertToLocString(
+          "Eng:Add pair_" +
+          "Ru:Добавить пару_");
+
+        public string Label237 => OsLocalization.ConvertToLocString(
+          "Eng:Delete pair?_" +
+          "Ru:Вы хотите удалить пару?_");
+
+        public string Label238 => OsLocalization.ConvertToLocString(
+          "Eng:Cointegration_" +
+          "Ru:Коинтеграция_");
+
+        public string Label239 => OsLocalization.ConvertToLocString(
+          "Eng:Deviation_" +
+          "Ru:Отклонение_");
+
+        public string Label240 => OsLocalization.ConvertToLocString(
+          "Eng:LookBack_" +
+          "Ru:Длина_");
+
+        public string Label241 => OsLocalization.ConvertToLocString(
+          "Eng:Mult step_" +
+          "Ru:Шаг множ._");
+
+        public string Label242 => OsLocalization.ConvertToLocString(
+          "Eng:Correlation_" +
+          "Ru:Корреляция_");
+
+        public string Label243 => OsLocalization.ConvertToLocString(
+          "Eng:Reload_" +
+          "Ru:Пересчитать_");
+
+        public string Label244 => OsLocalization.ConvertToLocString(
+          "Eng:Orders placement_" +
+          "Ru:Выставление ордеров_");
+
+        public string Label245 => OsLocalization.ConvertToLocString(
+          "Eng:Second by market_" +
+          "Ru:Второй по маркету_");
+
+        public string Label246 => OsLocalization.ConvertToLocString(
+          "Eng:Save_" +
+          "Ru:Сохранить_");
+
+        public string Label247 => OsLocalization.ConvertToLocString(
+          "Eng:Apply to all_" +
+          "Ru:Применить ко всем_");
+
+        public string Label248 => OsLocalization.ConvertToLocString(
+          "Eng:Pairs common settings_" +
+          "Ru:Окно общих настроек_");
+
+        public string Label249 => OsLocalization.ConvertToLocString(
+          "Eng:Pair trader_" +
+          "Ru:Торговля парой_");
+
+        public string Label250 => OsLocalization.ConvertToLocString(
+          "Eng:Trading different timeframes in PairTrader is forbidden!_" +
+          "Ru:Торговля разными Таймфреймами в PairTrader запрещена!_");
+
+        public string Label251 => OsLocalization.ConvertToLocString(
+          "Eng:Indicators_" +
+          "Ru:Индикаторы_");
+
+        public string Label252 => OsLocalization.ConvertToLocString(
+          "Eng:All by market_" +
+          "Ru:Все по маркету_");
+
+        public string Label253 => OsLocalization.ConvertToLocString(
+          "Eng:Position_" +
+          "Ru:Позиция_");
+
+        public string Label254 => OsLocalization.ConvertToLocString(
+          "Eng:Buy 1, Sell 2_" +
+          "Ru:Купить 1, продать 2_");
+
+        public string Label255 => OsLocalization.ConvertToLocString(
+          "Eng:Sell 1, Buy 2 _" +
+          "Ru:Продать 1, Купить 2_");
+
+        public string Label256 => OsLocalization.ConvertToLocString(
+          "Eng:There are already open positions on the pair. Maybe you should close them first?_" +
+          "Ru:По паре уже есть открытые позиции.Возможно нужно их сначала закрыть?_");
+
+        public string Label257 => OsLocalization.ConvertToLocString(
+          "Eng:Auto-select pairs_" +
+          "Ru:Авто-выбор пар_");
+
+        public string Label258 => OsLocalization.ConvertToLocString(
+          "Eng:Save already created pairs_" +
+          "Ru:Сохранять уже созданные пары_");
+
+        public string Label259 => OsLocalization.ConvertToLocString(
+          "Eng:Max pairs to one security_" +
+          "Ru:Макс. кол-во пар на бумагу_");
+
+        public string Label260 => OsLocalization.ConvertToLocString(
+          "Eng:Final pairs_" +
+          "Ru:Последние пары_");
+
+        public string Label261 => OsLocalization.ConvertToLocString(
+          "Eng:Create pairs table_" +
+          "Ru:Составить список пар_");
+
+        public string Label262 => OsLocalization.ConvertToLocString(
+          "Eng:Create pairs table_" +
+          "Ru:Составить список пар_");
+
+        public string Label263 => OsLocalization.ConvertToLocString(
+          "Eng:Pair creation settings_" +
+          "Ru:Настройки создания пар_");
+
+        public string Label264 => OsLocalization.ConvertToLocString(
+          "Eng:Create pairs in robot_" +
+          "Ru:Создать эти пары в роботе_");
+
+        public string Label290 => OsLocalization.ConvertToLocString(
+          "Eng:It is not possible to open a deal! Market depth data is missing!_" +
+          "Ru:Не возможно открыть сделку! Нет данных по стакану!_");
+
+        public string Label291 => OsLocalization.ConvertToLocString(
+          "Eng:It is not possible to open a deal! Price can`t be zero!_" +
+          "Ru:Не возможно открыть сделку! Цена не может быть ноль!_");
+
+        public string Label292 => OsLocalization.ConvertToLocString(
+          "Eng:Script_" +
+          "Ru:Скрипт_");
+
+        public string Label293 => OsLocalization.ConvertToLocString(
+          "Eng:Include_" +
+          "Ru:Встроенный_");
+
+        public string Label294 => OsLocalization.ConvertToLocString(
+          "Eng:All_" +
+          "Ru:Все_");
+
+        public string Label295 => OsLocalization.ConvertToLocString(
+          "Eng:Location_" +
+          "Ru:Расположение_");
+
+        public string Label296 => OsLocalization.ConvertToLocString(
+          "Eng:Sources_" +
+          "Ru:Источники_");
+
+        public string Label297 => OsLocalization.ConvertToLocString(
+          "Eng:Description_" +
+          "Ru:Описание_");
+
+        public string Label298 => OsLocalization.ConvertToLocString(
+          "Eng:Indicators_" +
+          "Ru:Индикаторы_");
+
+        public string Label299 => OsLocalization.ConvertToLocString(
+          "Eng:Robot based on RSI indicator and moving average, trading by counter-trend logic. Short entry - when RSI is above the signal line and SMA is above the current price_" +
+          "Ru:Робот на основе индикатора RSI и скользящей средней, торгующего по контр-трендовой логике. Вход в шорт - при RSI выше сигнальной линии и SMA выше текущей цены_");
+
+        public string Label300 => OsLocalization.ConvertToLocString(
+          "Eng:The process of analyzing the robots_" +
+          "Ru:Идёт процесс анализа роботов_");
+
+        public string Label301 => OsLocalization.ConvertToLocString(
+         "Eng:You need to enter a unique name for the robot. It will be reflected across the entire platform without the possibility to change it_" +
+         "Ru:Нужно ввести уникальное имя для робота. Оно будет отражаться по всей платформе без возможности изменения_");
+
+        public string Label302 => OsLocalization.ConvertToLocString(
+         "Eng:There are several ways to create robots in OsEngine. Inside the library and as scripts_" +
+         "Ru:В OsEngine существует несколько способов создания роботов. Внутри библиотеки и в виде скриптов_");
+
+        public string Label303 => OsLocalization.ConvertToLocString(
+         "Eng:Update robots info_" +
+         "Ru:Обновить информацию_");
+
+        public string Label304 => OsLocalization.ConvertToLocString(
+         "Eng:You have not selected a strategy type. You need to click on the table. It will turn orange_" +
+         "Ru:Вы не выбрали тип стратегии. Нужно клацнуть по таблице. Загориться оранжевым_");
+
+        public string Label305 => OsLocalization.ConvertToLocString(
+         "Eng:Updating the robots involves building and testing them one by one. This will take some time_" +
+         "Ru:Обновление роботов предполагает их поочерёдное создание и проверку. Это займёт некоторое время_");
+
+        public string Label307 => OsLocalization.ConvertToLocString(
+         "Eng:Weight_" +
+         "Ru:Вес_");
+
+        public string Label308 => OsLocalization.ConvertToLocString(
+         "Eng:Recognizability_" +
+         "Ru:Узнаваемость_");
+
+        public string Label309 => OsLocalization.ConvertToLocString(
+         "Eng:Auto-calculation_" +
+         "Ru:Авто расчёт_");
     }
 }

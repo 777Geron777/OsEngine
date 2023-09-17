@@ -14,6 +14,7 @@ using OsEngine.Logging;
 using OsEngine.OsTrader.Panels.Tab;
 using System.Drawing;
 using OsEngine.Alerts;
+using System.Globalization;
 
 namespace OsEngine.OsTrader
 {
@@ -29,10 +30,13 @@ namespace OsEngine.OsTrader
             _positionHost.Child.Show();
             _grid.Click += _grid_Click;
             _grid.DoubleClick += _gridOpenPoses_DoubleClick;
+            _currentCulture = OsLocalization.CurCulture;
 
             Task task = new Task(WatcherThreadWorkArea);
             task.Start();
         }
+
+        CultureInfo _currentCulture;
 
         public void LoadTabToWatch(List<BotTabSimple> tabs)
         {
@@ -155,7 +159,7 @@ namespace OsEngine.OsTrader
             return null;
         }
 
-        #region прорисовка дважды нажатого ордера
+        #region drawing a double-clicked order
 
         private void _gridOpenPoses_DoubleClick(object sender, EventArgs e)
         {
@@ -227,7 +231,7 @@ namespace OsEngine.OsTrader
 
         #endregion
 
-        #region клики по таблице
+        #region clicks on the table
 
         private void _grid_Click(object sender, EventArgs e)
         {
@@ -323,7 +327,7 @@ namespace OsEngine.OsTrader
 
         #endregion
 
-        // прорисовка
+        // drawing
 
         bool _isDeleted;
 
@@ -337,21 +341,21 @@ namespace OsEngine.OsTrader
 
             while(true)
             {
+                await Task.Delay(3000);
+
                 if (_isDeleted)
                 {
                     return;
                 }
 
-                await Task.Delay(3000);
-
                 List<PositionOpenerToStopLimit> stopLimits = new List<PositionOpenerToStopLimit>();
 
                 for(int i = 0;i < _tabsToWatch.Count;i++)
                 {
-                    if (_tabsToWatch[i]._stopLimitsOrders != null &&
-                        _tabsToWatch[i]._stopLimitsOrders.Count != 0)
+                    if (_tabsToWatch[i].PositionOpenerToStop != null &&
+                        _tabsToWatch[i].PositionOpenerToStop.Count != 0)
                     {
-                        stopLimits.AddRange(_tabsToWatch[i]._stopLimitsOrders);
+                        stopLimits.AddRange(_tabsToWatch[i].PositionOpenerToStop);
                     }
                 }
 
@@ -363,6 +367,10 @@ namespace OsEngine.OsTrader
         [System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions]
         private void CheckPosition(DataGridView grid, List<PositionOpenerToStopLimit> positions)
         {
+            if (grid == null)
+            {
+                return;
+            }
             if (grid.InvokeRequired)
             {
                 grid.Invoke(new Action<DataGridView, List<PositionOpenerToStopLimit>>(CheckPosition), grid, positions);
@@ -441,7 +449,7 @@ positionOpener.LifeTimeType
                 nRow.Cells[0].Value = position.Number;
 
                 nRow.Cells.Add(new DataGridViewTextBoxCell());
-                nRow.Cells[1].Value = position.TimeCreate;
+                nRow.Cells[1].Value = position.TimeCreate.ToString(_currentCulture);
 
                 nRow.Cells.Add(new DataGridViewTextBoxCell());
                 nRow.Cells[2].Value = position.TabName;
@@ -480,11 +488,10 @@ positionOpener.LifeTimeType
             return null;
         }
 
-        // messages in log / сообщения в лог 
+        // messages in log
 
         /// <summary>
-        /// send a new message to the top
-        /// выслать новое сообщение на верх
+        /// Send a new message to the top
         /// </summary>
         private void SendNewLogMessage(string message, LogMessageType type)
         {
@@ -499,10 +506,8 @@ positionOpener.LifeTimeType
         }
 
         /// <summary>
-        /// outgoing message for log
-        /// исходящее сообщение для лога
+        /// Outgoing message for log
         /// </summary>
         public event Action<string, LogMessageType> LogMessageEvent;
-
     }
 }

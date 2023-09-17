@@ -31,9 +31,26 @@ namespace OsEngine.Indicators
 
     public class IndicatorsFactory
     {
+        public static readonly Dictionary<string, Type> IndicatorsWithAttribute = GetTypesWithIndicatorAttribute();
+
+        private static Dictionary<string, Type> GetTypesWithIndicatorAttribute()
+        {
+            Assembly assembly = Assembly.GetAssembly(typeof(Aindicator));
+            Dictionary<string, Type> indicators = new Dictionary<string, Type>();
+            foreach (Type type in assembly.GetTypes())
+            {
+                object[] attributes = type.GetCustomAttributes(typeof(IndicatorAttribute), false);
+                if (attributes.Length > 0)
+                {
+                    indicators[((IndicatorAttribute)attributes[0]).Name] = type;
+                }
+            }
+
+            return indicators;
+        }
+
         public static List<string> GetIndicatorsNames()
         {
-
             if (Directory.Exists(@"Custom") == false)
             {
                 Directory.CreateDirectory(@"Custom");
@@ -79,7 +96,11 @@ namespace OsEngine.Indicators
                 }
             }
 
-            return resultTrue;
+            resultTrue.AddRange(IndicatorsWithAttribute.Keys);
+
+            var result = resultTrue.OrderBy(x => x).ToList();
+
+            return result;
         }
 
         private static List<NamesFilesFromFolder> _filesInDir = new List<NamesFilesFromFolder>();
@@ -132,15 +153,20 @@ namespace OsEngine.Indicators
 
         public static Aindicator CreateIndicatorByName(string nameClass, string name, bool canDelete,StartProgram startProgram = StartProgram.IsOsTrader)
         {
-            Aindicator Indicator = null;
+             Aindicator Indicator = null;
 
-            /* if (nameClass == "FBD")
-             {
-                 Indicator = new FBD();
-             }*/
-
+            //if (nameClass == "FBD")
+            //{
+            //    Indicator = new FBD();
+            //}
+        
             try
             {
+                if (IndicatorsWithAttribute.ContainsKey(nameClass))
+                {
+                    Indicator = (Aindicator)Activator.CreateInstance(IndicatorsWithAttribute[nameClass]);
+                }
+
                 if (Indicator == null)
                 {
                     if (!Directory.Exists(@"Custom\Indicators\Scripts"))

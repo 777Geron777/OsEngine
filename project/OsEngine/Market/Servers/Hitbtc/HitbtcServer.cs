@@ -270,7 +270,6 @@ namespace OsEngine.Market.Servers.Hitbtc
                 {
                     NumberOrderParent = result.clientOrderId,
                     Side = result.side == "sell" ? Side.Sell : Side.Buy,
-                    NumberPosition = Convert.ToString(needCoupler.OsOrderNumberUser),
                     SecurityNameCode = result.symbol,
                     Price =
                         result.price.ToDecimal()
@@ -823,6 +822,11 @@ namespace OsEngine.Market.Servers.Hitbtc
         /// </summary>
         public event Action<string, LogMessageType> LogMessageEvent;
         #endregion
+
+        public void CancelAllOrdersToSecurity(Security security)
+        {
+
+        }
 
         internal class OrderCoupler
         {

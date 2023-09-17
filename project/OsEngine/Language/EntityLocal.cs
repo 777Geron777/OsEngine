@@ -283,25 +283,13 @@ namespace OsEngine.Language
             "Eng:Accept_" +
             "Ru:Принять_");
 
+        public string ButtonUpdate => OsLocalization.ConvertToLocString(
+            "Eng:Update_" +
+            "Ru:Обновить_");
+
         public string ButtonCancel1 => OsLocalization.ConvertToLocString(
-            "Eng:Think again_" +
-            "Ru:Ещё подумать_");
-
-        public string ButtonCancel2 => OsLocalization.ConvertToLocString(
-            "Eng:Earn more_" +
-            "Ru:Дальше зарабатывать_");
-
-        public string ButtonCancel3 => OsLocalization.ConvertToLocString(
-            "Eng:No!_" +
-            "Ru:Нет!_");
-
-        public string ButtonCancel4 => OsLocalization.ConvertToLocString(
-            "Eng:Stop!_" +
-            "Ru:Остановится!_");
-
-        public string ButtonCancel5 => OsLocalization.ConvertToLocString(
-            "Eng:Don't do it_" +
-            "Ru:Не нужно так_");
+            "Eng:No_" +
+            "Ru:Нет_");
 
         public string ErrorSave => OsLocalization.ConvertToLocString(
             "Eng:The saving process is interrupted. One of the fields does not have a valid value_" +
@@ -462,5 +450,10 @@ namespace OsEngine.Language
         public string PositionBuyAtStopColumn11 => OsLocalization.ConvertToLocString(
              "Eng:Lifetime type_" +
              "Ru:Тип жизни заявки_");
+
+        public string CustomColorDialogUiTitle => OsLocalization.ConvertToLocString(
+             "Eng:Color dialog_" +
+             "Ru:Выбор цвета_");
+
     }
 }

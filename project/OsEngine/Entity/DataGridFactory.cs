@@ -318,14 +318,14 @@ positionOpener.LifeTimeType
             colum01.CellTemplate = cell0;
             colum01.HeaderText = OsLocalization.Entity.PositionColumn2;
             colum01.ReadOnly = true;
-            colum01.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            colum01.Width = 100;
             newGrid.Columns.Add(colum01);
 
             DataGridViewColumn colum02 = new DataGridViewColumn();
             colum02.CellTemplate = cell0;
             colum02.HeaderText = OsLocalization.Entity.PositionColumn3;
             colum02.ReadOnly = true;
-            colum02.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            colum02.Width = 100;
             newGrid.Columns.Add(colum02);
 
             DataGridViewColumn colu = new DataGridViewColumn();
@@ -892,6 +892,12 @@ positionOpener.LifeTimeType
             column7.ReadOnly = true;
             column7.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
             _gridPosition.Columns.Add(column7);
+
+            DataGridViewColumn column8 = new DataGridViewColumn();
+            column8.CellTemplate = cell0;
+            column8.ReadOnly = true;
+            column8.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            _gridPosition.Columns.Add(column8);
 
             return _gridPosition;
         }

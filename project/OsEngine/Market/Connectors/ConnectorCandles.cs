@@ -16,7 +16,6 @@ using OsEngine.Market.Servers;
 using OsEngine.Market.Servers.Optimizer;
 using OsEngine.Market.Servers.Tester;
 using System.Threading.Tasks;
-using OkonkwoOandaV20.TradeLibrary.DataTypes.Pricing;
 
 namespace OsEngine.Market.Connectors
 {
@@ -54,7 +53,7 @@ namespace OsEngine.Market.Connectors
                 ServerMaster.RevokeOrderToEmulatorEvent += ServerMaster_RevokeOrderToEmulatorEvent;
             }
 
-            if (createEmulator == true)
+            if (createEmulator == true && startProgram != StartProgram.IsOsOptimizer)
             {
                 _emulator = new OrderExecutionEmulator();
                 _emulator.MyTradeEvent += ConnectorBot_NewMyTradeEvent;
@@ -227,8 +226,7 @@ namespace OsEngine.Market.Connectors
                 if (ServerMaster.GetServers() == null ||
                     ServerMaster.GetServers().Count == 0)
                 {
-                    AlertMessageSimpleUi uiMessage = new AlertMessageSimpleUi(OsLocalization.Market.Message1);
-                    uiMessage.Show();
+                    SendNewLogMessage(OsLocalization.Market.Message1, LogMessageType.Error);
                     return;
                 }
 
@@ -1097,6 +1095,8 @@ namespace OsEngine.Market.Connectors
             }
         }
 
+        DateTime _timeLastEndCandle = DateTime.MinValue;
+
         /// <summary>
         /// the candle has just ended
         /// свеча только что завершилась
@@ -1105,9 +1105,30 @@ namespace OsEngine.Market.Connectors
         {
             try
             {
-                if (NewCandlesChangeEvent != null && EventsIsOn == true)
+                if(EventsIsOn == false)
                 {
-                    NewCandlesChangeEvent(Candles(true));
+                    return;
+                }
+
+                List<Candle> candles = Candles(true);
+
+                if(candles == null || candles.Count == 0)
+                {
+                    return;
+                }
+
+                DateTime timeLastCandle = candles[candles.Count - 1].TimeStart;
+
+                if(timeLastCandle == _timeLastEndCandle)
+                {
+                    return;
+                }
+
+                _timeLastEndCandle = timeLastCandle;
+
+                if (NewCandlesChangeEvent != null)
+                {
+                    NewCandlesChangeEvent(candles);
                 }
             }
             catch (Exception error)
@@ -1200,7 +1221,7 @@ namespace OsEngine.Market.Connectors
                 {
                     if (_emulator != null)
                     {
-                        _emulator.ProcessBidAsc(_bestBid, _bestAsk, MarketTime);
+                        _emulator.ProcessBidAsc(_bestBid, _bestAsk);
                     }
                 }
 
@@ -1253,7 +1274,7 @@ namespace OsEngine.Market.Connectors
                 {
                     if(_emulator != null)
                     {
-                        _emulator.ProcessBidAsc(_bestAsk, _bestBid, MarketTime);
+                        _emulator.ProcessBidAsc(_bestAsk, _bestBid);
                     }
                 }
             }
@@ -1317,6 +1338,13 @@ namespace OsEngine.Market.Connectors
                 if (TimeChangeEvent != null && EventsIsOn == true)
                 {
                     TimeChangeEvent(time);
+                }
+                if(EmulatorIsOn == true)
+                {
+                    if(_emulator != null)
+                    {
+                        _emulator.ProcessTime(time);
+                    }
                 }
             }
             catch (Exception error)

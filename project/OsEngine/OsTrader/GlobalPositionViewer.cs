@@ -13,6 +13,7 @@ using OsEngine.Logging;
 using System.Drawing;
 using OsEngine.Language;
 using OsEngine.Alerts;
+using System.Globalization;
 
 namespace OsEngine.OsTrader
 {
@@ -25,8 +26,9 @@ namespace OsEngine.OsTrader
         public GlobalPositionViewer(WindowsFormsHost openPositionHost, WindowsFormsHost closePositionHost, StartProgram startProgram)
         {
             _startProgram = startProgram;
+            _currentCulture = OsLocalization.CurCulture;
 
-            if(openPositionHost != null)
+            if (openPositionHost != null)
             {
                 _hostOpenPoses = openPositionHost;
                 _gridOpenPoses = CreateNewTable();
@@ -42,6 +44,7 @@ namespace OsEngine.OsTrader
                 _gridClosePoses = CreateNewTable();
                 _hostClosePoses.Child = _gridClosePoses;
                 _hostClosePoses.Child.Show();
+                _gridClosePoses.Click += _gridClosePoses_Click;
                 _gridClosePoses.DoubleClick += _gridClosePoses_DoubleClick;
 
             }
@@ -49,6 +52,8 @@ namespace OsEngine.OsTrader
             Task task = new Task(WatcherThreadWorkArea);
             task.Start();
         }
+
+        CultureInfo _currentCulture;
 
         /// <summary>
         /// add another magazine to the collection to draw his deals
@@ -90,6 +95,23 @@ namespace OsEngine.OsTrader
                 if(_journals[i] != null)
                 {
                     List<Position> curPoses = _journals[i].OpenPositions;
+
+                    deals.AddRange(curPoses);
+                }
+            }
+
+            return deals.Find(position => position.Number == number);
+        }
+
+        public Position GetClosePositionForNumber(int number)
+        {
+            List<Position> deals = new List<Position>();
+
+            for (int i = 0; i < _journals.Count; i++)
+            {
+                if (_journals[i] != null)
+                {
+                    List<Position> curPoses = _journals[i].AllPosition;
 
                     deals.AddRange(curPoses);
                 }
@@ -236,10 +258,18 @@ namespace OsEngine.OsTrader
                 nRow.Cells[0].Value = position.Number;
 
                 nRow.Cells.Add(new DataGridViewTextBoxCell());
-                nRow.Cells[1].Value = position.TimeCreate;
+                nRow.Cells[1].Value = position.TimeCreate.ToString(_currentCulture);
 
                 nRow.Cells.Add(new DataGridViewTextBoxCell());
-                nRow.Cells[2].Value = position.TimeClose;
+
+                if (position.TimeClose != position.TimeOpen)
+                {
+                    nRow.Cells[2].Value = position.TimeClose.ToString(_currentCulture);
+                }
+                else
+                {
+                    nRow.Cells[2].Value = "";
+                }
 
                 nRow.Cells.Add(new DataGridViewTextBoxCell());
                 nRow.Cells[3].Value = position.NameBot;
@@ -325,15 +355,17 @@ namespace OsEngine.OsTrader
         private void TryRePaint(Position position, DataGridViewRow nRow)
         {
             if (nRow.Cells[1].Value == null
-                || nRow.Cells[1].Value.ToString() != position.TimeCreate.ToString())// == false) //AVP убрал, потому что  во вкладке все позиции, дату позиции не обновляло
+                || nRow.Cells[1].Value.ToString() != position.TimeCreate.ToString(_currentCulture))// == false) //AVP убрал, потому что  во вкладке все позиции, дату позиции не обновляло
             {
-                nRow.Cells[1].Value = position.TimeCreate.ToString();
+                nRow.Cells[1].Value = position.TimeCreate.ToString(_currentCulture);
             }
-
-            if (nRow.Cells[2].Value == null
-                || nRow.Cells[2].Value.ToString() != position.TimeClose.ToString())// == false) //AVP убрал потому что во вкладке все позиции, дату позиции не обновляло
+            if (position.TimeClose != position.TimeOpen)
             {
-                nRow.Cells[2].Value = position.TimeClose.ToString();
+                if (nRow.Cells[2].Value == null
+    || nRow.Cells[2].Value.ToString() != position.TimeClose.ToString(_currentCulture))// == false) //AVP убрал потому что во вкладке все позиции, дату позиции не обновляло
+                {
+                    nRow.Cells[2].Value = position.TimeClose.ToString(_currentCulture);
+                }
             }
 
             if (nRow.Cells[6].Value == null
@@ -540,11 +572,76 @@ namespace OsEngine.OsTrader
             }
         }
 
-        #region Активные позиции
+        #region Исторические позиции
 
         private void _gridClosePoses_DoubleClick(object sender, EventArgs e)
         {
             PaintPos(_gridClosePoses);
+        }
+
+        private void _gridClosePoses_Click(object sender, EventArgs e)
+        {
+            MouseEventArgs mouse = (MouseEventArgs)e;
+
+            if (mouse.Button != MouseButtons.Right)
+            {
+                return;
+            }
+
+            try
+            {
+                MenuItem[] items = new MenuItem[1];
+
+                items[0] = new MenuItem { Text = OsLocalization.Journal.PositionMenuItem7 };
+                items[0].Click += ClosePositionClearDelete_Click;
+
+                ContextMenu menu = new ContextMenu(items);
+
+                _gridClosePoses.ContextMenu = menu;
+                _gridClosePoses.ContextMenu.Show(_gridClosePoses, new Point(mouse.X, mouse.Y));
+            }
+            catch (Exception error)
+            {
+                SendNewLogMessage(error.ToString(), LogMessageType.Error);
+            }
+
+        }
+
+        void ClosePositionClearDelete_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                AcceptDialogUi ui = new AcceptDialogUi(OsLocalization.Journal.Message3);
+                ui.ShowDialog();
+
+                if (ui.UserAcceptActioin == false)
+                {
+                    return;
+                }
+
+                int number;
+                try
+                {
+                    if (_gridClosePoses.CurrentCell == null)
+                    {
+                        return;
+                    }
+                    number = Convert.ToInt32(_gridClosePoses.Rows[_gridClosePoses.CurrentCell.RowIndex].Cells[0].Value);
+                }
+                catch (Exception)
+                {
+                    return;
+                }
+
+                if (UserSelectActionEvent != null)
+                {
+                    UserSelectActionEvent(GetClosePositionForNumber(number), SignalType.DeletePos);
+                }
+            }
+            catch (Exception error)
+            {
+                SendNewLogMessage(error.ToString(), LogMessageType.Error);
+            }
         }
 
         #endregion
@@ -567,7 +664,7 @@ namespace OsEngine.OsTrader
 
             try
             {
-                MenuItem[] items = new MenuItem[6];
+                MenuItem[] items = new MenuItem[5];
 
                 items[0] = new MenuItem { Text = OsLocalization.Journal.PositionMenuItem1 };
                 items[0].Click += PositionCloseAll_Click;
@@ -575,17 +672,14 @@ namespace OsEngine.OsTrader
                 items[1] = new MenuItem { Text = OsLocalization.Journal.PositionMenuItem3 };
                 items[1].Click += PositionCloseForNumber_Click;
 
-                items[2] = new MenuItem { Text = OsLocalization.Journal.PositionMenuItem4 };
-                items[2].Click += PositionModificationForNumber_Click;
+                items[2] = new MenuItem { Text = OsLocalization.Journal.PositionMenuItem5 };
+                items[2].Click += PositionNewStop_Click;
 
-                items[3] = new MenuItem { Text = OsLocalization.Journal.PositionMenuItem5 };
-                items[3].Click += PositionNewStop_Click;
+                items[3] = new MenuItem { Text = OsLocalization.Journal.PositionMenuItem6 };
+                items[3].Click += PositionNewProfit_Click;
 
-                items[4] = new MenuItem { Text = OsLocalization.Journal.PositionMenuItem6 };
-                items[4].Click += PositionNewProfit_Click;
-
-                items[5] = new MenuItem { Text = OsLocalization.Journal.PositionMenuItem7 };
-                items[5].Click += PositionClearDelete_Click;
+                items[4] = new MenuItem { Text = OsLocalization.Journal.PositionMenuItem7 };
+                items[4].Click += PositionClearDelete_Click;
 
                 ContextMenu menu = new ContextMenu(items);
 
@@ -651,40 +745,6 @@ namespace OsEngine.OsTrader
                 if (UserSelectActionEvent != null)
                 {
                     UserSelectActionEvent(GetPositionForNumber(number), SignalType.CloseOne);
-                }
-            }
-            catch (Exception error)
-            {
-                SendNewLogMessage(error.ToString(), LogMessageType.Error);
-            }
-        }
-
-        /// <summary>
-        /// the user has ordered a position modification
-        /// пользователь заказал модификацию позиции
-        /// </summary>
-        void PositionModificationForNumber_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                int number;
-                try
-                {
-                    if(_gridOpenPoses.CurrentCell == null)
-                    {
-                        return;
-                    }
-                    number = Convert.ToInt32(_gridOpenPoses.Rows[_gridOpenPoses.CurrentCell.RowIndex].Cells[0].Value);
-                }
-                catch (Exception)
-                {
-                    return;
-                }
-
-
-                if (UserSelectActionEvent != null)
-                {
-                    UserSelectActionEvent(GetPositionForNumber(number), SignalType.Modificate);
                 }
             }
             catch (Exception error)

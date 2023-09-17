@@ -119,7 +119,7 @@ namespace OsEngine.Market.Servers.GateIo.Futures
 
         private readonly ConcurrentQueue<string> _queueMessagesReceivedFromExchange = new ConcurrentQueue<string>();
 
-        public  void Connect()
+        public void Connect()
         {
             _publicKey = ((ServerParameterString)ServerParameters[0]).Value;
             _secretKey = ((ServerParameterPassword)ServerParameters[1]).Value;
@@ -148,6 +148,7 @@ namespace OsEngine.Market.Servers.GateIo.Futures
             _wsSource.MessageEvent += WsSourceOnMessageEvent;
             _wsSource.Start();
 
+            _lastTimeUpdateSocket = DateTime.Now;
             ServerStatus = ServerConnectStatus.Connect;
         }
 
@@ -228,7 +229,7 @@ namespace OsEngine.Market.Servers.GateIo.Futures
                     continue;
                 }
 
-                if (_lastTimeUpdateSocket.AddSeconds(60) < DateTime.Now)
+                if (_lastTimeUpdateSocket.AddSeconds(120) < DateTime.Now)
                 {
                     SendLogMessage("The websocket is disabled. Restart", LogMessageType.Error);
                     Dispose();
@@ -604,7 +605,8 @@ namespace OsEngine.Market.Servers.GateIo.Futures
 
                 foreach (var item in accountPosition)
                 {
-                    string SellBuy = item.size.ToDecimal() < 0 ? "_Sell" : "_Buy";
+                    string mode = item.mode.Contains("single") ? "Single" : item.mode;
+                    string SellBuy = mode == "Single" ? "_Single" : item.mode.Contains("short") ? "_SHORT" : "_LONG";
                     PositionOnBoard position = new PositionOnBoard();
                     position.PortfolioName = "GateIoFutures";
                     position.SecurityNameCode = item.contract + SellBuy;
@@ -1105,12 +1107,12 @@ namespace OsEngine.Market.Servers.GateIo.Futures
 
         public void CancelAllOrders()
         {
-            
+
         }
 
         public void ResearchTradesToOrders(List<Order> orders)
         {
-            
+
         }
 
         private void SendLogMessage(string messgae, LogMessageType logMessageType)
@@ -1129,5 +1131,10 @@ namespace OsEngine.Market.Servers.GateIo.Futures
         public event Action<string, LogMessageType> LogMessageEvent;
 
         #endregion
+
+        public void CancelAllOrdersToSecurity(Security security)
+        {
+
+        }
     }
 }

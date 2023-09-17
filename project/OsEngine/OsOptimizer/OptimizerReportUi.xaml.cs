@@ -29,24 +29,32 @@ namespace OsEngine.OsOptimizer
             _master = master;
 
             _resultsCharting = new OptimizerReportCharting(
-            WindowsFormsHostDependences, WindowsFormsHostColumnsResults,
-            WindowsFormsHostPieResults, ComboBoxSortDependencesResults,
-            WindowsFormsHostOutOfSampleEquity, LabelTotalProfitInOutOfSample, LabelRobustnessMetricValue);
+            HostStepsOfOptimizationTable,
+            HostRobustness,
+            ComboBoxSortResultsType,
+            LabelRobustnessMetricValue);
+
+            _resultsCharting.ActivateTotalProfitChart(HostTotalProfit, ComboBoxTotalProfit);
+
+            _resultsCharting.ActivateAverageProfitChart(HostAverageProfit);
+            _resultsCharting.ActivateProfitFactorChart(HostProfitFactor);
 
             _resultsCharting.LogMessageEvent += _master.SendLogMessage;
+
             CreateTableFazes();
             CreateTableResults();
-
 
             LabelSortBy.Content = OsLocalization.Optimizer.Label39;
             LabelOptimSeries.Content = OsLocalization.Optimizer.Label30;
             LabelTableResults.Content = OsLocalization.Optimizer.Label31;
             TabControlResultsSeries.Header = OsLocalization.Optimizer.Label37;
             TabControlResultsOutOfSampleResults.Header = OsLocalization.Optimizer.Label38;
-            LabelTotalProfitInOutOfSample.Content = OsLocalization.Optimizer.Label43;
             ButtonSaveInFile.Content = OsLocalization.Optimizer.Label45;
             ButtonLoadFromFile.Content = OsLocalization.Optimizer.Label46;
-            LabelRobustnessMetric.Content = OsLocalization.Optimizer.Label53; 
+            LabelRobustnessMetric.Content = OsLocalization.Optimizer.Label53;
+            LabelTotalProfit.Content = OsLocalization.Optimizer.Label54;
+            LabelAverageProfitFactor.Content = OsLocalization.Optimizer.Label55;
+            LabelAverageProfitPersent.Content = OsLocalization.Optimizer.Label56;
 
             Title += "   " + master.StrategyName;
             
@@ -201,11 +209,11 @@ namespace OsEngine.OsOptimizer
                 row.Cells.Add(cell);
 
                 DataGridViewTextBoxCell cell2 = new DataGridViewTextBoxCell();
-                cell2.Value = fazes[i].TimeStart.ToShortDateString();
+                cell2.Value = fazes[i].TimeStart.ToString(OsLocalization.ShortDateFormatString);
                 row.Cells.Add(cell2);
 
                 DataGridViewTextBoxCell cell3 = new DataGridViewTextBoxCell();
-                cell3.Value = fazes[i].TimeEnd.ToShortDateString();
+                cell3.Value = fazes[i].TimeEnd.ToString(OsLocalization.ShortDateFormatString);
                 row.Cells.Add(cell3);
 
                 DataGridViewTextBoxCell cell4 = new DataGridViewTextBoxCell();
@@ -471,6 +479,7 @@ namespace OsEngine.OsOptimizer
                 }
 
                 DataGridViewRow row = new DataGridViewRow();
+                row.Height = 30;
                 row.Cells.Add(new DataGridViewTextBoxCell());
 
                 //if (report.TabsReports.Count == 1)
@@ -503,7 +512,7 @@ namespace OsEngine.OsOptimizer
                 row.Cells.Add(cell6);
 
                 DataGridViewTextBoxCell cell7 = new DataGridViewTextBoxCell();
-                cell7.Value = report.AverageProfitPercent.ToStringWithNoEndZero();
+                cell7.Value = report.AverageProfitPercentOneContract.ToStringWithNoEndZero();
                 row.Cells.Add(cell7);
 
                 DataGridViewTextBoxCell cell8 = new DataGridViewTextBoxCell();
@@ -584,7 +593,7 @@ namespace OsEngine.OsOptimizer
                 return true;
             }
             else if (sortType == SortBotsType.AverageProfitPercent &&
-                     rep1.AverageProfitPercent < rep2.AverageProfitPercent)
+                     rep1.AverageProfitPercentOneContract < rep2.AverageProfitPercentOneContract)
             {
                 return true;
             }
@@ -640,7 +649,7 @@ namespace OsEngine.OsOptimizer
             row.Cells.Add(cell6);
 
             DataGridViewTextBoxCell cell7 = new DataGridViewTextBoxCell();
-            cell7.Value = report.AverageProfitPercent.ToStringWithNoEndZero();
+            cell7.Value = report.AverageProfitPercentOneContract.ToStringWithNoEndZero();
             row.Cells.Add(cell7);
 
             DataGridViewTextBoxCell cell8 = new DataGridViewTextBoxCell();
