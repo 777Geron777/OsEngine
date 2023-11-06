@@ -14,6 +14,7 @@ using System.Windows.Controls;
 using System.Windows.Forms;
 using System.Windows.Input;
 using OsEngine.Logging;
+using System.Windows.Forms.DataVisualization.Charting;
 
 namespace OsEngine.OsTrader.Panels.Tab
 {
@@ -52,11 +53,11 @@ namespace OsEngine.OsTrader.Panels.Tab
                 ComboBoxTypeServer.Items.Add(servers[i].ServerType.ToString());
             }
 
-            if (_tabPolygon.Pairs.Count != 0 &&
-               _tabPolygon.Pairs[0].Tab1.Connector.ServerType != ServerType.None)
+            if (_tabPolygon.Sequences.Count != 0 &&
+               _tabPolygon.Sequences[0].Tab1.Connector.ServerType != ServerType.None)
             {
-                ComboBoxTypeServer.SelectedItem = _tabPolygon.Pairs[0].Tab1.Connector.ServerType.ToString();
-                _selectedType = _tabPolygon.Pairs[0].Tab1.Connector.ServerType;
+                ComboBoxTypeServer.SelectedItem = _tabPolygon.Sequences[0].Tab1.Connector.ServerType.ToString();
+                _selectedType = _tabPolygon.Sequences[0].Tab1.Connector.ServerType;
             }
             else
             {
@@ -102,15 +103,73 @@ namespace OsEngine.OsTrader.Panels.Tab
             CheckBoxSelectAllCheckBox.Click += CheckBoxSelectAllCheckBox_Click;
             CheckBoxSelectAllInSecondStep.Click += CheckBoxSelectAllInSecondStep_Click;
             CheckBoxSelectAllInFinalStep.Click += CheckBoxSelectAllInFinalStep_Click;
-
             ButtonRightInSearchResults.Click += ButtonRightInSearchResults_Click;
             ButtonLeftInSearchResults.Click += ButtonLeftInSearchResults_Click;
             TextBoxSearchSecurity.MouseEnter += TextBoxSearchSecurity_MouseEnter;
             TextBoxSearchSecurity.TextChanged += TextBoxSearchSecurity_TextChanged;
             TextBoxSearchSecurity.MouseLeave += TextBoxSearchSecurity_MouseLeave;
             TextBoxSearchSecurity.LostKeyboardFocus += TextBoxSearchSecurity_LostKeyboardFocus;
+            ButtonCreateTableSecondStep.Click += ButtonCreateTableSecondStep_Click;
+            ButtonCreateTableFinal.Click += ButtonCreateTableFinal_Click;
+            ButtonCreateSelectedSequence.Click += ButtonCreateSelectedSequence_Click;
 
             Closed += BotTabPolygonAutoSelectSequenceUi_Closed;
+        }
+
+        public bool IsClosed;
+
+        private void BotTabPolygonAutoSelectSequenceUi_Closed(object sender, EventArgs e)
+        {
+            IsClosed = true;
+
+            ComboBoxTypeServer.SelectionChanged -= ComboBoxTypeServer_SelectionChanged;
+            TextBoxBaseCurrency.TextChanged -= TextBoxBaseCurrency_TextChanged;
+            CheckBoxSelectAllCheckBox.Click -= CheckBoxSelectAllCheckBox_Click;
+            CheckBoxSelectAllInSecondStep.Click -= CheckBoxSelectAllInSecondStep_Click;
+            CheckBoxSelectAllInFinalStep.Click -= CheckBoxSelectAllInFinalStep_Click;
+            ButtonRightInSearchResults.Click -= ButtonRightInSearchResults_Click;
+            ButtonLeftInSearchResults.Click -= ButtonLeftInSearchResults_Click;
+            TextBoxSearchSecurity.MouseEnter -= TextBoxSearchSecurity_MouseEnter;
+            TextBoxSearchSecurity.TextChanged -= TextBoxSearchSecurity_TextChanged;
+            TextBoxSearchSecurity.MouseLeave -= TextBoxSearchSecurity_MouseLeave;
+            TextBoxSearchSecurity.LostKeyboardFocus -= TextBoxSearchSecurity_LostKeyboardFocus;
+            ButtonCreateTableSecondStep.Click -= ButtonCreateTableSecondStep_Click;
+            ButtonCreateTableFinal.Click -= ButtonCreateTableFinal_Click;
+            ButtonCreateSelectedSequence.Click -= ButtonCreateSelectedSequence_Click;
+            Closed -= BotTabPolygonAutoSelectSequenceUi_Closed;
+
+            List<IServer> serversAll = ServerMaster.GetServers();
+
+            for (int i = 0; serversAll != null && i < serversAll.Count; i++)
+            {
+                if (serversAll[i] == null)
+                {
+                    continue;
+                }
+                serversAll[i].SecuritiesChangeEvent -= server_SecuritiesCharngeEvent;
+                serversAll[i].PortfoliosChangeEvent -= server_PortfoliosChangeEvent;
+            }
+
+            _tabPolygon = null;
+
+            HostFirdStep.Child = null;
+            SecuritiesHost.Child = null;
+            SecuritiesSecondStep.Child = null;
+
+            DataGridFactory.ClearLinks(_gridSecuritiesFirstStep);
+            _gridSecuritiesFirstStep.Rows.Clear();
+            _gridSecuritiesFirstStep.Columns.Clear();
+            _gridSecuritiesFirstStep = null;
+
+            DataGridFactory.ClearLinks(_gridSecondStep);
+            _gridSecondStep.Rows.Clear();
+            _gridSecondStep.Columns.Clear();
+            _gridSecondStep = null;
+
+            DataGridFactory.ClearLinks(_gridFirdStep);
+            _gridFirdStep.Rows.Clear();
+            _gridFirdStep.Columns.Clear();
+            _gridFirdStep = null;
         }
 
         private void TextBoxBaseCurrency_TextChanged(object sender, TextChangedEventArgs e)
@@ -151,9 +210,9 @@ namespace OsEngine.OsTrader.Panels.Tab
 
                 ComboBoxPortfolio.Items.Clear();
 
-                if (_tabPolygon.Pairs.Count != 0)
+                if (_tabPolygon.Sequences.Count != 0)
                 {
-                    string portfolio = _tabPolygon.Pairs[0].Tab1.Connector.PortfolioName;
+                    string portfolio = _tabPolygon.Sequences[0].Tab1.Connector.PortfolioName;
 
                     if (string.IsNullOrEmpty(portfolio) == false)
                     {
@@ -208,25 +267,6 @@ namespace OsEngine.OsTrader.Panels.Tab
             catch (Exception error)
             {
                 SendNewLogMessage(error.ToString(), LogMessageType.Error);
-            }
-        }
-
-        public bool IsClosed;
-
-        private void BotTabPolygonAutoSelectSequenceUi_Closed(object sender, EventArgs e)
-        {
-            IsClosed = true;
-
-            List<IServer> serversAll = ServerMaster.GetServers();
-
-            for (int i = 0; serversAll != null && i < serversAll.Count; i++)
-            {
-                if (serversAll[i] == null)
-                {
-                    continue;
-                }
-                serversAll[i].SecuritiesChangeEvent -= server_SecuritiesCharngeEvent;
-                serversAll[i].PortfoliosChangeEvent -= server_PortfoliosChangeEvent;
             }
         }
 

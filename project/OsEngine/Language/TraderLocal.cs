@@ -1374,5 +1374,14 @@ namespace OsEngine.Language
         public string Label368 => OsLocalization.ConvertToLocString(
          "Eng:Order loss. No execution occurred in 10 seconds!_" +
          "Ru:Потеря ордера. За 10 секунд не произошло исполнения!_");
+
+        public string Label369 => OsLocalization.ConvertToLocString(
+         "Eng:Clear all securities_" +
+         "Ru:Очистить все инструменты_");
+
+        public string Label370 => OsLocalization.ConvertToLocString(
+         "Eng:Clear all securities in the list?_" +
+         "Ru:Очистить все инструменты в списке?_");
+
     }
 }

@@ -25,13 +25,16 @@ namespace OsEngine.OsTrader.Panels.Tab
     {
         PolygonToTrade _polygon;
 
+        public string NameElement;
+
         public BotTabPolygonUi(PolygonToTrade polygon)
         {
             InitializeComponent();
             OsEngine.Layout.StickyBorders.Listen(this);
             GlobalGUILayout.Listen(this, "botTabPairUi_" + polygon.Name);
             _polygon = polygon;
-            Name = polygon.Name;
+
+            NameElement = polygon.Name;
 
             TextBoxBaseCurrency.Text = _polygon.BaseCurrency;
             TextBoxBaseCurrency.TextChanged += TextBoxBaseCurrency_TextChanged;
@@ -685,14 +688,14 @@ namespace OsEngine.OsTrader.Panels.Tab
         /// </summary>
         private void TryRePaintRow(DataGridViewRow rowInGrid, DataGridViewRow rowInArray)
         {
-            if (_grid.InvokeRequired)
-            {
-                _grid.Invoke(new Action<DataGridViewRow, DataGridViewRow>(TryRePaintRow), rowInGrid, rowInArray);
-                return;
-            }
-
             try
             {
+                if (_grid.InvokeRequired)
+                {
+                    _grid?.Invoke(new Action<DataGridViewRow, DataGridViewRow>(TryRePaintRow), rowInGrid, rowInArray);
+                    return;
+                }
+
                 if (rowInGrid.Cells[1].Value != null &&
                     rowInGrid.Cells[1].Value.ToString() != rowInArray.Cells[1].Value.ToString())
                 {

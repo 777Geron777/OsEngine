@@ -175,7 +175,18 @@ namespace OsEngine.OsTrader.Panels
 
                     journals.AddRange(journalsOnTab);
                 }
+                else if (_botTabs[i].TabType == BotTabType.Polygon)
+                {
+                    List<Journal.Journal> journalsOnTab = ((BotTabPolygon)_botTabs[i]).GetJournals();
 
+                    if (journalsOnTab == null ||
+                        journalsOnTab.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    journals.AddRange(journalsOnTab);
+                }
             }
 
             return journals;
@@ -473,6 +484,12 @@ namespace OsEngine.OsTrader.Panels
                 {
                     _tabsScreener.Clear();
                     _tabsScreener = null;
+                }
+
+                if (_tabsPolygon != null)
+                {
+                    _tabsPolygon.Clear();
+                    _tabsPolygon = null;
                 }
 
                 if (ParamGuiSettings != null)
@@ -800,6 +817,10 @@ position => position.State != PositionStateType.OpeningFail
 
                 for (int i = 0; i < journals.Count; i++)
                 {
+                    if (journals[i] == null)
+                    {
+                        continue;
+                    }
                     if (journals[i].AllPosition == null || journals[i].AllPosition.Count == 0)
                     {
                         continue;
