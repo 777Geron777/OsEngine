@@ -220,7 +220,7 @@ namespace OsEngine.Market.Servers.BitGet.BitGetSpot
 
             priceStep += "1";
 
-            return Convert.ToDecimal(priceStep);
+            return priceStep.ToDecimal();
         }
 
         public event Action<List<Security>> SecurityEvent;
@@ -457,6 +457,11 @@ namespace OsEngine.Market.Servers.BitGet.BitGetSpot
         {
             if (IsDispose == false)
             {
+                if(webSocket != null)
+                {
+                    webSocket.Opened -= WebSocket_Opened;
+                }
+                
                 SendLogMessage("Connection Closed by BitGet. WebSocket Closed Event", LogMessageType.Error);
                 ServerStatus = ServerConnectStatus.Disconnect;
                 DisconnectEvent();
@@ -514,7 +519,7 @@ namespace OsEngine.Market.Servers.BitGet.BitGetSpot
 
         #endregion
 
-        #region 9 WebSocket security subscrible
+        #region 9 Security subscrible
 
         private RateGate rateGateSubscrible = new RateGate(1, TimeSpan.FromMilliseconds(350));
 
@@ -660,10 +665,10 @@ namespace OsEngine.Market.Servers.BitGet.BitGetSpot
 
             Trade trade = new Trade();
             trade.SecurityNameCode = responseTrade.arg.instId;
-            trade.Price = Convert.ToDecimal(responseTrade.data[0][1].Replace(".", ","));
+            trade.Price = responseTrade.data[0][1].ToDecimal();
             trade.Id = responseTrade.data[0][0];
             trade.Time = TimeManager.GetDateTimeFromTimeStamp(Convert.ToInt64(responseTrade.data[0][0]));
-            trade.Volume = Convert.ToDecimal(responseTrade.data[0][2].Replace('.', ',').Replace(".", ","));
+            trade.Volume = responseTrade.data[0][2].ToDecimal();
             trade.Side = responseTrade.data[0][3].Equals("buy") ? Side.Buy : Side.Sell;
 
             NewTradesEvent(trade);
@@ -1200,7 +1205,7 @@ namespace OsEngine.Market.Servers.BitGet.BitGetSpot
                             High = item.high.ToDecimal(),
                             Low = item.low.ToDecimal(),
                             Open = item.open.ToDecimal(),
-                            Volume = item.quoteVol.ToDecimal(),
+                            Volume = item.baseVol.ToDecimal(),
                             State = CandleState.Finished,
                             TimeStart = TimeManager.GetDateTimeFromTimeStamp(Convert.ToInt64(item.ts))
                         });
@@ -1297,6 +1302,11 @@ namespace OsEngine.Market.Servers.BitGet.BitGetSpot
                     SendLogMessage(exception.Message + $" {exception.StackTrace}", LogMessageType.Error);
                 }
             }
+        }
+
+        public List<Candle> GetLastCandleHistory(Security security, TimeFrameBuilder timeFrameBuilder, int candleCount)
+        {
+            throw new NotImplementedException();
         }
 
         #endregion

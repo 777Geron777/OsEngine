@@ -166,6 +166,7 @@
     <Compile Include="Charts\CandleChart\CandleChartUi.xaml.cs">
       <DependentUpon>CandleChartUi.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Charts\CandleChart\ChartAddons\ChartRoulette.cs" />
     <Compile Include="Charts\CandleChart\Elements\IChartElement.cs" />
     <Compile Include="Charts\CandleChart\Elements\Line.cs" />
     <Compile Include="Charts\CandleChart\Elements\PointElement.cs" />
@@ -451,21 +452,21 @@
     <Compile Include="Market\ServerMasterOrdersPainter.cs" />
     <Compile Include="Market\ServerMasterSourcesPainter.cs" />
     <Compile Include="Market\Servers\Alor\AlorServer.cs" />
-    <Compile Include="Market\Servers\Alor\Dto\AlorPortfolioRisk.cs" />
-    <Compile Include="Market\Servers\Alor\Dto\AlorPortfolioRiskForts.cs" />
-    <Compile Include="Market\Servers\Alor\Dto\AlorPortfolioSummary.cs" />
-    <Compile Include="Market\Servers\Alor\Dto\AlorSecurity.cs" />
-    <Compile Include="Market\Servers\Alor\Dto\MessageData.cs" />
-    <Compile Include="Market\Servers\Alor\Dto\Subscription.cs" />
-    <Compile Include="Market\Servers\Alor\Tools\ApiClient.cs" />
-    <Compile Include="Market\Servers\Alor\Tools\Events\ConnectionEventArgs.cs" />
-    <Compile Include="Market\Servers\Alor\Tools\Events\ErrorEventArgs.cs" />
-    <Compile Include="Market\Servers\Alor\Tools\Events\MessageEventArgs.cs" />
-    <Compile Include="Market\Servers\Alor\Tools\SocketErrorEventArgs.cs" />
-    <Compile Include="Market\Servers\Alor\Tools\SocketMessageEventArgs.cs" />
-    <Compile Include="Market\Servers\Alor\Tools\TokenProvider.cs" />
-    <Compile Include="Market\Servers\Alor\Tools\WsClient.cs" />
-    <Compile Include="Market\Servers\Alor\Tools\WsConnectionClient.cs" />
+    <Compile Include="Market\Servers\Alor\AlorServerPermission.cs" />
+    <Compile Include="Market\Servers\Alor\Json\OrdersAlorRequest.cs" />
+    <Compile Include="Market\Servers\Alor\Json\AlorPortfolioSocket.cs" />
+    <Compile Include="Market\Servers\Alor\Json\AlorPortfolioRest.cs" />
+    <Compile Include="Market\Servers\Alor\Json\AlorSecurity.cs" />
+    <Compile Include="Market\Servers\Alor\Json\CandlesHistoryAlor.cs" />
+    <Compile Include="Market\Servers\Alor\Json\MarketDepthAlor.cs" />
+    <Compile Include="Market\Servers\Alor\Json\MyTradeAlor.cs" />
+    <Compile Include="Market\Servers\Alor\Json\OrderAlor.cs" />
+    <Compile Include="Market\Servers\Alor\Json\PositionOnBoardAlor.cs" />
+    <Compile Include="Market\Servers\Alor\Json\RequestSocketSubscrible.cs" />
+    <Compile Include="Market\Servers\Alor\Json\SoketBaseMessage.cs" />
+    <Compile Include="Market\Servers\Alor\Json\TokenResponse.cs" />
+    <Compile Include="Market\Servers\Alor\Json\QuotesAlor.cs" />
+    <Compile Include="Market\Servers\Alor\Json\TradesHistoryAlor.cs" />
     <Compile Include="Market\Servers\AServer.cs" />
     <Compile Include="Market\Servers\AServerParameterUi.xaml.cs">
       <DependentUpon>AServerParameterUi.xaml</DependentUpon>
@@ -571,37 +572,31 @@
     <Compile Include="Market\Servers\FixProtocolEntities\FixEntity.cs" />
     <Compile Include="Market\Servers\FixProtocolEntities\FixMessage.cs" />
     <Compile Include="Market\Servers\FixProtocolEntities\StandartHeaderSettings.cs" />
-    <Compile Include="Market\Servers\GateIo\EntityCreators\GateMarketDepthCreator.cs" />
-    <Compile Include="Market\Servers\GateIo\EntityCreators\GateOrderCreator.cs" />
-    <Compile Include="Market\Servers\GateIo\EntityCreators\GatePortfolioCreator.cs" />
-    <Compile Include="Market\Servers\GateIo\EntityCreators\GateSecurityCreator.cs" />
-    <Compile Include="Market\Servers\GateIo\EntityCreators\GateTradesCreator.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\Entities\Converter.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\Entities\GfMarketDepthCreator.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\Entities\GfOrderCreator.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\Entities\GfSecurity.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\Entities\PublicUrlBuilder.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\Entities\RestRequestBuilder.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\Entities\Signer.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\Entities\WsRequestBuilder.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\GateIoFuturesServer.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\GateIoFuturesServerPermission.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\Request\CreateOrderRequest.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\Request\FuturesPing.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\Response\CancelOrderResponese.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\Response\CreateOrderResponse.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\Response\GfAccount.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\Response\GfBaseResponse.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\Response\GfCandle.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\Response\GfMyTrade.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\Response\GfOrders.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\Response\GfPosition.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\Response\GfSubscribeDepthResponse.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\Response\GfTick.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\Response\GfTrade.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\Response\GfTrades.cs" />
-    <Compile Include="Market\Servers\GateIo\Futures\Response\PositionResponceSwap.cs" />
-    <Compile Include="Market\Servers\GateIo\GateIoServer.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoFutures\Entities\BalanceResponse.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoFutures\Entities\CancelOrderResponese.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoFutures\Entities\CreateOrderRequest.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoFutures\Entities\CreateOrderResponse.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoFutures\Entities\DataCandle.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoFutures\Entities\DataTrade.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoFutures\Entities\FuturesPing.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoFutures\Entities\GfAccount.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoFutures\Entities\GfPosition.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoFutures\Entities\GfSecurity.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoFutures\Entities\GfTrades.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoFutures\Entities\MdResponse.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoFutures\Entities\PositionResponceSwap.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoFutures\Entities\RestRequestBuilder.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoFutures\Entities\Signer.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoFutures\Entities\UserTradeResponse.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoFutures\Entities\WsRequestBuilder.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoFutures\GateIoServerFutures.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoFutures\GateIoServerFuturesPermission.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoSpot\Entities\ApiEntities.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoSpot\Entities\PortfolioUpdateEvent.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoSpot\Entities\Singer.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoSpot\GateIoServerSpot.cs" />
+    <Compile Include="Market\Servers\GateIo\GateIoSpot\GateIoSpotServerPermission.cs" />
+    <Compile Include="Market\Servers\GateIo\ResponceWebsocketMessage.cs" />
     <Compile Include="Market\Servers\Hitbtc\HitbtcClient.cs" />
     <Compile Include="Market\Servers\Hitbtc\HitbtcEntity.cs" />
     <Compile Include="Market\Servers\Hitbtc\HitbtcServer.cs" />
@@ -1841,6 +1836,10 @@
   </ItemGroup>
   <ItemGroup>
     <Resource Include="OsLogo.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Images\MainWIndow\alor1.png" />
+    <Resource Include="Images\MainWIndow\alor2.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

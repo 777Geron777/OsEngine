@@ -633,7 +633,7 @@ namespace OsEngine.Market.Servers.BitGet.BitGetFutures
                 OrderStateType stateType = GetOrderState(item.status);
 
                 if (item.ordType.Equals("market") &&
-                    stateType == OrderStateType.Activ)
+                    stateType != OrderStateType.Done)
                 {
                     continue;
                 }
@@ -876,7 +876,7 @@ namespace OsEngine.Market.Servers.BitGet.BitGetFutures
 
             priceStep += "1";
 
-            return Convert.ToDecimal(priceStep);
+            return priceStep.ToDecimal();
         }
 
         private string GetPriceStep(int PricePlace, int PriceEndStep)
@@ -1407,5 +1407,9 @@ namespace OsEngine.Market.Servers.BitGet.BitGetFutures
             }
         }
 
+        public List<Candle> GetLastCandleHistory(Security security, TimeFrameBuilder timeFrameBuilder, int candleCount)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

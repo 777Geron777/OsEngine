@@ -48,6 +48,9 @@ using OsEngine.Market.Servers.BitMaxFutures;
 using OsEngine.Market.Servers.BybitSpot;
 using OsEngine.Market.Servers.BitGet.BitGetSpot;
 using OsEngine.Market.Servers.BitGet.BitGetFutures;
+using OsEngine.Market.Servers.Alor;
+using OsEngine.Market.Servers.GateIo.GateIoSpot;
+using OsEngine.Market.Servers.GateIo.GateIoFutures;
 
 namespace OsEngine.Market
 {
@@ -77,6 +80,7 @@ namespace OsEngine.Market
             {
                 List<ServerType> serverTypes = new List<ServerType>();
 
+                serverTypes.Add(ServerType.Alor);
                 serverTypes.Add(ServerType.QuikDde);
                 serverTypes.Add(ServerType.QuikLua);
                 serverTypes.Add(ServerType.Plaza);
@@ -86,7 +90,7 @@ namespace OsEngine.Market
                 serverTypes.Add(ServerType.MoexDataServer);
                 serverTypes.Add(ServerType.MfdWeb);
 
-                serverTypes.Add(ServerType.GateIo);
+                serverTypes.Add(ServerType.GateIoSpot);
                 serverTypes.Add(ServerType.GateIoFutures);
                 serverTypes.Add(ServerType.AscendEx_BitMax);
                 serverTypes.Add(ServerType.Binance);
@@ -186,6 +190,7 @@ namespace OsEngine.Market
             {
                 List<ServerType> serverTypes = new List<ServerType>();
 
+                serverTypes.Add(ServerType.Alor);
                 serverTypes.Add(ServerType.Finam);
                 serverTypes.Add(ServerType.MoexDataServer);
                 serverTypes.Add(ServerType.MfdWeb);
@@ -205,8 +210,6 @@ namespace OsEngine.Market
                 serverTypes.Add(ServerType.HuobiFuturesSwap);
                 serverTypes.Add(ServerType.Bybit);
                 serverTypes.Add(ServerType.OKX);
-                serverTypes.Add(ServerType.BitGetSpot);
-                serverTypes.Add(ServerType.BitGetFutures);
 
                 return serverTypes;
             }
@@ -303,6 +306,10 @@ namespace OsEngine.Market
                 SaveMostPopularServers(type);
 
                 IServer newServer = null;
+                if (type == ServerType.Alor)
+                {
+                    newServer = new AlorServer();
+                }
                 if (type == ServerType.BitGetFutures)
                 {
                     newServer = new BitGetServerFutures();
@@ -351,13 +358,13 @@ namespace OsEngine.Market
                 {
                     newServer = new HitbtcServer();
                 }
-                if (type == ServerType.GateIo)
+                if (type == ServerType.GateIoSpot)
                 {
-                    newServer = new GateIoServer();
+                    newServer = new GateIoServerSpot();
                 }
                 if (type == ServerType.GateIoFutures)
                 {
-                    newServer = new GateIoFuturesServer();
+                    newServer = new GateIoServerFutures();
                 }
                 if (type == ServerType.Bybit)
                 {
@@ -680,6 +687,19 @@ namespace OsEngine.Market
         {
             IServerPermission serverPermission = null;
 
+            if (type == ServerType.Alor)
+            {
+                serverPermission = _serversPermissions.Find(s => s.ServerType == type);
+
+                if (serverPermission == null)
+                {
+                    serverPermission = new AlorServerPermission();
+                    _serversPermissions.Add(serverPermission);
+                }
+
+                return serverPermission;
+            }
+
             if (type == ServerType.BitGetSpot)
             {
                 serverPermission = _serversPermissions.Find(s => s.ServerType == type);
@@ -882,7 +902,19 @@ namespace OsEngine.Market
 
                 if (serverPermission == null)
                 {
-                    serverPermission = new GateIoFuturesServerPermission();
+                    serverPermission = new GateIoServerFuturesPermission();
+                    _serversPermissions.Add(serverPermission);
+                }
+
+                return serverPermission;
+            }
+            if (type == ServerType.GateIoSpot)
+            {
+                serverPermission = _serversPermissions.Find(s => s.ServerType == type);
+
+                if (serverPermission == null)
+                {
+                    serverPermission = new GateIoSpotServerPermission();
                     _serversPermissions.Add(serverPermission);
                 }
 
@@ -1114,7 +1146,7 @@ namespace OsEngine.Market
             }
         }
 
-// доступ к портфелю, ордерам и его прорисовка
+        // доступ к портфелю, ордерам и его прорисовка
 
         /// <summary>
         /// start to draw class controls
@@ -1272,7 +1304,7 @@ namespace OsEngine.Market
         /// cryptocurrency exchange Gate.io
         /// биржа криптовалют Gate.io
         /// </summary>
-        GateIo,
+        GateIoSpot,
 
         /// <summary>
         /// Futures of cryptocurrency exchange Gate.io
